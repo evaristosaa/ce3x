@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+
+# Local runtime output
+*.log
+app/test-results/
+
+# Local secrets/configuration
+.env
+.env.*
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
