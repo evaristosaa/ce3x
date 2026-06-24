@@ -1,0 +1,509 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+import vm from 'node:vm';
+
+function loadCexHelpers() {
+  let source = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
+  source = source
+    .replace('cleanupLocalDataStorage();', '')
+    .replace('renderTabs();', '')
+    .replace('renderStorageMode();', '')
+    .replace('loadRecords();', '')
+    .replace(
+      "addChatMessage('assistant', 'Selecciona arriba el expediente para el chat. Casa 37 queda cargado como primer expediente; todo lo que dictes irÃ¡ al expediente seleccionado.');",
+      '',
+    );
+
+  const noopElement = {
+    addEventListener() {},
+    appendChild() {},
+    close() {},
+    querySelector() { return noopElement; },
+    remove() {},
+    showModal() {},
+    style: {},
+  };
+  const context = {
+    Blob,
+    TextDecoder,
+    TextEncoder,
+    URL,
+    URLSearchParams,
+    alert() {},
+    document: {
+      body: noopElement,
+      createElement() { return noopElement; },
+      querySelector() { return noopElement; },
+    },
+    localStorage: {
+      getItem() { return null; },
+      removeItem() {},
+      setItem() {},
+    },
+    navigator: {},
+    window: {
+      addEventListener() {},
+      crypto: { randomUUID: () => 'test-id' },
+      location: { protocol: 'http:', search: '' },
+      setTimeout,
+    },
+  };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(`${source}
+globalThis.__cexHelpers = {
+  alignCexEnvelopeReferences,
+  applyCexReplacements,
+  catastroPatchFromData,
+  emptyOnlyPatch,
+  serializeCexSystemsStream,
+  storedValueForPatchPath,
+  applyCexEmbeddedImageReplacements,
+  catastroSituationPlanModel,
+  hasUsefulCatastroData,
+  estimatedEnvelopePatch,
+  estimatedSystemsPatch,
+  criticalCexIssues,
+};`, context);
+  return context.__cexHelpers;
+}
+
+function loadAppsScriptHelpers() {
+  const source = readFileSync(new URL('../google-apps-script/Code.gs', import.meta.url), 'utf8');
+  const context = {
+    console,
+    Utilities: {
+      formatDate() { return '20260622-000000'; },
+      getUuid() { return 'test-uuid'; },
+    },
+    Session: {
+      getScriptTimeZone() { return 'Europe/Madrid'; },
+    },
+  };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(`${source}
+globalThis.__appsScriptHelpers = {
+  HEADERS,
+  recordToRow_,
+  rowToRecord_,
+};`, context);
+  return context.__appsScriptHelpers;
+}
+
+function unpickledTopLevelLength(pickleText) {
+  const result = spawnSync('python', ['-c', 'import pickle,sys; print(len(pickle.loads(sys.stdin.buffer.read())))'], {
+    input: Buffer.from(pickleText, 'latin1'),
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return Number(result.stdout.trim());
+}
+
+test('serializes every installation row into the CEX systems stream', () => {
+  const { serializeCexSystemsStream } = loadCexHelpers();
+  const stream = serializeCexSystemsStream(
+    [
+      { nombre: 'ACS principal', rendimientoEstacional: '100', tipoGenerador: 'Caldera Estándar', combustible: 'Electricidad', m2Cubiertos: '50', demandaCubierta: '60', modoDefinicion: 'Estimado según Instalación', zona: 'Edificio Objeto', acumulacion: 'Sí' },
+      { nombre: 'ACS apoyo', rendimientoEstacional: '95', tipoGenerador: 'Efecto Joule', combustible: 'Electricidad', m2Cubiertos: '20', demandaCubierta: '40', modoDefinicion: 'Estimado según Instalación', zona: 'Edificio Objeto', acumulacion: 'No' },
+    ],
+    [
+      { nombre: 'Calefacción principal', rendimientoEstacional: '180', tipoGenerador: 'Bomba de Calor', combustible: 'Electricidad', m2Cubiertos: '80', demandaCubierta: '70', modoDefinicion: 'Estimado según Instalación', zona: 'Edificio Objeto' },
+      { nombre: 'Calefacción apoyo', rendimientoEstacional: '120', tipoGenerador: 'Efecto Joule', combustible: 'Electricidad', m2Cubiertos: '30', demandaCubierta: '30', modoDefinicion: 'Estimado según Instalación', zona: 'Edificio Objeto' },
+    ],
+    [
+      { nombre: 'Refrigeración principal', rendimientoEstacional: '150', tipoGenerador: 'Bomba de Calor', combustible: 'Electricidad', m2Cubiertos: '80', demandaCubierta: '70', modoDefinicion: 'Estimado según Instalación', zona: 'Edificio Objeto' },
+      { nombre: 'Refrigeración apoyo', rendimientoEstacional: '110', tipoGenerador: 'Equipo autónomo', combustible: 'Electricidad', m2Cubiertos: '30', demandaCubierta: '30', modoDefinicion: 'Estimado según Instalación', zona: 'Edificio Objeto' },
+    ],
+    [
+      { nombre: 'FV cubierta', zona: 'Edificio Objeto', acsRenovable: '80', calefaccionRenovable: '10', refrigeracionRenovable: '5', calorRecuperadoAcs: '', calorRecuperadoCalefaccion: '', frioRecuperado: '', energiaConsumidaGeneracionElectricidad: '10200', combustible: 'Electricidad' },
+      { nombre: 'Solar térmica', zona: 'Edificio Objeto', acsRenovable: '20', calefaccionRenovable: '0', refrigeracionRenovable: '0', calorRecuperadoAcs: '', calorRecuperadoCalefaccion: '', frioRecuperado: '', energiaConsumidaGeneracionElectricidad: '500', combustible: 'Electricidad' },
+    ],
+  );
+
+  for (const expected of [
+    'ACS principal',
+    'ACS apoyo',
+    'Calefacción principal',
+    'Calefacción apoyo',
+    'FV cubierta',
+    'Solar térmica',
+  ]) {
+    assert.match(stream, new RegExp(expected));
+  }
+
+  assert.equal(unpickledTopLevelLength(stream), 12);
+});
+
+test('keeps envelope row counts and reassigns broken references to the remaining enclosure', () => {
+  const { alignCexEnvelopeReferences } = loadCexHelpers();
+  const aligned = alignCexEnvelopeReferences(
+    [
+      { nombre: 'Cubierta con aire', tipoCerramiento: 'Cubierta' },
+    ],
+    [
+      { nombre: 'Hueco 1', cerramientoAsociado: 'Muro de fachada no' },
+    ],
+    [
+      { nombre: 'PT fachada borrada', cerramientoAsociado: 'Muro de fachada no' },
+    ],
+  );
+
+  assert.deepEqual(aligned.cerramientos.map(row => row.nombre), ['Cubierta con aire']);
+  assert.deepEqual(aligned.huecos.map(row => [row.nombre, row.cerramientoAsociado]), [['Hueco 1', 'Cubierta con aire']]);
+  assert.deepEqual(aligned.puentes.map(row => [row.nombre, row.cerramientoAsociado]), [['PT fachada borrada', 'Cubierta con aire']]);
+});
+
+test('normalizes closed-list installation values before CEX serialization', () => {
+  const { serializeCexSystemsStream } = loadCexHelpers();
+  const stream = serializeCexSystemsStream(
+    [
+      { nombre: 'ACS libre', rendimientoEstacional: '100', tipoGenerador: 'Caldera Estandar', combustible: 'Electricidad', m2Cubiertos: '50', demandaCubierta: '60', modoDefinicion: 'Modo libre', zona: 'Zona libre', acumulacion: 'No' },
+    ],
+    [
+      { nombre: 'Calor libre', rendimientoEstacional: '120', tipoGenerador: 'Bomba de Calor', combustible: 'Electricidad', m2Cubiertos: '30', demandaCubierta: '30', modoDefinicion: 'Modo libre', zona: 'Zona libre' },
+    ],
+    [],
+    [
+      { nombre: 'Contrib libre', zona: 'Zona libre', acsRenovable: '20', calefaccionRenovable: '0', refrigeracionRenovable: '0', calorRecuperadoAcs: '', calorRecuperadoCalefaccion: '', frioRecuperado: '', energiaConsumidaGeneracionElectricidad: '500', combustible: 'Electricidad' },
+    ],
+  );
+
+  assert.doesNotMatch(stream, /Modo libre/);
+  assert.doesNotMatch(stream, /Zona libre/);
+  assert.match(stream, /Edificio Objeto/);
+});
+
+test('exports CE3X-compatible building type values in all general fields', () => {
+  const { applyCexReplacements } = loadCexHelpers();
+  const source = [
+    'VCTE 2013',
+    'p1',
+    'aVUnifamiliar',
+    'p2',
+    "S'tipoEdificio'",
+    'p5071',
+    'VUnifamiliar',
+    'p5072',
+  ].join('\r\n');
+  const next = applyCexReplacements(source, {
+    data: {
+      'generales.datos.normativaVigente': 'CTE 2013',
+      'generales.datos.tipoEdificio': 'Vivienda individual',
+    },
+  });
+
+  assert.match(next, /aVVivienda Individual\r\np2/);
+  assert.match(next, /S'tipoEdificio'\r\np5071\r\nVVivienda Individual\r\np5072/);
+  assert.doesNotMatch(next, /Vivienda individual/);
+});
+
+test('exports internal partition mass in all CE3X general fields', () => {
+  const { applyCexReplacements } = loadCexHelpers();
+  const source = [
+    'VCTE 2013',
+    'p1',
+    'aVUnifamiliar',
+    'p2',
+    'aVMedia',
+    'p11',
+    "S'masaParticiones'",
+    'p5001',
+    'VMedia',
+    'p5002',
+  ].join('\r\n');
+  const next = applyCexReplacements(source, {
+    data: {
+      'generales.datos.normativaVigente': 'CTE 2013',
+      'generales.datos.tipoEdificio': 'Unifamiliar',
+      'generales.definicion.masaParticionesInternas': 'Ligera',
+    },
+  });
+
+  assert.match(next, /aVLigera\r\np11/);
+  assert.match(next, /S'masaParticiones'\r\np5001\r\nVLigera\r\np5002/);
+  assert.doesNotMatch(next, /VMedia/);
+});
+
+test('builds estimated envelope rows from general building data', () => {
+  const { estimatedEnvelopePatch } = loadCexHelpers();
+  const patch = estimatedEnvelopePatch({
+    'generales.definicion.superficieUtilHabitable': '152',
+    'generales.definicion.numeroPlantasHabitables': '2',
+    'generales.definicion.alturaLibrePlanta': '2.60',
+  });
+
+  assert.equal(patch['envolvente.cerramientos.items'].length, 6);
+  assert.equal(patch['envolvente.huecos.items'].length, 4);
+  assert.ok(patch['envolvente.puentesTermicos.items'].length >= 3);
+  assert.equal(patch['envolvente.cerramientos.items'][0].modoDefinicion, 'Estimadas');
+});
+
+test('builds estimated system rows from useful surface', () => {
+  const { estimatedSystemsPatch } = loadCexHelpers();
+  const patch = estimatedSystemsPatch({
+    'generales.definicion.superficieUtilHabitable': '152',
+  });
+
+  assert.equal(patch['instalaciones.acs.items'][0].m2Cubiertos, '152');
+  assert.equal(patch['instalaciones.calefaccion.items'][0].tipoGenerador, 'Bomba de Calor');
+  assert.equal(patch['instalaciones.refrigeracion.items'][0].demandaCubierta, '100');
+  assert.equal(patch['instalaciones.contribuciones.items'][0].nombre, 'Sin contribuciones renovables');
+  assert.equal(patch['instalaciones.contribuciones.items'][0].acsRenovable, '0');
+});
+
+test('reports critical CE3X gaps before export', () => {
+  const { criticalCexIssues } = loadCexHelpers();
+  const issues = criticalCexIssues({ data: {} });
+
+  assert.ok(issues.includes('Tipo de edificio'));
+  assert.ok(issues.includes('Envolvente: cerramientos'));
+  assert.ok(issues.includes('Instalaciones: equipo ACS'));
+});
+
+test('maps Catastro data and fills reviewable CE3X estimates', () => {
+  const { catastroPatchFromData } = loadCexHelpers();
+  const patch = catastroPatchFromData({
+    referenciaCatastral: '0128501TG4302N0037ZI',
+    direccion: 'Calle Real 1',
+    provincia: 'SEVILLA',
+    localidad: 'Dos Hermanas',
+    codigoPostal: '41704',
+    uso: 'Residencial',
+    superficieCatastral: '120',
+    anioConstruccion: '1998',
+    x: '-5.93289982319168',
+    y: '37.3044423187296',
+    srs: 'EPSG:4326',
+    imagenEdificio: 'data:image/jpeg;base64,/9j/BUILDINGIMAGE',
+    planoSituacion: 'data:image/png;base64,iVBORw0KGgoCATASTROMAP',
+    construcciones: [
+      { destino: 'VIVIENDA', superficie: '17', planta: '-1' },
+      { destino: 'VIVIENDA', superficie: '75', planta: '00' },
+      { destino: 'VIVIENDA', superficie: '73', planta: '01' },
+      { destino: 'ALMACEN', superficie: '14' },
+    ],
+  });
+
+  assert.equal(patch['admin.localizacion.referenciaCatastral'], '0128501TG4302N0037ZI');
+  assert.equal(patch['generales.definicion.superficieUtilHabitable'], '165');
+  assert.equal(patch['generales.definicion.numeroPlantasHabitables'], '3');
+  assert.equal(patch['generales.definicion.alturaLibrePlanta'], '2.60');
+  assert.equal(patch['generales.definicion.ventilacionInmueble'], '0.63');
+  assert.equal(patch['generales.definicion.demandaDiariaACS'], '120');
+  assert.equal(patch['generales.definicion.imagenEdificio'], 'data:image/jpeg;base64,/9j/BUILDINGIMAGE');
+  assert.equal(patch.superficieCatastral, '120');
+  assert.equal(patch.uso, 'Residencial');
+  assert.equal(patch['catastro.x'], '-5.93289982319168');
+  assert.equal(patch['catastro.y'], '37.3044423187296');
+  assert.equal(patch['catastro.srs'], 'EPSG:4326');
+  assert.equal(patch['generales.definicion.planoSituacion'], 'data:image/png;base64,iVBORw0KGgoCATASTROMAP');
+});
+
+test('infers residential floors from construction rows when Catastro does not provide floor labels', () => {
+  const { catastroPatchFromData } = loadCexHelpers();
+  const patch = catastroPatchFromData({
+    uso: 'Residencial',
+    superficieCatastral: '240',
+    construcciones: [
+      { destino: 'VIVIENDA', superficie: '17' },
+      { destino: 'VIVIENDA', superficie: '75' },
+      { destino: 'VIVIENDA', superficie: '73' },
+      { destino: 'APARCAMIENTO', superficie: '31' },
+    ],
+  });
+
+  assert.equal(patch['generales.definicion.numeroPlantasHabitables'], '3');
+});
+
+test('keeps existing values when applying Catastro only to empty fields', () => {
+  const { emptyOnlyPatch } = loadCexHelpers();
+  const filtered = emptyOnlyPatch(
+    {
+      direccion: 'Resumen existente',
+      data: {
+        'admin.localizacion.direccion': 'Direccion existente',
+        'generales.definicion.superficieUtilHabitable': '',
+      },
+    },
+    {
+      direccion: 'Resumen Catastro',
+      'admin.localizacion.direccion': 'Direccion Catastro',
+      'generales.definicion.superficieUtilHabitable': '106',
+    },
+  );
+
+  assert.deepEqual(JSON.parse(JSON.stringify(filtered)), {
+    'generales.definicion.superficieUtilHabitable': '106',
+  });
+});
+
+test('allows Catastro image data to replace non-image placeholders', () => {
+  const { emptyOnlyPatch } = loadCexHelpers();
+  const filtered = emptyOnlyPatch(
+    {
+      data: {
+        'generales.definicion.planoSituacion': 'Catastro: 7150427TG3475S0001RG',
+      },
+    },
+    {
+      'generales.definicion.planoSituacion': 'data:image/png;base64,iVBORw0KGgoREALPLAN',
+    },
+  );
+
+  assert.equal(
+    filtered['generales.definicion.planoSituacion'],
+    'data:image/png;base64,iVBORw0KGgoREALPLAN',
+  );
+});
+
+test('verifies flat Google Sheet fields outside nested CE3X data', () => {
+  const { storedValueForPatchPath } = loadCexHelpers();
+  const record = {
+    uso: 'Residencial',
+    superficieCatastral: '120',
+    data: {
+      'generales.definicion.superficieUtilHabitable': '106',
+    },
+  };
+
+  assert.equal(storedValueForPatchPath(record, 'uso'), 'Residencial');
+  assert.equal(storedValueForPatchPath(record, 'superficieCatastral'), '120');
+  assert.equal(storedValueForPatchPath(record, 'generales.definicion.superficieUtilHabitable'), '106');
+});
+
+test('stores long image fields across multiple Google Sheet cells', () => {
+  const { HEADERS, recordToRow_, rowToRecord_ } = loadAppsScriptHelpers();
+  const image = 'data:image/png;base64,' + 'A'.repeat(120000);
+  const row = recordToRow_({
+    id: 'exp-long-image',
+    data: {
+      'generales.definicion.planoSituacion': image,
+    },
+  });
+
+  const planCells = HEADERS
+    .map((header, index) => [header, row[index]])
+    .filter(([header]) => String(header).startsWith('generales.definicion.planoSituacion'));
+
+  assert.ok(planCells.length > 1);
+  assert.ok(planCells.every(([, value]) => String(value || '').length < 50000));
+
+  const restored = rowToRecord_(row, HEADERS);
+  assert.equal(restored.data['generales.definicion.planoSituacion'], image);
+});
+
+test('embeds building and situation plan images into CEX pickle text', () => {
+  const { applyCexEmbeddedImageReplacements } = loadCexHelpers();
+  const source = [
+    "S'imagen'",
+    'p1',
+    "S'OLD_IMAGE_BASE64'",
+    'p2',
+    "S'plano'",
+    'p3',
+    "S'OLD_PLAN_BASE64'",
+    'p4',
+  ].join('\n');
+  const next = applyCexEmbeddedImageReplacements(source, {
+    data: {
+      'generales.definicion.imagenEdificio': 'data:image/png;base64,iVBORw0KGgoNEWIMAGEBASE64',
+      'generales.definicion.planoSituacion': 'data:image/png;base64,iVBORw0KGgoNEWPLANBASE64',
+    },
+  });
+
+  assert.match(next, /S'iVBORw0KGgoNEWIMAGEBASE64'/);
+  assert.match(next, /S'iVBORw0KGgoNEWPLANBASE64'/);
+  assert.doesNotMatch(next, /OLD_IMAGE_BASE64/);
+  assert.doesNotMatch(next, /OLD_PLAN_BASE64/);
+});
+
+test('embeds images when CEX pickle text uses CRLF line endings', () => {
+  const { applyCexEmbeddedImageReplacements } = loadCexHelpers();
+  const source = [
+    "S'imagen'",
+    'p4696',
+    "S'OLD_IMAGE_BASE64'",
+    'p4697',
+    "S'plano'",
+    'p5076',
+    "S'OLD_PLAN_BASE64'",
+    'p5077',
+  ].join('\r\n');
+  const next = applyCexEmbeddedImageReplacements(source, {
+    data: {
+      'generales.definicion.imagenEdificio': 'data:image/jpeg;base64,/9j/NEWIMAGEBASE64',
+      'generales.definicion.planoSituacion': 'data:image/png;base64,iVBORw0KGgoNEWPLANBASE64',
+    },
+  });
+
+  assert.match(next, /S'\/9j\/NEWIMAGEBASE64'/);
+  assert.match(next, /S'iVBORw0KGgoNEWPLANBASE64'/);
+  assert.doesNotMatch(next, /OLD_IMAGE_BASE64/);
+  assert.doesNotMatch(next, /OLD_PLAN_BASE64/);
+});
+
+test('embeds images into top-level CE3X preview copies as well as keyed fields', () => {
+  const { applyCexEmbeddedImageReplacements } = loadCexHelpers();
+  const oldImage = 'iVBORw0KGgo' + 'A'.repeat(1200);
+  const oldPlan = 'iVBORw0KGgo' + 'B'.repeat(1200);
+  const source = [
+    "S'" + oldImage + "'",
+    'p16',
+    'a',
+    "S'" + oldPlan + "'",
+    'p17',
+    'a',
+    "S'imagen'",
+    'p4696',
+    "S'" + oldImage + "'",
+    "S'plano'",
+    'p5076',
+    "S'" + oldPlan + "'",
+  ].join('\r\n');
+  const next = applyCexEmbeddedImageReplacements(source, {
+    data: {
+      'generales.definicion.imagenEdificio': 'data:image/jpeg;base64,/9j/NEWIMAGEBASE64',
+      'generales.definicion.planoSituacion': 'data:image/png;base64,iVBORw0KGgoNEWPLANBASE64',
+    },
+  });
+
+  assert.equal((next.match(/\/9j\/NEWIMAGEBASE64/g) || []).length, 2);
+  assert.equal((next.match(/iVBORw0KGgoNEWPLANBASE64/g) || []).length, 2);
+  assert.doesNotMatch(next, new RegExp(oldImage));
+  assert.doesNotMatch(next, new RegExp(oldPlan));
+});
+
+test('builds situation plan model from Catastro patch data', () => {
+  const { catastroSituationPlanModel } = loadCexHelpers();
+  const model = catastroSituationPlanModel({
+    'admin.localizacion.referenciaCatastral': '0128501TG4302N0004BU',
+    'admin.localizacion.direccion': 'PL SEN-1 ENTRENUCLEOS 40(D)',
+    'admin.localizacion.localidad': 'Dos Hermanas',
+    'catastro.x': '-5.93289982319168',
+    'catastro.y': '37.3044423187296',
+    'catastro.srs': 'EPSG:4326',
+  });
+
+  assert.equal(model.reference, '0128501TG4302N0004BU');
+  assert.equal(model.title, 'Plano de situación');
+  assert.equal(model.subtitle, 'PL SEN-1 ENTRENUCLEOS 40(D), Dos Hermanas');
+  assert.equal(model.x, '-5.93289982319168');
+  assert.equal(model.y, '37.3044423187296');
+});
+
+test('rejects Catastro responses without building data', () => {
+  const { hasUsefulCatastroData } = loadCexHelpers();
+
+  assert.equal(hasUsefulCatastroData({
+    referenciaCatastral: '0128501TG4302N0004BU',
+    x: '-5.93289982319168',
+    y: '37.3044423187296',
+  }), false);
+  assert.equal(hasUsefulCatastroData({
+    referenciaCatastral: '0128501TG4302N0004BU',
+    direccion: 'PL SEN-1 ENTRENUCLEOS 40(D)',
+  }), true);
+});

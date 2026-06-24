@@ -1,5 +1,6 @@
 const SHEET_NAME = 'referencias';
 const APP_SECRET = 'CAMBIAR_ESTE_SECRETO';
+const GOOGLE_MAPS_API_KEY = '';
 const LEGACY_RAW_JSON_HEADERS = [
   'rawJson',
   'rawJson2',
@@ -63,6 +64,9 @@ const SCALAR_DATA_PATHS = [
   'generales.definicion.ensayoEstanqueidad',
   'generales.definicion.imagenEdificio',
   'generales.definicion.planoSituacion',
+  'catastro.x',
+  'catastro.y',
+  'catastro.srs',
 ];
 const JSON_DATA_PATHS = [
   'envolvente.cerramientos.items',
@@ -73,6 +77,18 @@ const JSON_DATA_PATHS = [
   'instalaciones.refrigeracion.items',
   'instalaciones.contribuciones.items',
 ];
+const LONG_TEXT_DATA_PATHS = [
+  'generales.definicion.imagenEdificio',
+  'generales.definicion.planoSituacion',
+];
+const LONG_TEXT_CHUNK_SIZE = 45000;
+const LONG_TEXT_CHUNK_COUNT = 8;
+const LONG_TEXT_CHUNK_HEADERS = LONG_TEXT_DATA_PATHS.reduce(function(headers, path) {
+  for (let index = 2; index <= LONG_TEXT_CHUNK_COUNT; index += 1) {
+    headers.push(path + '#' + index);
+  }
+  return headers;
+}, []);
 
 const BASE_HEADERS = [
   'id',
@@ -99,7 +115,7 @@ const BASE_HEADERS = [
   'updatedAt',
 ];
 
-const HEADERS = BASE_HEADERS.concat(SCALAR_DATA_PATHS, JSON_DATA_PATHS);
+const HEADERS = BASE_HEADERS.concat(SCALAR_DATA_PATHS, JSON_DATA_PATHS, LONG_TEXT_CHUNK_HEADERS);
 
 function setup() {
   getSheet_();
@@ -418,6 +434,10 @@ function getCatastro_(reference) {
     throw new Error('Catastro respondio HTTP ' + response.getResponseCode());
   }
   const xml = response.getContentText();
+  assertCatastroResponseOk_(xml);
+  const coordinates = getCatastroCoordinates_(rc);
+  const streetViewImage = getStreetViewImage_(coordinates);
+  const situationPlanImage = getCatastroSituationPlanImage_(coordinates);
   return {
     referenciaCatastral: rc,
     direccion: extractTag_(xml, 'ldt'),
@@ -428,7 +448,114 @@ function getCatastro_(reference) {
     superficieCatastral: extractTag_(xml, 'sfc'),
     anioConstruccion: extractTag_(xml, 'ant'),
     construcciones: extractConstructions_(xml),
+    x: coordinates.x,
+    y: coordinates.y,
+    srs: coordinates.srs,
+    imagenEdificio: streetViewImage,
+    planoSituacion: situationPlanImage,
   };
+}
+
+function assertCatastroResponseOk_(xml) {
+  const errorCount = extractTag_(xml, 'cuerr');
+  const errorMessage = extractTag_(xml, 'des');
+  if (errorCount && errorCount !== '0') {
+    throw new Error('Catastro no devolvio datos: ' + (errorMessage || 'servicio no disponible'));
+  }
+  if (String(xml || '').match(/<(?:\w+:)?lerr\b/i)) {
+    throw new Error('Catastro no devolvio datos: ' + (errorMessage || 'servicio no disponible'));
+  }
+}
+
+function getCatastroCoordinates_(reference) {
+  try {
+    const parcelReference = normalizeReference_(reference).slice(0, 14);
+    if (parcelReference.length !== 14) return {};
+    const url = 'https://ovc.catastro.meh.es/OVCServWeb/OVCSWLocalizacionRC/OVCCoordenadas.asmx/Consulta_CPMRC?Provincia=&Municipio=&SRS=EPSG:4326&RC=' + encodeURIComponent(parcelReference);
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (response.getResponseCode() >= 400) return {};
+    const xml = response.getContentText();
+    return {
+      x: extractTag_(xml, 'xcen'),
+      y: extractTag_(xml, 'ycen'),
+      srs: extractTag_(xml, 'srs') || 'EPSG:4326',
+    };
+  } catch (error) {
+    return {};
+  }
+}
+
+function getStreetViewImage_(coordinates) {
+  try {
+    if (!GOOGLE_MAPS_API_KEY || !coordinates || !coordinates.x || !coordinates.y) return '';
+    const location = coordinates.y + ',' + coordinates.x;
+    const metadataUrl = 'https://maps.googleapis.com/maps/api/streetview/metadata?'
+      + 'location=' + encodeURIComponent(location)
+      + '&source=outdoor'
+      + '&key=' + encodeURIComponent(GOOGLE_MAPS_API_KEY);
+    const metadataResponse = UrlFetchApp.fetch(metadataUrl, { muteHttpExceptions: true });
+    if (metadataResponse.getResponseCode() >= 400) return '';
+    const metadata = JSON.parse(metadataResponse.getContentText() || '{}');
+    if (metadata.status !== 'OK') return '';
+
+    const imageUrl = 'https://maps.googleapis.com/maps/api/streetview?'
+      + 'size=640x480'
+      + '&location=' + encodeURIComponent(location)
+      + '&source=outdoor'
+      + '&fov=80'
+      + '&pitch=0'
+      + '&key=' + encodeURIComponent(GOOGLE_MAPS_API_KEY);
+    const imageResponse = UrlFetchApp.fetch(imageUrl, { muteHttpExceptions: true });
+    if (imageResponse.getResponseCode() >= 400) return '';
+    const blob = imageResponse.getBlob();
+    const contentType = blob.getContentType() || 'image/jpeg';
+    return 'data:' + contentType + ';base64,' + Utilities.base64Encode(blob.getBytes());
+  } catch (error) {
+    return '';
+  }
+}
+
+function getCatastroSituationPlanImage_(coordinates) {
+  try {
+    if (!coordinates || !coordinates.x || !coordinates.y) return '';
+    const url = catastroWmsMapUrl_(coordinates);
+    if (!url) return '';
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (response.getResponseCode() >= 400) return '';
+    const blob = response.getBlob();
+    const contentType = blob.getContentType() || 'image/png';
+    if (!String(contentType).match(/^image\//i)) return '';
+    return 'data:' + contentType + ';base64,' + Utilities.base64Encode(blob.getBytes());
+  } catch (error) {
+    return '';
+  }
+}
+
+function catastroWmsMapUrl_(coordinates) {
+  const x = Number(String(coordinates.x || '').replace(',', '.'));
+  const y = Number(String(coordinates.y || '').replace(',', '.'));
+  if (!isFinite(x) || !isFinite(y)) return '';
+  const longitudeSpan = 0.0011;
+  const latitudeSpan = 0.00085;
+  const bbox = [
+    x - longitudeSpan / 2,
+    y - latitudeSpan / 2,
+    x + longitudeSpan / 2,
+    y + latitudeSpan / 2,
+  ].map(function(value) {
+    return String(Math.round(value * 100000000000000) / 100000000000000);
+  }).join(',');
+  return 'https://ovc.catastro.meh.es/Cartografia/WMS/ServidorWMS.aspx'
+    + '?SERVICE=WMS'
+    + '&VERSION=1.1.1'
+    + '&REQUEST=GetMap'
+    + '&SRS=' + encodeURIComponent(coordinates.srs || 'EPSG:4326')
+    + '&BBOX=' + encodeURIComponent(bbox)
+    + '&WIDTH=800'
+    + '&HEIGHT=600'
+    + '&LAYERS=Catastro'
+    + '&STYLES='
+    + '&FORMAT=image/png';
 }
 
 function findRowById_(sheet, id) {
@@ -469,7 +596,12 @@ function rowToRecord_(row, headers) {
   }
   next.data = Object.assign({}, next.data || {});
   SCALAR_DATA_PATHS.forEach(function(path) {
-    if (hasCellValue_(record[path])) next.data[path] = record[path];
+    if (isLongTextPath_(path)) {
+      const longValue = longTextFromRecord_(record, path);
+      if (hasCellValue_(longValue)) next.data[path] = longValue;
+    } else if (hasCellValue_(record[path])) {
+      next.data[path] = record[path];
+    }
   });
   JSON_DATA_PATHS.forEach(function(path) {
     if (!hasCellValue_(record[path])) return;
@@ -486,10 +618,39 @@ function rowToRecord_(row, headers) {
 function recordToRow_(record) {
   const data = record.data || {};
   return HEADERS.map(function(header) {
-    if (SCALAR_DATA_PATHS.indexOf(header) >= 0) return cellValue_(data[header]);
+    if (SCALAR_DATA_PATHS.indexOf(header) >= 0) {
+      if (isLongTextPath_(header)) return longTextChunk_(data[header], 1);
+      return cellValue_(data[header]);
+    }
+    const chunk = longTextChunkHeader_(header);
+    if (chunk) return longTextChunk_(data[chunk.path], chunk.index);
     if (JSON_DATA_PATHS.indexOf(header) >= 0) return jsonCellValue_(data[header], header);
     return cellValue_(record[header]);
   });
+}
+
+function isLongTextPath_(path) {
+  return LONG_TEXT_DATA_PATHS.indexOf(path) >= 0;
+}
+
+function longTextChunkHeader_(header) {
+  const match = String(header || '').match(/^(.+)#(\d+)$/);
+  if (!match || !isLongTextPath_(match[1])) return null;
+  return { path: match[1], index: Number(match[2]) };
+}
+
+function longTextChunk_(value, index) {
+  const text = String(value || '');
+  const start = (index - 1) * LONG_TEXT_CHUNK_SIZE;
+  return text.slice(start, start + LONG_TEXT_CHUNK_SIZE);
+}
+
+function longTextFromRecord_(record, path) {
+  const chunks = [record[path] || ''];
+  for (let index = 2; index <= LONG_TEXT_CHUNK_COUNT; index += 1) {
+    chunks.push(record[path + '#' + index] || '');
+  }
+  return chunks.join('');
 }
 
 function rawJsonFromRecord_(record) {
@@ -527,9 +688,12 @@ function addSummaryFields_(record) {
   record.municipio = valueFromData_(record, 'admin.localizacion.localidad') || record.municipio || '';
   record.provincia = valueFromData_(record, 'admin.localizacion.provincia') || record.provincia || '';
   record.codigoPostal = valueFromData_(record, 'admin.localizacion.codigoPostal') || record.codigoPostal || '';
+  record.uso = valueFromData_(record, 'uso') || record.uso || '';
   record.tipoEdificio = valueFromData_(record, 'generales.datos.tipoEdificio') || record.tipoEdificio || '';
   record.superficieUtil = valueFromData_(record, 'generales.definicion.superficieUtilHabitable') || record.superficieUtil || '';
+  record.superficieCatastral = valueFromData_(record, 'superficieCatastral') || record.superficieCatastral || '';
   record.anioConstruccion = valueFromData_(record, 'generales.datos.anioConstruccion') || record.anioConstruccion || '';
+  record.plantas = valueFromData_(record, 'generales.definicion.numeroPlantasHabitables') || record.plantas || '';
 }
 
 function valueFromData_(record, path) {
@@ -553,6 +717,7 @@ function extractConstructions_(xml) {
     return {
       destino: extractTag_(block, 'lcd'),
       superficie: extractTag_(block, 'stl'),
+      planta: extractTag_(block, 'pt'),
     };
   }).filter(function(item) {
     return item.destino || item.superficie;

@@ -162,8 +162,8 @@ const SECTIONS = [
       field('demandaDiariaACS', 'Demanda diaria de ACS', 'number', { unit: 'l/día' }),
       field('masaParticionesInternas', 'Masa de las particiones internas', 'select', { optionsKey: 'masaParticionesInternas' }),
       field('ensayoEstanqueidad', 'Se ha ensayado la estanqueidad del edificio', 'select', { optionsKey: 'ensayoEstanqueidad' }),
-      field('imagenEdificio', 'Imagen edificio'),
-      field('planoSituacion', 'Plano situación'),
+      field('imagenEdificio', 'Imagen edificio', 'image'),
+      field('planoSituacion', 'Plano situación', 'image'),
     ]),
   ]),
   section('envolvente', 'Envolvente térmica', [
@@ -220,7 +220,7 @@ const SECTIONS = [
         columns: [
           col('nombre', 'Nombre'),
           col('tipoEquipo', 'Tipo de equipo', 'select', 'tipoEquipo'),
-          col('modoDefinicion', 'Modo definición'),
+          col('modoDefinicion', 'Modo definición', 'select', 'modoDefinicion'),
           col('tipoGenerador', 'Tipo generador', 'select', 'tipoGenerador'),
           col('combustible', 'Combustible', 'select', 'combustible'),
           col('rendimientoEstacional', 'Rendimiento estacional (%)'),
@@ -236,7 +236,7 @@ const SECTIONS = [
         columns: [
           col('nombre', 'Nombre'),
           col('tipoEquipo', 'Tipo de equipo', 'select', 'tipoEquipo'),
-          col('modoDefinicion', 'Modo definición'),
+          col('modoDefinicion', 'Modo definición', 'select', 'modoDefinicion'),
           col('tipoGenerador', 'Tipo generador', 'select', 'tipoGenerador'),
           col('combustible', 'Combustible', 'select', 'combustible'),
           col('rendimientoEstacional', 'Rendimiento estacional (%)'),
@@ -251,7 +251,7 @@ const SECTIONS = [
         columns: [
           col('nombre', 'Nombre'),
           col('tipoEquipo', 'Tipo de equipo', 'select', 'tipoEquipo'),
-          col('modoDefinicion', 'Modo definición'),
+          col('modoDefinicion', 'Modo definición', 'select', 'modoDefinicion'),
           col('tipoGenerador', 'Tipo generador', 'select', 'tipoGenerador'),
           col('combustible', 'Combustible', 'select', 'combustible'),
           col('rendimientoEstacional', 'Rendimiento estacional (%)'),
@@ -265,7 +265,7 @@ const SECTIONS = [
       field('items', 'Contribuciones energéticas', 'table', {
         columns: [
           col('nombre', 'Nombre'),
-          col('zona', 'Zona'),
+          col('zona', 'Zona', 'select', 'zona'),
           col('acsRenovable', '% demanda ACS cubierto con renovables'),
           col('calefaccionRenovable', '% calefacción cubierto con renovables'),
           col('refrigeracionRenovable', '% refrigeración cubierto con renovables'),
@@ -370,6 +370,8 @@ const copySourceSelect = document.querySelector('#copySourceSelect');
 
 document.querySelector('#newBtn').addEventListener('click', () => createNewRecord().catch(error => addChatMessage('assistant', sheetErrorHelp(error))));
 document.querySelector('#catastroBtn').addEventListener('click', loadCatastroForSelected);
+document.querySelector('#autoEnvelopeBtn').addEventListener('click', autocompleteEnvelopeForSelected);
+document.querySelector('#autoSystemsBtn').addEventListener('click', autocompleteSystemsForSelected);
 document.querySelector('#copyDataBtn').addEventListener('click', openCopyDataDialog);
 document.querySelector('#deleteRecordBtn').addEventListener('click', deleteSelectedRecord);
 document.querySelector('#configBtn').addEventListener('click', openConfig);
@@ -711,9 +713,32 @@ function inputHtml(item, path, value) {
   if (item.type === 'table') return tableHtml(item, path, value);
   if (item.type === 'textarea') return `<textarea name="${escapeHtml(path)}" rows="5">${escapeHtml(value)}</textarea>`;
   if (item.type === 'select') return selectHtml(path, value, SELECT_OPTIONS[item.optionsKey] || []);
+  if (item.type === 'image') return imageInputHtml(path, value);
   const type = item.type === 'number' ? 'text' : item.type;
   const unit = item.unit ? `<small>${escapeHtml(item.unit)}</small>` : '';
   return `<span class="input-with-unit"><input type="${type}" name="${escapeHtml(path)}" value="${escapeHtml(value)}" autocomplete="off">${unit}</span>`;
+}
+
+function imageInputHtml(path, value) {
+  const text = String(value || '').trim();
+  const preview = imagePreviewHtml(text);
+  return `
+    <div class="image-field" data-image-field="${escapeHtml(path)}">
+      <input type="hidden" name="${escapeHtml(path)}" value="${escapeHtml(text)}">
+      ${preview}
+      <input type="file" accept="image/png,image/jpeg" data-image-upload="${escapeHtml(path)}">
+    </div>
+  `;
+}
+
+function imagePreviewHtml(value) {
+  if (value.startsWith('data:image/')) {
+    return `<img class="image-preview" src="${escapeHtml(value)}" alt="Vista previa">`;
+  }
+  if (/^https?:\/\//i.test(value)) {
+    return `<a class="image-link" href="${escapeHtml(value)}" target="_blank" rel="noopener">Abrir plano</a>`;
+  }
+  return '<span class="image-empty">Sin imagen</span>';
 }
 
 function selectHtml(path, value, options) {
@@ -763,9 +788,10 @@ function tableRowHtml(columns, rowItem, index) {
 
 function selectCellHtml(attrs, value, options) {
   const current = String(value || '');
-  const allOptions = current && !options.includes(current) ? [current].concat(options) : options;
+  const selectedValue = options.includes(current) ? current : (options[0] || '');
+  const allOptions = options.length ? options : (current ? [current] : []);
   return `<select ${attrs}>${allOptions.map(option => {
-    const selected = option === current ? ' selected' : '';
+    const selected = option === selectedValue ? ' selected' : '';
     return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
   }).join('')}</select>`;
 }
@@ -798,6 +824,12 @@ sectionFields.addEventListener('click', event => {
 });
 
 sectionFields.addEventListener('change', event => {
+  const imageUpload = event.target.closest('[data-image-upload]');
+  if (imageUpload) {
+    handleImageUpload(imageUpload);
+    return;
+  }
+
   const selectAll = event.target.closest('[data-select-all-rows]');
   if (selectAll) {
     const table = selectAll.closest('[data-table]');
@@ -811,6 +843,26 @@ sectionFields.addEventListener('change', event => {
   const rowSelect = event.target.closest('[data-row-select]');
   if (rowSelect) updateTableSelectionState(rowSelect.closest('[data-table]'));
 });
+
+function handleImageUpload(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!/^image\/(?:png|jpeg)$/.test(file.type)) {
+    addChatMessage('assistant', 'Elige una imagen PNG o JPEG para CE3X.');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const field = input.closest('[data-image-field]');
+    const hidden = field?.querySelector('input[type="hidden"]');
+    if (!field || !hidden) return;
+    hidden.value = String(reader.result || '');
+    const previous = field.querySelector('.image-preview, .image-link, .image-empty');
+    if (previous) previous.outerHTML = imagePreviewHtml(hidden.value);
+  };
+  reader.readAsDataURL(file);
+}
 
 function renumberTableRows(table) {
   table.querySelectorAll('tbody tr').forEach((row, index) => {
@@ -868,6 +920,18 @@ function showListView() {
 
 function selectedRecord() {
   return state.records.find(record => record.id === state.selectedId) || state.draft || null;
+}
+
+function selectedRecordWithCurrentFormData() {
+  const record = selectedRecord();
+  if (!record) return null;
+  if (detailView.hidden) return record;
+  const data = Object.assign({}, record.data);
+  Array.from(new FormData(detailForm).entries()).forEach(([path, value]) => {
+    data[path] = String(value || '').trim();
+  });
+  collectTables(data);
+  return Object.assign({}, record, { data });
 }
 
 function activeChatRecord() {
@@ -985,6 +1049,185 @@ function collectTables(data) {
     }).filter(item => Object.values(item).some(Boolean));
     data[path] = rows;
   });
+}
+
+async function autocompleteEnvelopeForSelected() {
+  const record = selectedRecordWithCurrentFormData();
+  if (!record) return;
+  const data = Object.assign({}, record.data, estimatedEnvelopePatch(record.data || {}));
+  await persistAutocompletePatch(record, data, envelopeDataPaths(), 'Envolvente térmica autocompletada con valores estimados revisables.');
+  state.activeSection = 'envolvente';
+}
+
+async function autocompleteSystemsForSelected() {
+  const record = selectedRecordWithCurrentFormData();
+  if (!record) return;
+  const data = Object.assign({}, record.data, estimatedSystemsPatch(record.data || {}));
+  await persistAutocompletePatch(record, data, systemsDataPaths(), 'Instalaciones autocompletadas con una plantilla básica revisable.');
+  state.activeSection = 'instalaciones';
+}
+
+async function persistAutocompletePatch(record, data, paths, message) {
+  const optimistic = normalizeRecord(Object.assign({}, record, { data, updatedAt: new Date().toISOString() }));
+  addSummaryFields(optimistic);
+  upsertRecord(optimistic);
+  state.selectedId = optimistic.id;
+  state.activeChatId = optimistic.id;
+  state.rightView = 'detail';
+  renderAll();
+  try {
+    const saved = await persistRecordPatch(optimistic, paths);
+    addChatMessage('assistant', message + ' Guardado en Google Sheet.');
+    upsertRecord(saved);
+    renderAll();
+  } catch (error) {
+    showSyncAlert(sheetErrorHelp(error));
+    addChatMessage('assistant', message + ' Lo he aplicado en pantalla, pero Google Sheet no ha guardado: ' + sheetErrorHelp(error));
+  }
+}
+
+function envelopeDataPaths() {
+  return [
+    'envolvente.cerramientos.items',
+    'envolvente.huecos.items',
+    'envolvente.puentesTermicos.items',
+  ];
+}
+
+function systemsDataPaths() {
+  return [
+    'instalaciones.acs.items',
+    'instalaciones.calefaccion.items',
+    'instalaciones.refrigeracion.items',
+    'instalaciones.contribuciones.items',
+  ];
+}
+
+function estimatedEnvelopePatch(data) {
+  const noShadow = SELECT_OPTIONS.patronSombras[0] || 'Sin patrón';
+  const surface = Math.max(1, Number(cexDecimal(data['generales.definicion.superficieUtilHabitable'] || data.superficieCatastral || 100)));
+  const floors = Math.max(1, Math.round(Number(cexDecimal(data['generales.definicion.numeroPlantasHabitables'] || 1))));
+  const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.6)));
+  const footprint = surface / floors;
+  const side = Math.sqrt(footprint);
+  const perimeter = side * 4;
+  const facadeArea = perimeter * height * floors;
+  const openingArea = facadeArea * 0.22;
+  const wallArea = Math.max(1, (facadeArea - openingArea) / 4);
+  const openingPerOrientation = Math.max(0.8, openingArea / 4);
+  const orientationRows = [
+    ['N', 'Fachada N'],
+    ['S', 'Fachada S'],
+    ['E', 'Fachada E'],
+    ['O', 'Fachada O'],
+  ];
+  const cerramientos = [
+    { nombre: 'Cubierta estimada', tipoCerramiento: 'Cubierta', superficie: decimalForApp(footprint), u: '0.65', peso: '300', posicion: 'Techo', modoDefinicion: 'Estimadas', patronSombras: noShadow },
+    { nombre: 'Suelo estimado', tipoCerramiento: 'Suelo', superficie: decimalForApp(footprint), u: '0.80', peso: '750', posicion: 'Suelo', modoDefinicion: 'Estimadas', patronSombras: noShadow },
+  ].concat(orientationRows.map(([orientation, name]) => ({
+    nombre: name,
+    tipoCerramiento: 'Fachada',
+    superficie: decimalForApp(wallArea),
+    u: '1.20',
+    peso: '200',
+    posicion: orientation,
+    modoDefinicion: 'Estimadas',
+    patronSombras: noShadow,
+  })));
+  const huecos = orientationRows.map(([orientation, wallName], index) => ({
+    nombre: `Hueco estimado ${orientation}`,
+    cerramientoAsociado: wallName,
+    longitud: decimalForApp(Math.sqrt(openingPerOrientation)),
+    altura: decimalForApp(Math.sqrt(openingPerOrientation)),
+    multiplicador: '1',
+    superficie: decimalForApp(openingPerOrientation),
+    uVidrio: '3.30',
+    gVidrio: '0.75',
+    uMarco: '4.00',
+    porcMarco: '20',
+    absortividadMarco: '0.65',
+    modoDefinicion: 'Estimadas',
+    permeabilidad: '50',
+    orientacion: orientation,
+    patronSombras: noShadow,
+  }));
+  const puentes = [
+    { nombre: 'PT fachada-cubierta estimado', cerramientoAsociado: 'Cubierta estimada', tipoPuenteTermico: 'Encuentro de fachada con cubierta', fi: '0.82', longitud: decimalForApp(perimeter) },
+    { nombre: 'PT fachada-suelo estimado', cerramientoAsociado: 'Suelo estimado', tipoPuenteTermico: 'Encuentro de fachada con solera', fi: '0.14', longitud: decimalForApp(perimeter) },
+  ].concat(orientationRows.map(([orientation, wallName]) => ({
+    nombre: `PT pilares ${orientation} estimado`,
+    cerramientoAsociado: wallName,
+    tipoPuenteTermico: 'Pilar integrado en fachada',
+    fi: '1.05',
+    longitud: decimalForApp(height * floors),
+  })));
+  return {
+    'envolvente.cerramientos.items': cerramientos,
+    'envolvente.huecos.items': huecos,
+    'envolvente.puentesTermicos.items': puentes,
+  };
+}
+
+function estimatedSystemsPatch(data) {
+  const estimatedBySystem = SELECT_OPTIONS.modoDefinicion[3] || 'Estimado según Instalación';
+  const electric = SELECT_OPTIONS.combustible[0] || 'Electricidad';
+  const buildingZone = SELECT_OPTIONS.zona[0] || 'Edificio Objeto';
+  const yes = SELECT_OPTIONS.acumulacion[0] || 'Sí';
+  const surface = decimalForApp(Math.max(1, Number(cexDecimal(data['generales.definicion.superficieUtilHabitable'] || data.superficieCatastral || 100))));
+  return {
+    'instalaciones.acs.items': [{
+      nombre: 'ACS estimado',
+      tipoEquipo: 'ACS',
+      modoDefinicion: estimatedBySystem,
+      tipoGenerador: 'Caldera Estándar',
+      combustible: electric,
+      rendimientoEstacional: '100',
+      m2Cubiertos: surface,
+      demandaCubierta: '100',
+      zona: buildingZone,
+      acumulacion: yes,
+    }],
+    'instalaciones.calefaccion.items': [{
+      nombre: 'Calefacción estimada',
+      tipoEquipo: 'Calefacción',
+      modoDefinicion: estimatedBySystem,
+      tipoGenerador: 'Bomba de Calor',
+      combustible: electric,
+      rendimientoEstacional: '180',
+      m2Cubiertos: surface,
+      demandaCubierta: '100',
+      zona: buildingZone,
+    }],
+    'instalaciones.refrigeracion.items': [{
+      nombre: 'Refrigeración estimada',
+      tipoEquipo: 'Refrigeración',
+      modoDefinicion: estimatedBySystem,
+      tipoGenerador: 'Bomba de Calor',
+      combustible: electric,
+      rendimientoEstacional: '150',
+      m2Cubiertos: surface,
+      demandaCubierta: '100',
+      zona: buildingZone,
+    }],
+    'instalaciones.contribuciones.items': [{
+      nombre: 'Sin contribuciones renovables',
+      zona: buildingZone,
+      acsRenovable: '0',
+      calefaccionRenovable: '0',
+      refrigeracionRenovable: '0',
+      calorRecuperadoAcs: '0',
+      calorRecuperadoCalefaccion: '0',
+      frioRecuperado: '0',
+      energiaConsumidaGeneracionElectricidad: '0',
+      combustible: electric,
+    }],
+  };
+}
+
+function decimalForApp(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '';
+  return String(Math.round(number * 100) / 100);
 }
 
 async function handleChatSubmit(event) {
@@ -1170,12 +1413,17 @@ async function verifyPatchSaved(id, dataPatch) {
   if (!item) throw new Error('Google Sheet no devolvió el expediente tras guardar');
   const record = normalizeRecord(item);
   const missing = Object.entries(dataPatch).filter(([path, expected]) => {
-    return !sameStoredValue(record.data[path], expected);
+    return !sameStoredValue(storedValueForPatchPath(record, path), expected);
   });
   if (missing.length) {
     throw new Error('Google Sheet respondió, pero no devolvió confirmados estos campos: ' + missing.map(([path]) => path).join(', '));
   }
   return record;
+}
+
+function storedValueForPatchPath(record, path) {
+  if (path.includes('.')) return record?.data?.[path];
+  return record?.[path] ?? record?.data?.[path];
 }
 
 function sameStoredValue(actual, expected) {
@@ -1257,9 +1505,12 @@ function addSummaryFields(record) {
   record.municipio = valueAt(record, 'admin.localizacion.localidad');
   record.provincia = valueAt(record, 'admin.localizacion.provincia');
   record.codigoPostal = valueAt(record, 'admin.localizacion.codigoPostal');
+  record.uso = valueAt(record, 'uso') || record.uso || '';
   record.tipoEdificio = valueAt(record, 'generales.datos.tipoEdificio');
   record.superficieUtil = valueAt(record, 'generales.definicion.superficieUtilHabitable');
+  record.superficieCatastral = valueAt(record, 'superficieCatastral') || record.superficieCatastral || '';
   record.anioConstruccion = valueAt(record, 'generales.datos.anioConstruccion');
+  record.plantas = valueAt(record, 'generales.definicion.numeroPlantasHabitables') || record.plantas || '';
 }
 
 function parseDictation(text) {
@@ -1492,15 +1743,25 @@ async function loadCatastroForSelected() {
 
   addChatMessage('assistant', 'Consulto Catastro desde Apps Script para evitar bloqueos CORS del navegador.');
   try {
-    const patch = catastroPatchFromData((await api({ action: 'catastro', reference })).item || {});
-    if (!Object.keys(patch).length) throw new Error('Catastro no devolvió datos útiles');
-    if (hasValue(valueAt(record, 'admin.localizacion.nombreEdificio'))) {
-      delete patch['admin.localizacion.nombreEdificio'];
+    const catastroItem = (await api({ action: 'catastro', reference })).item || {};
+    if (!hasUsefulCatastroData(catastroItem)) {
+      throw new Error(catastroItem.error || 'Catastro no ha devuelto datos del inmueble. Puede ser una caída temporal del servicio.');
     }
+    const rawPatch = catastroPatchFromData(catastroItem);
+    await addGeneratedSituationPlan(rawPatch);
+    const patch = emptyOnlyPatch(record, rawPatch);
+    if (!Object.keys(patch).length) throw new Error('Catastro no devolvió datos útiles');
     await applyChatPatch(record, patch);
   } catch (error) {
     addChatMessage('assistant', 'No he podido consultar Catastro: ' + error.message);
   }
+}
+
+function hasUsefulCatastroData(item) {
+  if (!item || item.error) return false;
+  if (hasValue(item.direccion) || hasValue(item.codigoPostal) || hasValue(item.uso) || hasValue(item.anioConstruccion)) return true;
+  if (hasValue(item.superficieCatastral)) return true;
+  return Array.isArray(item.construcciones) && item.construcciones.some(row => hasValue(row.destino) || hasValue(row.superficie));
 }
 
 async function browserCatastroPatch(reference) {
@@ -1509,7 +1770,9 @@ async function browserCatastroPatch(reference) {
   const xml = await response.text();
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
   const text = tag => doc.querySelector(tag)?.textContent?.trim() || '';
+  const coordinates = await browserCatastroCoordinates(reference).catch(() => ({}));
   return catastroPatchFromData({
+    referenciaCatastral: reference,
     direccion: text('ldt'),
     localidad: text('nm'),
     provincia: titleCase(text('np')),
@@ -1520,19 +1783,41 @@ async function browserCatastroPatch(reference) {
     construcciones: Array.from(doc.querySelectorAll('cons')).map(item => ({
       destino: item.querySelector('lcd')?.textContent?.trim() || '',
       superficie: item.querySelector('stl')?.textContent?.trim() || '',
+      planta: item.querySelector('pt')?.textContent?.trim() || '',
     })),
+    x: coordinates.x,
+    y: coordinates.y,
+    srs: coordinates.srs,
   });
 }
 
+async function browserCatastroCoordinates(reference) {
+  const parcelReference = normalizeReference(reference).slice(0, 14);
+  if (parcelReference.length !== 14) return {};
+  const url = 'https://ovc.catastro.meh.es/OVCServWeb/OVCSWLocalizacionRC/OVCCoordenadas.asmx/Consulta_CPMRC?Provincia=&Municipio=&SRS=EPSG:4326&RC=' + encodeURIComponent(parcelReference);
+  const response = await fetch(url);
+  const xml = await response.text();
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  const text = tag => doc.querySelector(tag)?.textContent?.trim() || '';
+  return { x: text('xcen'), y: text('ycen'), srs: text('srs') };
+}
+
 function catastroPatchFromData(item) {
+  const reference = normalizeReference(item.referenciaCatastral || '');
   const address = item.direccion || '';
   const provincia = titleCase(item.provincia || '');
   const localidad = item.localidad || '';
   const codigoPostal = item.codigoPostal || '';
+  const x = String(item.x || '').trim();
+  const y = String(item.y || '').trim();
+  const srs = String(item.srs || '').trim() || (x && y ? 'EPSG:4326' : '');
+  const situationMapUrl = catastroMapUrlFromData({ reference, x, y, srs });
   const viviendaSurface = surfaceForUse(item.construcciones, 'VIVIENDA');
+  const viviendaFloors = floorsForUse(item.construcciones, 'VIVIENDA');
   const builtSurface = item.superficieCatastral || viviendaSurface || '';
   const residentialUse = String(item.uso || '').toLowerCase().includes('residencial');
   return compactPatch({
+    'admin.localizacion.referenciaCatastral': reference,
     'admin.localizacion.nombreEdificio': address,
     'admin.localizacion.direccion': address,
     'admin.localizacion.provincia': provincia,
@@ -1547,13 +1832,194 @@ function catastroPatchFromData(item) {
     'generales.datos.provincia': provincia,
     'generales.datos.localidad': localidad,
     'generales.definicion.superficieUtilHabitable': viviendaSurface || builtSurface,
+    'generales.definicion.numeroPlantasHabitables': viviendaFloors,
+    'generales.definicion.alturaLibrePlanta': residentialUse ? '2.60' : '',
+    'generales.definicion.ventilacionInmueble': residentialUse ? '0.63' : '',
+    'generales.definicion.demandaDiariaACS': residentialUse ? '120' : '',
+    'generales.definicion.imagenEdificio': item.imagenEdificio || item.streetViewImage || '',
+    'generales.definicion.planoSituacion': item.planoSituacion || item.situationPlanImage || situationMapUrl || (reference ? `Catastro: ${reference}` : ''),
+    'catastro.x': x,
+    'catastro.y': y,
+    'catastro.srs': srs,
+    uso: item.uso || '',
+    superficieCatastral: builtSurface,
   });
+}
+
+function catastroMapUrlFromData({ reference, x, y, srs }) {
+  if (!reference || !x || !y) return '';
+  const params = new URLSearchParams({
+    refcat: reference,
+    x,
+    y,
+    srs: srs || 'EPSG:4326',
+  });
+  return `https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?${params.toString()}`;
+}
+
+async function addGeneratedSituationPlan(patch) {
+  const currentPlan = String(patch?.['generales.definicion.planoSituacion'] || '').trim();
+  if (currentPlan.startsWith('data:image/')) return patch;
+  const model = catastroSituationPlanModel(patch);
+  if (!model.x || !model.y) return patch;
+  const image = catastroSituationPlanPng(model);
+  if (image) patch['generales.definicion.planoSituacion'] = image;
+  return patch;
+}
+
+function catastroSituationPlanModel(source) {
+  const reference = String(source?.['admin.localizacion.referenciaCatastral'] || source?.reference || '').trim();
+  const address = String(source?.['admin.localizacion.direccion'] || source?.address || '').trim();
+  const locality = String(source?.['admin.localizacion.localidad'] || source?.locality || '').trim();
+  const subtitle = [address, locality].filter(Boolean).join(', ');
+  return {
+    title: 'Plano de situación',
+    reference,
+    subtitle,
+    x: String(source?.['catastro.x'] || source?.x || '').trim(),
+    y: String(source?.['catastro.y'] || source?.y || '').trim(),
+    srs: String(source?.['catastro.srs'] || source?.srs || 'EPSG:4326').trim(),
+  };
+}
+
+function catastroSituationPlanPng(model) {
+  if (typeof document === 'undefined') return '';
+  const canvas = document.createElement('canvas');
+  if (!canvas || !canvas.getContext) return '';
+  canvas.width = 900;
+  canvas.height = 620;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  ctx.fillStyle = '#fffdf8';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#d7cfc2';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(28, 28, canvas.width - 56, canvas.height - 56);
+
+  ctx.fillStyle = '#111827';
+  ctx.font = 'bold 34px Arial, sans-serif';
+  ctx.fillText(model.title, 52, 82);
+  ctx.font = '20px Arial, sans-serif';
+  wrapCanvasText(ctx, model.subtitle || model.reference, 52, 118, 760, 26);
+
+  ctx.strokeStyle = '#e8d8bf';
+  ctx.lineWidth = 1;
+  for (let x = 80; x < 840; x += 76) {
+    ctx.beginPath();
+    ctx.moveTo(x, 170);
+    ctx.lineTo(x + 90, 540);
+    ctx.stroke();
+  }
+  for (let y = 190; y < 540; y += 58) {
+    ctx.beginPath();
+    ctx.moveTo(70, y);
+    ctx.lineTo(830, y - 28);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = '#b9a889';
+  ctx.lineWidth = 9;
+  [[80, 450, 810, 220], [120, 245, 780, 420], [420, 175, 390, 540]].forEach(([x1, y1, x2, y2]) => {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  });
+
+  ctx.fillStyle = 'rgba(45, 107, 83, 0.16)';
+  ctx.strokeStyle = '#0f6b4d';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(412, 294);
+  ctx.lineTo(510, 278);
+  ctx.lineTo(545, 364);
+  ctx.lineTo(440, 386);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#d81e1e';
+  ctx.beginPath();
+  ctx.arc(480, 332, 13, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  ctx.fillStyle = '#111827';
+  ctx.font = 'bold 18px Arial, sans-serif';
+  ctx.fillText('Parcela catastral', 516, 326);
+  ctx.font = '16px Arial, sans-serif';
+  ctx.fillText(`Ref. ${model.reference}`, 516, 351);
+  ctx.fillText(`${model.srs}: ${model.x}, ${model.y}`, 52, 574);
+
+  ctx.font = 'bold 20px Arial, sans-serif';
+  ctx.fillText('N', 810, 105);
+  ctx.beginPath();
+  ctx.moveTo(818, 116);
+  ctx.lineTo(802, 152);
+  ctx.lineTo(834, 152);
+  ctx.closePath();
+  ctx.fill();
+
+  return canvas.toDataURL('image/png');
+}
+
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  let line = '';
+  words.forEach(word => {
+    const testLine = line ? `${line} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      ctx.fillText(line, x, y);
+      y += lineHeight;
+      line = word;
+    } else {
+      line = testLine;
+    }
+  });
+  if (line) ctx.fillText(line, x, y);
+}
+
+function emptyOnlyPatch(record, patch) {
+  const current = normalizeRecord(record || {});
+  return Object.fromEntries(Object.entries(patch || {}).filter(([path, value]) => {
+    if (!hasValue(value)) return false;
+    const currentValue = path.includes('.') ? valueAt(current, path) : (current[path] ?? current.data?.[path]);
+    if (isImageFieldPath(path) && isDataImageValue(value) && !isDataImageValue(currentValue)) return true;
+    if (path.includes('.')) return !hasValue(valueAt(current, path));
+    return !hasValue(current[path]) && !hasValue(current.data?.[path]);
+  }));
+}
+
+function isImageFieldPath(path) {
+  return path === 'generales.definicion.imagenEdificio' || path === 'generales.definicion.planoSituacion';
+}
+
+function isDataImageValue(value) {
+  return String(value || '').trim().startsWith('data:image/');
 }
 
 function surfaceForUse(items, useName) {
   const normalizedUse = normalizeText(useName);
-  const found = (items || []).find(item => normalizeText(item.destino).includes(normalizedUse));
-  return found ? found.superficie : '';
+  const total = (items || [])
+    .filter(item => normalizeText(item.destino).includes(normalizedUse))
+    .reduce((sum, item) => sum + numericCatastroSurface(item.superficie), 0);
+  return total > 0 ? String(total) : '';
+}
+
+function floorsForUse(items, useName) {
+  const normalizedUse = normalizeText(useName);
+  const matchingRows = (items || []).filter(item => normalizeText(item.destino).includes(normalizedUse));
+  const floors = new Set(matchingRows.map(item => String(item.planta || '').trim()).filter(Boolean));
+  const count = floors.size || matchingRows.length;
+  return count ? String(count) : '';
+}
+
+function numericCatastroSurface(value) {
+  const parsed = Number(String(value || '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function compactPatch(patch) {
@@ -1796,15 +2262,20 @@ function addChatMessage(role, text) {
 }
 
 function downloadJson() {
-  const record = selectedRecord();
+  const record = selectedRecordWithCurrentFormData();
   if (!record) return;
   const name = fileSafe(recordLabel(record)) + '.json';
   downloadBlob(new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' }), name);
 }
 
 async function downloadCex() {
-  const record = selectedRecord();
+  const record = selectedRecordWithCurrentFormData();
   if (!record) return;
+  const criticalIssues = criticalCexIssues(record);
+  if (criticalIssues.length && !window.confirm('Faltan datos críticos para CE3X:\n\n- ' + criticalIssues.join('\n- ') + '\n\n¿Descargar .cex de todos modos?')) {
+    addChatMessage('assistant', 'Descarga cancelada. Revisa los datos críticos antes de generar el .cex.');
+    return;
+  }
 
   try {
     const response = await fetch('templates/base.cex');
@@ -1823,6 +2294,30 @@ async function downloadCex() {
   } catch (error) {
     alert('Generación .cex pendiente: ' + error.message);
   }
+}
+
+function criticalCexIssues(record) {
+  const data = record.data || {};
+  const issues = [];
+  if (!hasValue(data['generales.datos.tipoEdificio'])) issues.push('Tipo de edificio');
+  if (!hasValue(data['generales.definicion.superficieUtilHabitable'])) issues.push('Superficie útil habitable');
+  if (!hasValue(data['generales.definicion.alturaLibrePlanta'])) issues.push('Altura libre de planta');
+  if (!hasValue(data['generales.definicion.numeroPlantasHabitables'])) issues.push('Número de plantas habitables');
+  if (!hasValue(data['generales.definicion.masaParticionesInternas'])) issues.push('Masa de las particiones internas');
+  if (!tableHasRows(data['envolvente.cerramientos.items'])) issues.push('Envolvente: cerramientos');
+  if (!tableHasRows(data['envolvente.huecos.items'])) issues.push('Envolvente: huecos');
+  if (!tableHasRows(data['envolvente.puentesTermicos.items'])) issues.push('Envolvente: puentes térmicos');
+  if (!tableHasRows(data['instalaciones.acs.items'])) issues.push('Instalaciones: equipo ACS');
+  if (!tableHasRows(data['instalaciones.calefaccion.items']) && !tableHasRows(data['instalaciones.refrigeracion.items'])) {
+    issues.push('Instalaciones: calefacción o refrigeración');
+  }
+  return issues;
+}
+
+function tableHasRows(value) {
+  return readTableRows(value, [{ id: 'x' }]).some(rowItem => {
+    return Object.values(rowItem).some(Boolean) || rowItem.values?.some(Boolean);
+  });
 }
 
 function isRawCexDiagnosticMode() {
@@ -1860,9 +2355,47 @@ function applyCexReplacements(text, record) {
   let next = text;
   next = applyCexAdminReplacements(next, record);
   next = applyCexGeneralReplacements(next, record);
+  next = applyCexEmbeddedImageReplacements(next, record);
   next = applyCexEnvelopeStreamReplacement(next, record);
   if (mode !== 'stable' && mode !== 'full') next = applyCexSystemsStreamReplacement(next, record);
   return next;
+}
+
+function applyCexEmbeddedImageReplacements(text, record) {
+  const data = record.data || {};
+  const image = embeddedImageBase64(data['generales.definicion.imagenEdificio']);
+  const plan = embeddedImageBase64(data['generales.definicion.planoSituacion']);
+  let next = text;
+  next = replaceCexTopLevelImageCopies(next, image, plan);
+  next = replaceCexPickleStringAfterKey(next, 'imagen', image);
+  next = replaceCexPickleStringAfterKey(next, 'plano', plan);
+  return next;
+}
+
+function embeddedImageBase64(value) {
+  const text = String(value || '').trim();
+  const match = text.match(/^data:image\/(?:png|jpeg|jpg);base64,([A-Za-z0-9+/=]+)$/i);
+  const base64 = match ? match[1] : text;
+  if (!/^[A-Za-z0-9+/=]+$/.test(base64)) return '';
+  if (!/^(?:iVBORw0KGgo|\/9j\/)/.test(base64)) return '';
+  return base64;
+}
+
+function replaceCexPickleStringAfterKey(text, key, value) {
+  if (!value) return text;
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(S'${escapedKey}'\\r?\\np\\d+\\r?\\nS')([^']*)(')`);
+  return text.replace(pattern, `$1${value}$3`);
+}
+
+function replaceCexTopLevelImageCopies(text, image, plan) {
+  let index = 0;
+  return text.replace(/S'((?:iVBORw0KGgo|\/9j\/)[A-Za-z0-9+/=]{1000,})'/g, match => {
+    index += 1;
+    if (index === 1 && image) return `S'${image}'`;
+    if (index === 2 && plan) return `S'${plan}'`;
+    return match;
+  });
 }
 
 function cexPatchMode() {
@@ -1901,9 +2434,10 @@ function applyCexAdminReplacements(text, record) {
 function applyCexGeneralReplacements(text, record) {
   const data = record.data || {};
   let next = text;
+  const buildingType = cexBuildingType(data['generales.datos.tipoEdificio']);
   const generalReplacements = [
     ['VCTE 2013', cexString(data['generales.datos.normativaVigente'])],
-    ['VUnifamiliar', cexString(data['generales.datos.tipoEdificio'] || 'Unifamiliar')],
+    ['VUnifamiliar', cexString(buildingType)],
     ['VB4', cexString(data['generales.datos.zonaClimaticaHE1'])],
     ['aVV\np6', cexAppendString(data['generales.datos.zonaClimaticaHE4']) + '\np6'],
     ['V2021', cexString(data['generales.datos.anioConstruccion'])],
@@ -1949,7 +2483,7 @@ function applyCexStructuredGeneralReplacements(text, record) {
   const data = record.data || {};
   let next = text;
   const replacements = [
-    ['tipoEdificio', cexString(data['generales.datos.tipoEdificio'] || 'Unifamiliar')],
+    ['tipoEdificio', cexString(cexBuildingType(data['generales.datos.tipoEdificio']))],
     ['tasaVentilacion', cexFloat(data['generales.definicion.ventilacionInmueble'])],
     ['numeroPlantas', cexFloat(data['generales.definicion.numeroPlantasHabitables'])],
     ['Q_ACS', cexFloat(data['generales.definicion.demandaDiariaACS'])],
@@ -2183,20 +2717,18 @@ function replaceEnvelopeInputStream(text, cerramientos, huecos, puentes) {
 function alignCexEnvelopeReferences(cerramientos, huecos, puentes) {
   const safeCerramientos = cerramientos.map(rowItem => Object.assign({}, rowItem));
   const names = new Set(safeCerramientos.map(rowItem => cexValue(rowItem.nombre)).filter(Boolean));
-  const fallback = safeCerramientos.find(rowItem => normalizeText(rowItem.tipoCerramiento) === 'fachada')?.nombre
-    || safeCerramientos[0]?.nombre
-    || '';
-  if (!fallback) {
-    return { cerramientos: safeCerramientos, huecos, puentes };
-  }
+  const fallbackName = safeCerramientos.map(rowItem => cexValue(rowItem.nombre)).find(Boolean);
+  const alignAssociatedEnclosure = rowItem => {
+    const next = Object.assign({}, rowItem);
+    const associated = cexValue(next.cerramientoAsociado);
+    if (associated && names.has(associated)) return next;
+    if (fallbackName) next.cerramientoAsociado = fallbackName;
+    return next;
+  };
   return {
     cerramientos: safeCerramientos,
-    huecos: huecos.map(rowItem => names.has(cexValue(rowItem.cerramientoAsociado))
-      ? Object.assign({}, rowItem)
-      : Object.assign({}, rowItem, { cerramientoAsociado: fallback })),
-    puentes: puentes.map(rowItem => names.has(cexValue(rowItem.cerramientoAsociado))
-      ? Object.assign({}, rowItem)
-      : Object.assign({}, rowItem, { cerramientoAsociado: fallback })),
+    huecos: huecos.map(alignAssociatedEnclosure),
+    puentes: puentes.map(alignAssociatedEnclosure),
   };
 }
 
@@ -2560,6 +3092,39 @@ function serializeCexHuecoEstimadasObject(rowItem) {
 }
 
 function serializeCexSystemsStream(acsRows, calefaccionRows, refrigeracionRows, contribucionRows) {
+  const acsRowsForStream = acsRows.length ? acsRows : normalizeCexRows(CEX37_DEFAULTS['instalaciones.acs.items'], [
+    'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
+    'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona', 'acumulacion',
+  ]);
+  const calefaccionRowsForStream = calefaccionRows.length ? calefaccionRows : normalizeCexRows(CEX37_DEFAULTS['instalaciones.calefaccion.items'], [
+    'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
+    'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona',
+  ]);
+  const refrigeracionRowsForStream = refrigeracionRows.length ? refrigeracionRows : normalizeCexRows(CEX37_DEFAULTS['instalaciones.refrigeracion.items'], [
+    'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
+    'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona',
+  ]);
+  const contribucionRowsForStream = contribucionRows.length ? contribucionRows : normalizeCexRows(CEX37_DEFAULTS['instalaciones.contribuciones.items'], [
+    'nombre', 'zona', 'acsRenovable', 'calefaccionRenovable', 'refrigeracionRenovable',
+    'calorRecuperadoAcs', 'calorRecuperadoCalefaccion', 'frioRecuperado',
+    'energiaConsumidaGeneracionElectricidad', 'combustible',
+  ]);
+
+  return serializeCexList([
+    serializeCexAcsInput(acsRowsForStream),
+    serializeCexList([]),
+    serializeCexList([]),
+    serializeCexClimateInput(calefaccionRowsForStream, refrigeracionRowsForStream),
+    serializeCexList([]),
+    serializeCexList([]),
+    serializeCexContribucionesInput(contribucionRowsForStream),
+    serializeCexList([]),
+    serializeCexList([]),
+    serializeCexList([]),
+    serializeCexList([]),
+    serializeCexList([]),
+  ]) + '.';
+
   const acs = acsRows[0] || normalizeCexRows(CEX37_DEFAULTS['instalaciones.acs.items'], [
     'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
     'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona', 'acumulacion',
@@ -2679,7 +3244,7 @@ function serializeCexAcsInput(rows) {
       serializeCexList([cexPickleString(''), cexPickleString('')]),
       serializeCexList([cexPickleString(''), cexPickleString('')]),
     ]),
-    cexPickleString(rowItem.modoDefinicion || 'Estimado según Instalación'),
+    cexPickleString(cexOption(rowItem.modoDefinicion, 'modoDefinicion', 'Estimado según Instalación')),
     serializeCexList([
       serializeCexList([cexPickleString(cexDecimal(rowItem.rendimientoEstacional)), cexPickleString(''), cexPickleString('')]),
       serializeCexList([cexPickleBool(false), cexPickleBool(false), cexPickleBool(true)]),
@@ -2694,7 +3259,7 @@ function serializeCexAcsInput(rows) {
       cexPickleString('Por defecto'),
       cexPickleString('1'),
     ]),
-    cexPickleString(rowItem.zona || 'Edificio Objeto'),
+    cexPickleString(cexOption(rowItem.zona, 'zona', 'Edificio Objeto')),
   ])));
 }
 
@@ -2721,13 +3286,13 @@ function serializeCexClimateInput(calefaccionRows, refrigeracionRows) {
       serializeCexList([cexPickleString(cexDecimal(heat.m2Cubiertos)), cexPickleString(cexDecimal(heat.demandaCubierta))]),
       serializeCexList([cexPickleString(cexDecimal(cool.m2Cubiertos)), cexPickleString(cexDecimal(cool.demandaCubierta))]),
     ]),
-    cexPickleString(base.modoDefinicion || 'Estimado según Instalación'),
+    cexPickleString(cexOption(base.modoDefinicion, 'modoDefinicion', 'Estimado según Instalación')),
     serializeCexList([
       serializeCexList([cexPickleString(''), cexPickleString('270.0'), cexPickleString('250.0')]),
       serializeCexList([cexPickleBool(true), cexPickleBool(false), cexPickleBool(false)]),
       serializeCexList([]),
     ]),
-    cexPickleString(base.zona || 'Edificio Objeto'),
+    cexPickleString(cexOption(base.zona, 'zona', 'Edificio Objeto')),
   ])));
 }
 
@@ -2750,8 +3315,14 @@ function serializeCexContribucionesInput(rows) {
       cexPickleString(rowItem.combustible),
     ]),
     serializeCexList([cexPickleBool(true), cexPickleBool(true)]),
-    cexPickleString(rowItem.zona || 'Edificio Objeto'),
+    cexPickleString(cexOption(rowItem.zona, 'zona', 'Edificio Objeto')),
   ])));
+}
+
+function cexOption(value, optionsKey, fallback) {
+  const options = SELECT_OPTIONS[optionsKey] || [];
+  const text = cexValue(value);
+  return options.includes(text) ? text : fallback;
 }
 
 function isTruthy(value) {
@@ -3179,8 +3750,8 @@ function cexDecimal(value) {
 
 function cexBuildingType(value) {
   const normalized = normalizeText(value);
-  if (normalized.includes('bloque')) return 'Bloque de viviendas';
-  if (normalized.includes('vivienda individual')) return 'Vivienda individual';
+  if (normalized.includes('bloque')) return 'Bloque de Viviendas';
+  if (normalized.includes('vivienda individual')) return 'Vivienda Individual';
   if (normalized.includes('unifamiliar')) return 'Unifamiliar';
   return cexValue(value) || 'Unifamiliar';
 }

@@ -454,6 +454,36 @@ textarea {
   white-space: nowrap;
 }
 
+.image-field {
+  display: grid;
+  gap: 8px;
+}
+
+.image-preview {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: block;
+  max-height: 160px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.image-link,
+.image-empty {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  display: flex;
+  min-height: 44px;
+  padding: 0 12px;
+  text-decoration: none;
+}
+
+.image-link {
+  color: var(--accent);
+}
+
 .table-fieldset {
   display: block;
 }
