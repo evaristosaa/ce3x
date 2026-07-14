@@ -3219,11 +3219,9 @@ function serializeCexSystemsStream(acsRows, calefaccionRows, refrigeracionRows, 
     'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
     'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona',
   ]);
-  const contribucionRowsForStream = contribucionRows.length ? contribucionRows : normalizeCexRows(CEX37_DEFAULTS['instalaciones.contribuciones.items'], [
-    'nombre', 'zona', 'acsRenovable', 'calefaccionRenovable', 'refrigeracionRenovable',
-    'calorRecuperadoAcs', 'calorRecuperadoCalefaccion', 'frioRecuperado',
-    'energiaConsumidaGeneracionElectricidad', 'combustible',
-  ]);
+  // Contributions are optional. Falling back to the Casa 37 template here
+  // silently exported its solar/PV system into unrelated projects.
+  const contribucionRowsForStream = contribucionRows;
 
   return serializeCexList([
     serializeCexAcsInput(acsRowsForStream),

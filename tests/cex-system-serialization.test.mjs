@@ -68,6 +68,7 @@ globalThis.__cexHelpers = {
   criticalCexIssues,
   serializeCexCerramientosInput,
   serializeCexHuecosInput,
+  serializeCexContribucionesInput,
   isUsefulCexContribution,
 };`, context);
   return context.__cexHelpers;
@@ -304,7 +305,7 @@ test('builds estimated system rows from useful surface', () => {
 });
 
 test('omits zero renewable contribution rows from CEX export', () => {
-  const { isUsefulCexContribution } = loadCexHelpers();
+  const { isUsefulCexContribution, serializeCexSystemsStream } = loadCexHelpers();
 
   assert.equal(isUsefulCexContribution({
     acsRenovable: '0',
@@ -320,6 +321,10 @@ test('omits zero renewable contribution rows from CEX export', () => {
     calefaccionRenovable: '0',
     refrigeracionRenovable: '0',
   }), true);
+
+  const stream = serializeCexSystemsStream([], [], [], []);
+  assert.equal(stream.includes('10200'), false);
+  assert.equal(stream.includes('Contribuciones energ'), false);
 });
 
 test('keeps estimated envelope compatible with the CE3X reference shape', () => {
