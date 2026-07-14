@@ -66,6 +66,7 @@ globalThis.__cexHelpers = {
   estimatedEnvelopePatch,
   estimatedSystemsPatch,
   criticalCexIssues,
+  serializeCexCerramientosInput,
 };`, context);
   return context.__cexHelpers;
 }
@@ -100,6 +101,19 @@ function unpickledTopLevelLength(pickleText) {
   });
   assert.equal(result.status, 0, result.stderr);
   return Number(result.stdout.trim());
+}
+
+function unpickleJson(pickleText) {
+  const result = spawnSync('python', ['-c', [
+    'import json,pickle,sys',
+    "data=sys.stdin.buffer.read().replace(b'\\r\\n', b'\\n')",
+    'print(json.dumps(pickle.loads(data), ensure_ascii=False))',
+  ].join(';')], {
+    input: Buffer.from(pickleText, 'latin1'),
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout);
 }
 
 test('serializes every installation row into the CEX systems stream', () => {
@@ -238,7 +252,27 @@ test('builds estimated envelope rows from general building data', () => {
   assert.equal(patch['envolvente.cerramientos.items'].length, 6);
   assert.equal(patch['envolvente.huecos.items'].length, 4);
   assert.ok(patch['envolvente.puentesTermicos.items'].length >= 3);
-  assert.equal(patch['envolvente.cerramientos.items'][0].modoDefinicion, 'Estimadas');
+  assert.equal(patch['envolvente.cerramientos.items'][0].modoDefinicion, 'Por defecto');
+  assert.equal(patch['envolvente.cerramientos.items'][2].modoDefinicion, 'Por defecto');
+});
+
+test('serializes CE3X envelope enclosures with editable default shapes', () => {
+  const { estimatedEnvelopePatch, serializeCexCerramientosInput } = loadCexHelpers();
+  const patch = estimatedEnvelopePatch({
+    'generales.definicion.superficieUtilHabitable': '88',
+    'generales.definicion.numeroPlantasHabitables': '2',
+    'generales.definicion.alturaLibrePlanta': '2.60',
+  });
+  const rows = unpickleJson(serializeCexCerramientosInput(patch['envolvente.cerramientos.items']) + '.');
+
+  assert.equal(rows[0][8], 'Por defecto');
+  assert.equal(rows[1][1], 'Suelo');
+  assert.equal(rows[1].length, 17);
+  assert.equal(rows[1][9], true);
+  assert.equal(rows[2][1], 'Fachada');
+  assert.equal(rows[2][8], 'Por defecto');
+  assert.notEqual(rows[2][10], '');
+  assert.notEqual(rows[2][11], '');
 });
 
 test('builds estimated system rows from useful surface', () => {
