@@ -3878,8 +3878,7 @@ function cexDecimal(value) {
 function cexBuildingType(value) {
   const normalized = normalizeText(value);
   if (normalized.includes('bloque')) return 'Bloque de Viviendas';
-  if (normalized.includes('vivienda individual')) return 'Vivienda Individual';
-  if (normalized.includes('unifamiliar')) return 'Unifamiliar';
+  if (normalized.includes('vivienda individual') || normalized.includes('unifamiliar')) return 'Unifamiliar';
   return cexValue(value) || 'Unifamiliar';
 }
 

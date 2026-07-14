@@ -217,9 +217,10 @@ test('exports CE3X-compatible building type values in all general fields', () =>
     },
   });
 
-  assert.match(next, /aVVivienda Individual\r\np2/);
-  assert.match(next, /S'tipoEdificio'\r\np5071\r\nVVivienda Individual\r\np5072/);
+  assert.match(next, /aVUnifamiliar\r\np2/);
+  assert.match(next, /S'tipoEdificio'\r\np5071\r\nVUnifamiliar\r\np5072/);
   assert.doesNotMatch(next, /Vivienda individual/);
+  assert.doesNotMatch(next, /Vivienda Individual/);
 });
 
 test('exports internal partition mass in all CE3X general fields', () => {
