@@ -68,6 +68,7 @@ globalThis.__cexHelpers = {
   criticalCexIssues,
   serializeCexCerramientosInput,
   serializeCexHuecosInput,
+  isUsefulCexContribution,
 };`, context);
   return context.__cexHelpers;
 }
@@ -299,6 +300,25 @@ test('builds estimated system rows from useful surface', () => {
   assert.equal(patch['instalaciones.refrigeracion.items'][0].demandaCubierta, '100');
   assert.equal(patch['instalaciones.contribuciones.items'][0].nombre, 'Sin contribuciones renovables');
   assert.equal(patch['instalaciones.contribuciones.items'][0].acsRenovable, '0');
+});
+
+test('omits zero renewable contribution rows from CEX export', () => {
+  const { isUsefulCexContribution } = loadCexHelpers();
+
+  assert.equal(isUsefulCexContribution({
+    acsRenovable: '0',
+    calefaccionRenovable: '0',
+    refrigeracionRenovable: '0',
+    calorRecuperadoAcs: '',
+    calorRecuperadoCalefaccion: '',
+    frioRecuperado: '',
+    energiaConsumidaGeneracionElectricidad: '0',
+  }), false);
+  assert.equal(isUsefulCexContribution({
+    acsRenovable: '20',
+    calefaccionRenovable: '0',
+    refrigeracionRenovable: '0',
+  }), true);
 });
 
 test('reports critical CE3X gaps before export', () => {

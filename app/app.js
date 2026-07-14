@@ -2541,7 +2541,7 @@ function applyCexCompactListReplacements(text, record) {
     'nombre', 'zona', 'acsRenovable', 'calefaccionRenovable', 'refrigeracionRenovable',
     'calorRecuperadoAcs', 'calorRecuperadoCalefaccion', 'frioRecuperado',
     'energiaConsumidaGeneracionElectricidad', 'combustible',
-  ]);
+  ]).filter(isUsefulCexContribution);
 
   let next = text;
   if (cerramientos.length || huecos.length || puentes.length) {
@@ -2641,7 +2641,7 @@ function applyCexSystemsStreamReplacement(text, record) {
     'nombre', 'zona', 'acsRenovable', 'calefaccionRenovable', 'refrigeracionRenovable',
     'calorRecuperadoAcs', 'calorRecuperadoCalefaccion', 'frioRecuperado',
     'energiaConsumidaGeneracionElectricidad', 'combustible',
-  ]);
+  ]).filter(isUsefulCexContribution);
   if (!acs.length && !calefaccion.length && !refrigeracion.length && !contribuciones.length) return text;
   return replaceSystemsInputStream(text, acs, calefaccion, refrigeracion, contribuciones);
 }
@@ -3368,6 +3368,18 @@ function serializeCexContribucionesInput(rows) {
     serializeCexList([cexPickleBool(true), cexPickleBool(true)]),
     cexPickleString(cexOption(rowItem.zona, 'zona', 'Edificio Objeto')),
   ])));
+}
+
+function isUsefulCexContribution(rowItem) {
+  return [
+    'acsRenovable',
+    'calefaccionRenovable',
+    'refrigeracionRenovable',
+    'calorRecuperadoAcs',
+    'calorRecuperadoCalefaccion',
+    'frioRecuperado',
+    'energiaConsumidaGeneracionElectricidad',
+  ].some(key => Number(cexDecimal(rowItem[key])) > 0);
 }
 
 function cexOption(value, optionsKey, fallback) {
