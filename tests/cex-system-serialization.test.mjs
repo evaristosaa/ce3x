@@ -257,9 +257,9 @@ test('builds estimated envelope rows from general building data', () => {
     'generales.definicion.alturaLibrePlanta': '2.60',
   });
 
-  assert.equal(patch['envolvente.cerramientos.items'].length, 6);
-  assert.equal(patch['envolvente.huecos.items'].length, 4);
-  assert.ok(patch['envolvente.puentesTermicos.items'].length >= 3);
+  assert.equal(patch['envolvente.cerramientos.items'].length, 5);
+  assert.equal(patch['envolvente.huecos.items'].length, 10);
+  assert.equal(patch['envolvente.puentesTermicos.items'].length, 8);
   assert.equal(patch['envolvente.cerramientos.items'][0].modoDefinicion, 'Por defecto');
   assert.equal(patch['envolvente.cerramientos.items'][2].modoDefinicion, 'Por defecto');
 });
@@ -319,6 +319,19 @@ test('omits zero renewable contribution rows from CEX export', () => {
     calefaccionRenovable: '0',
     refrigeracionRenovable: '0',
   }), true);
+});
+
+test('keeps estimated envelope compatible with the CE3X reference shape', () => {
+  const { estimatedEnvelopePatch } = loadCexHelpers();
+  const data = {
+    'generales.definicion.superficieUtilHabitable': '88',
+    'generales.definicion.alturaLibrePlanta': '2.60',
+    'generales.definicion.numeroPlantasHabitables': '2',
+  };
+  const patch = estimatedEnvelopePatch(data);
+
+  assert.equal(patch['envolvente.cerramientos.items'].map(row => row.tipoCerramiento).join('|'), 'Cubierta|Suelo|Fachada|Fachada|Fachada');
+  assert.equal(patch['envolvente.huecos.items'].map(row => row.orientacion).join('|'), 'NO|NO|SO|SO|NO|NO|SE|SE|SE|SE');
 });
 
 test('reports critical CE3X gaps before export', () => {

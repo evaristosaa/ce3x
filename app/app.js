@@ -1103,7 +1103,7 @@ function systemsDataPaths() {
   ];
 }
 
-function estimatedEnvelopePatch(data) {
+function estimatedEnvelopePatchLegacy(data) {
   const noShadow = SELECT_OPTIONS.patronSombras[0] || 'Sin patrón';
   const surface = Math.max(1, Number(cexDecimal(data['generales.definicion.superficieUtilHabitable'] || data.superficieCatastral || 100)));
   const floors = Math.max(1, Math.round(Number(cexDecimal(data['generales.definicion.numeroPlantasHabitables'] || 1))));
@@ -1161,6 +1161,69 @@ function estimatedEnvelopePatch(data) {
     fi: '1.05',
     longitud: decimalForApp(height * floors),
   })));
+  return {
+    'envolvente.cerramientos.items': cerramientos,
+    'envolvente.huecos.items': huecos,
+    'envolvente.puentesTermicos.items': puentes,
+  };
+}
+
+function estimatedEnvelopePatch(data) {
+  const noShadow = SELECT_OPTIONS.patronSombras[0] || 'Sin patron';
+  const surface = Math.max(1, Number(cexDecimal(data['generales.definicion.superficieUtilHabitable'] || data.superficieCatastral || 100)));
+  const floors = Math.max(1, Math.round(Number(cexDecimal(data['generales.definicion.numeroPlantasHabitables'] || 1))));
+  const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.6)));
+  const footprint = surface / floors;
+  const side = Math.sqrt(footprint);
+  const perimeter = side * 4;
+  const facadeArea = perimeter * height * floors;
+  const openingArea = facadeArea * 0.22;
+  const baseSurface = Number(cexDecimal(CEX37_DEFAULTS['generales.definicion.superficieUtilHabitable'])) || 149.4;
+  const areaScale = Math.max(0.05, surface / baseSurface);
+  const lengthScale = Math.sqrt(areaScale);
+
+  const cerramientos = normalizeCexRows(CEX37_DEFAULTS['envolvente.cerramientos.items'], [
+    'nombre', 'tipoCerramiento', 'superficie', 'u', 'peso', 'posicion', 'modoDefinicion', 'patronSombras',
+  ]);
+  const facadeRows = cerramientos.filter(rowItem => rowItem.tipoCerramiento === 'Fachada');
+  const defaultFacadeArea = facadeRows.reduce((sum, rowItem) => sum + (Number(cexDecimal(rowItem.superficie)) || 0), 0) || 1;
+  const adjustedWallArea = Math.max(1, facadeArea - openingArea);
+  cerramientos.forEach(rowItem => {
+    rowItem.modoDefinicion = 'Por defecto';
+    rowItem.patronSombras = noShadow;
+    if (rowItem.tipoCerramiento === 'Cubierta' || rowItem.tipoCerramiento === 'Suelo') {
+      rowItem.superficie = decimalForApp(footprint);
+    } else if (rowItem.tipoCerramiento === 'Fachada') {
+      const defaultArea = Number(cexDecimal(rowItem.superficie)) || (defaultFacadeArea / facadeRows.length);
+      rowItem.superficie = decimalForApp(adjustedWallArea * defaultArea / defaultFacadeArea);
+    }
+  });
+
+  const huecos = normalizeCexRows(CEX37_DEFAULTS['envolvente.huecos.items'], [
+    'nombre', 'cerramientoAsociado', 'longitud', 'altura', 'multiplicador', 'superficie', 'uVidrio', 'gVidrio', 'uMarco', 'porcMarco', 'absortividadMarco', 'modoDefinicion', 'permeabilidad', 'orientacion', 'patronSombras',
+  ]);
+  const defaultOpeningArea = huecos.reduce((sum, rowItem) => sum + (Number(cexDecimal(rowItem.superficie)) || 0), 0) || 1;
+  huecos.forEach(rowItem => {
+    const defaultSurface = Number(cexDecimal(rowItem.superficie)) || (defaultOpeningArea / huecos.length);
+    const nextSurface = Math.max(0.25, openingArea * defaultSurface / defaultOpeningArea);
+    const defaultLength = Math.max(0.1, Number(cexDecimal(rowItem.longitud)) || 1);
+    const defaultHeight = Math.max(0.1, Number(cexDecimal(rowItem.altura)) || 1);
+    const shapeScale = Math.sqrt(nextSurface / Math.max(0.1, defaultLength * defaultHeight));
+    rowItem.longitud = decimalForApp(defaultLength * shapeScale);
+    rowItem.altura = decimalForApp(defaultHeight * shapeScale);
+    rowItem.superficie = decimalForApp(nextSurface);
+    rowItem.modoDefinicion = 'Estimadas';
+    rowItem.patronSombras = noShadow;
+  });
+
+  const puentes = normalizeCexRows(CEX37_DEFAULTS['envolvente.puentesTermicos.items'], [
+    'nombre', 'cerramientoAsociado', 'tipoPuenteTermico', 'fi', 'longitud',
+  ]);
+  puentes.forEach(rowItem => {
+    const defaultLength = Number(cexDecimal(rowItem.longitud)) || perimeter;
+    rowItem.longitud = decimalForApp(Math.max(0.1, defaultLength * lengthScale));
+  });
+
   return {
     'envolvente.cerramientos.items': cerramientos,
     'envolvente.huecos.items': huecos,
@@ -2758,7 +2821,7 @@ function applyCexInternalObjectReplacements(text, record) {
     'nombre', 'zona', 'acsRenovable', 'calefaccionRenovable', 'refrigeracionRenovable',
     'calorRecuperadoAcs', 'calorRecuperadoCalefaccion', 'frioRecuperado',
     'energiaConsumidaGeneracionElectricidad', 'combustible',
-  ]);
+  ]).filter(isUsefulCexContribution);
 
   next = replaceCerramientoObjects(next, cerramientos);
   next = replaceHuecoObjects(next, huecos);
@@ -2796,7 +2859,7 @@ function replaceCerramientoObjects(text, rows) {
       ['superficieNeta', cexFloat(rowItem.superficie)],
       ['U', cexFloat(rowItem.u)],
       ['masaM2', cexFloat(rowItem.peso)],
-      ['orientacion', cexString(rowItem.posicion)],
+      ['orientacion', cexString(cexWallOrientation(rowItem.posicion))],
       ['modoObtencion', cexString(rowItem.modoDefinicion || 'Conocidas')],
       ['patronSombras', cexString(rowItem.patronSombras || 'Sin patrón')],
       ['enContactoCon', cexAsciiString(rowItem.tipoCerramiento === 'Suelo' ? 'terreno' : 'aire')],
@@ -2829,6 +2892,7 @@ function replacePuenteObjects(text, rows) {
 
 function replaceHuecoObjectBlock(block, rowItem) {
   let updated = block;
+  const orientation = cexWallOrientation(rowItem.orientacion);
   [
     ['descripcion', cexString(rowItem.nombre)],
     ['cerramientoAsociado', cexString(rowItem.cerramientoAsociado)],
@@ -2842,8 +2906,8 @@ function replaceHuecoObjectBlock(block, rowItem) {
     ['porcMarco', cexString(cexDecimal(rowItem.porcMarco))],
     ['absortividadValor', cexString(cexDecimal(rowItem.absortividadMarco))],
     ['permeabilidadValor', cexString(cexDecimal(rowItem.permeabilidad))],
-    ['orientacion', cexString(rowItem.orientacion)],
-    ['correctorSolar', cexString(rowItem.orientacion)],
+    ['orientacion', cexString(orientation)],
+    ['correctorSolar', cexString(orientation)],
     ['patronSombras', cexString(rowItem.patronSombras || 'Sin patrón')],
   ].forEach(([key, value]) => {
     updated = replacePickleValueAfterKey(updated, key, value);
