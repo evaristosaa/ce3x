@@ -67,6 +67,7 @@ globalThis.__cexHelpers = {
   estimatedSystemsPatch,
   criticalCexIssues,
   serializeCexCerramientosInput,
+  serializeCexHuecosInput,
 };`, context);
   return context.__cexHelpers;
 }
@@ -105,10 +106,16 @@ function unpickledTopLevelLength(pickleText) {
 
 function unpickleJson(pickleText) {
   const result = spawnSync('python', ['-c', [
-    'import json,pickle,sys',
+    'import io,json,pickle,sys',
+    'class D:',
+    ' def __init__(self,*a,**k): self.__dict__["__args__"]=a',
+    ' def __setstate__(self,s): self.__dict__.update(s if isinstance(s,dict) else {"__state__":s})',
+    'class U(pickle.Unpickler):',
+    ' def find_class(self,m,n): return type(n,(D,),{"__module__":m})',
     "data=sys.stdin.buffer.read().replace(b'\\r\\n', b'\\n')",
-    'print(json.dumps(pickle.loads(data), ensure_ascii=False))',
-  ].join(';')], {
+    'def j(o): return o.__dict__ if hasattr(o,"__dict__") else str(o)',
+    'print(json.dumps(U(io.BytesIO(data)).load(), ensure_ascii=False, default=j))',
+  ].join('\n')], {
     input: Buffer.from(pickleText, 'latin1'),
     encoding: 'utf8',
   });
@@ -257,7 +264,7 @@ test('builds estimated envelope rows from general building data', () => {
 });
 
 test('serializes CE3X envelope enclosures with editable default shapes', () => {
-  const { estimatedEnvelopePatch, serializeCexCerramientosInput } = loadCexHelpers();
+  const { estimatedEnvelopePatch, serializeCexCerramientosInput, serializeCexHuecosInput } = loadCexHelpers();
   const patch = estimatedEnvelopePatch({
     'generales.definicion.superficieUtilHabitable': '88',
     'generales.definicion.numeroPlantasHabitables': '2',
@@ -270,9 +277,15 @@ test('serializes CE3X envelope enclosures with editable default shapes', () => {
   assert.equal(rows[1].length, 17);
   assert.equal(rows[1][9], true);
   assert.equal(rows[2][1], 'Fachada');
+  assert.equal(rows[2][5], 'NO');
   assert.equal(rows[2][8], 'Por defecto');
+  assert.deepEqual(rows[2][9], []);
   assert.notEqual(rows[2][10], '');
   assert.notEqual(rows[2][11], '');
+
+  const huecos = unpickleJson(serializeCexHuecosInput(patch['envolvente.huecos.items']) + '.');
+  assert.equal(huecos[0].orientacion, 'NO');
+  assert.equal(huecos[0].correctorSolar, 'NO');
 });
 
 test('builds estimated system rows from useful surface', () => {

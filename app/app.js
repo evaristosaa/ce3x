@@ -1116,10 +1116,10 @@ function estimatedEnvelopePatch(data) {
   const wallArea = Math.max(1, (facadeArea - openingArea) / 4);
   const openingPerOrientation = Math.max(0.8, openingArea / 4);
   const orientationRows = [
-    ['N', 'Fachada N'],
-    ['S', 'Fachada S'],
-    ['E', 'Fachada E'],
-    ['O', 'Fachada O'],
+    ['NO', 'Muro de fachada NO'],
+    ['SE', 'Muro de fachada SE'],
+    ['SO', 'Muro de fachada SO'],
+    ['NE', 'Muro de fachada NE'],
   ];
   const cerramientos = [
     { nombre: 'Cubierta estimada', tipoCerramiento: 'Cubierta', superficie: decimalForApp(footprint), u: '0.65', peso: '300', posicion: 'Techo', modoDefinicion: 'Por defecto', patronSombras: noShadow },
@@ -3012,6 +3012,7 @@ function serializeCexCerramientosInput(rows) {
 
 function serializeCexCerramientoInput(rowItem) {
   const type = cexValue(rowItem.tipoCerramiento);
+  const orientation = cexWallOrientation(rowItem.posicion);
   const dimensions = cexCerramientoDimensions(rowItem);
   const common = [
     cexPickleString(rowItem.nombre),
@@ -3019,7 +3020,7 @@ function serializeCexCerramientoInput(rowItem) {
     cexPickleString(cexDecimal(rowItem.superficie)),
     cexPickleFloat(rowItem.u),
     cexPickleFloat(rowItem.peso),
-    cexPickleString(rowItem.posicion),
+    cexPickleString(orientation),
     cexPickleString(''),
     cexPickleString(rowItem.patronSombras || 'Sin patrón'),
     cexPickleString(rowItem.modoDefinicion || 'Por defecto'),
@@ -3037,13 +3038,25 @@ function serializeCexCerramientoInput(rowItem) {
     ]));
   }
   return serializeCexList(common.concat([
-    serializeCexList([cexPickleString(type === 'Cubierta' ? 'Cubierta plana' : '')]),
+    type === 'Cubierta' ? serializeCexList([cexPickleString('Cubierta plana')]) : serializeCexList([]),
     cexPickleString(dimensions.longitud),
     cexPickleString(dimensions.altura),
     cexPickleString('1'),
     cexPickleString('Edificio Objeto'),
     cexPickleAscii('aire'),
   ]));
+}
+
+function cexWallOrientation(value) {
+  const normalized = cexValue(value).toUpperCase();
+  const map = {
+    N: 'NO',
+    S: 'SO',
+    E: 'SE',
+    O: 'NO',
+    W: 'NO',
+  };
+  return map[normalized] || normalized;
 }
 
 function cexCerramientoDimensions(rowItem) {
@@ -3082,6 +3095,7 @@ function serializeCexHuecosInput(rows) {
 }
 
 function serializeCexHuecoEstimadasObject(rowItem) {
+  const orientation = cexWallOrientation(rowItem.orientacion);
   const protection = serializeCexList([
     cexPickleString(''), cexPickleString(''), cexPickleString(''),
     cexPickleString(cexDecimal(rowItem.altura)), cexPickleString(cexDecimal(rowItem.longitud)),
@@ -3107,13 +3121,13 @@ function serializeCexHuecoEstimadasObject(rowItem) {
     ['multiplicador', cexPickleString(cexDecimal(rowItem.multiplicador))],
     ['subgrupo', cexPickleString('Edificio Objeto')],
     ['cerramientoAsociado', cexPickleString(rowItem.cerramientoAsociado)],
-    ['correctorSolar', cexPickleString(rowItem.orientacion)],
+    ['correctorSolar', cexPickleString(orientation)],
     ['Umarco', cexFloat(rowItem.uMarco)],
     ['porcMarco', cexPickleString(cexDecimal(rowItem.porcMarco))],
     ['__tipo__', cexPickleString('HuecoEstimadas')],
     ['correctorFSInvierno', cexFloat('0.71')],
     ['permeabilidadChoice', cexPickleString('Estanco')],
-    ['orientacion', cexPickleString(rowItem.orientacion)],
+    ['orientacion', cexPickleString(orientation)],
     ['tipoMarco', cexPickleString('Metálico con RPT')],
     ['absortividadPosiciones', serializeCexList([cexPickleInteger('7'), cexPickleInteger('1')])],
     ['dobleVentana', cexPickleBool(false)],
