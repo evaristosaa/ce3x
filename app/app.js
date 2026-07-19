@@ -3112,7 +3112,10 @@ function serializeCexCerramientoInput(rowItem) {
 }
 
 function cexWallOrientation(value) {
-  const normalized = cexValue(value).toUpperCase();
+  const normalizedValue = cexValue(value);
+  const normalized = normalizedValue.toUpperCase();
+  if (normalized === 'TECHO') return 'Techo';
+  if (normalized === 'SUELO') return 'Suelo';
   const map = {
     N: 'NO',
     S: 'SO',
