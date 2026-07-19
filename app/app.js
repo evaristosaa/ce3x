@@ -2421,7 +2421,42 @@ function applyCexReplacements(text, record) {
   next = applyCexEmbeddedImageReplacements(next, record);
   next = applyCexEnvelopeStreamReplacement(next, record);
   if (mode !== 'stable' && mode !== 'full') next = applyCexSystemsStreamReplacement(next, record);
-  return next;
+  return stripCexImprovements(next);
+}
+
+function stripCexImprovements(text) {
+  const lineEnding = text.includes('\r\n') ? '\r\n' : '\n';
+  const improvementsStart = text.indexOf(`.(lp0${lineEnding}(iMedidasDeMejora.objetoGrupoMejoras${lineEnding}`);
+  if (improvementsStart < 0) return text;
+
+  // Streams 5-9 hold improvement objects, their summaries, and shadow data.
+  // Keep their pickle positions but start them empty so the base certificate
+  // can be qualified before the user creates improvement packages in CE3X.
+  const stream10Start = text.lastIndexOf(`.(lp0${lineEnding}VSin`);
+  if (stream10Start < 0) return text;
+  const emptyList = serializeCexList([]);
+  const blankValues = serializeCexList(Array.from({ length: 10 }, () => cexPickleString('')));
+  const emptySummary = serializeCexList([
+    serializeCexList([]),
+    blankValues,
+    serializeCexList([]),
+    'N',
+  ]);
+  const emptyStreams = [emptyList, emptySummary, emptyList, emptyList, emptyList]
+    .map(value => `${value}.`)
+    .join('');
+  let next = `${text.slice(0, improvementsStart)}.${emptyStreams}${text.slice(stream10Start + 1)}`;
+
+  const nextStream10Start = next.indexOf(`(lp0${lineEnding}VSin`);
+  const metadataStart = next.indexOf(`(lp0${lineEnding}VCONJUNTO DE MEJORAS 1`, nextStream10Start);
+  if (metadataStart < 0) return next;
+  const metadataEnd = next.indexOf(`(dp0${lineEnding}`, metadataStart);
+  if (metadataEnd < 0) return next;
+  const emptyMetadata = serializeCexList([
+    cexPickleString(''), cexPickleString(''), cexPickleString(''),
+    cexPickleString(''), cexPickleString(''), serializeCexList([]), serializeCexList([]),
+  ]);
+  return `${next.slice(0, metadataStart)}${emptyMetadata}.${next.slice(metadataEnd)}`;
 }
 
 function applyCexEmbeddedImageReplacements(text, record) {
