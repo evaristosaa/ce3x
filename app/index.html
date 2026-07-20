@@ -71,6 +71,8 @@
           <div class="detail-actions">
             <button id="saveDetailBtn" type="submit" form="detailForm">Guardar detalle</button>
             <button id="catastroBtn" type="button" class="secondary">Traer Catastro</button>
+            <button id="catastroMapBtn" type="button" class="secondary" title="Abrir la cartografía del Catastro">Cartografía Catastro</button>
+            <button id="catastro3dBtn" type="button" class="secondary" title="Abrir el Visor 3D del Catastro">Visor3D Catastro</button>
             <button id="autoEnvelopeBtn" type="button" class="secondary">Autocompletar envolvente</button>
             <button id="autoSystemsBtn" type="button" class="secondary">Autocompletar instalaciones</button>
             <button id="copyDataBtn" type="button" class="secondary">Copiar datos</button>
@@ -123,6 +125,41 @@
     </form>
   </dialog>
 
-    <script src="app.js?v=20260719-cex-clean-improvements"></script>
+  <dialog id="newRecordDialog">
+    <form method="dialog" id="newRecordForm">
+      <h2>Nuevo expediente</h2>
+      <fieldset class="new-record-options">
+        <legend>Elige una única forma de cargarlo</legend>
+        <label class="new-record-option">
+          <input type="radio" name="newRecordMode" value="catastro" checked>
+          <span>
+            <strong>Introducir referencia catastral</strong>
+            <small>Crear el expediente y traer sus datos desde Catastro.</small>
+          </span>
+        </label>
+        <label class="new-record-option">
+          <input type="radio" name="newRecordMode" value="cex">
+          <span>
+            <strong>Cargar .cex local</strong>
+            <small>Crear el expediente a partir de un archivo CE3X del equipo.</small>
+          </span>
+        </label>
+      </fieldset>
+      <label id="newRecordReferenceField">Referencia catastral
+        <input name="reference" inputmode="latin" maxlength="20" autocomplete="off" placeholder="20 caracteres">
+      </label>
+      <label id="newRecordFileField" hidden>Archivo .cex
+        <input name="cexFile" type="file" accept=".cex,application/octet-stream">
+      </label>
+      <p id="newRecordHelp" class="dialog-help">Se creará el expediente y se consultará Catastro automáticamente.</p>
+      <div class="form-actions">
+        <button type="submit" id="createNewRecordBtn">Crear expediente</button>
+        <button type="button" class="secondary" id="closeNewRecordBtn">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+    <script src="cex-import.js?v=20260720-new-record"></script>
+    <script src="app.js?v=20260720-new-record"></script>
 </body>
 </html>
