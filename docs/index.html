@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <title>CE3X Captura</title>
+  <link rel="stylesheet" href="styles.css?v=20260617-expedientes69">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>CE3X Captura</h1>
+      <p>Chat de captura, expedientes y detalle editable para preparar CE3X.</p>
+    </div>
+    <div class="actions">
+      <span id="storageMode" class="storage-mode">Config pendiente</span>
+      <button id="newBtn" type="button">Nuevo expediente</button>
+      <button id="configBtn" type="button" class="secondary">Config</button>
+    </div>
+  </header>
+  <div id="syncAlert" class="sync-alert" hidden></div>
+
+  <main class="app-shell">
+    <section class="panel capture-panel" aria-label="Captura por chat">
+      <div class="panel-header">
+        <div>
+          <h2>Chat</h2>
+          <p id="activeRecordText">Sin expediente abierto.</p>
+        </div>
+      </div>
+      <div class="active-expedient">
+        <label>
+          <span>Selecciona expediente para el chat</span>
+          <select id="activeRecordSelect"></select>
+        </label>
+      </div>
+      <form id="chatForm" class="chat-form">
+        <textarea id="chatInput" rows="4" placeholder="Ej: superficie útil habitable 149.40, ventilación del inmueble 0.63, demanda diaria ACS 120, cliente Juan Pérez"></textarea>
+        <div class="chat-actions">
+          <button type="submit">Enviar</button>
+          <button id="voiceBtn" type="button" class="secondary">Dictar</button>
+        </div>
+      </form>
+      <div id="chatLog" class="chat-log" aria-live="polite"></div>
+    </section>
+
+    <section class="panel right-panel" aria-label="Expedientes y detalle editable">
+      <div id="listView" class="list-view">
+        <div class="panel-header">
+          <div>
+            <h2>Expedientes</h2>
+            <p id="statusSummary">0 expedientes</p>
+          </div>
+          <div class="list-filters">
+            <select id="statusFilter" aria-label="Filtrar expedientes por estado">
+              <option value="all">Todos los estados</option>
+              <option value="BORRADOR">Pendientes</option>
+              <option value="PENDIENTE_DATOS">En curso</option>
+              <option value="COMPLETA">Completados</option>
+            </select>
+            <input id="searchInput" type="search" placeholder="Buscar">
+          </div>
+        </div>
+        <div id="expedientList" class="expedient-list"></div>
+      </div>
+
+      <div id="detailView" class="detail-view" hidden>
+        <div class="detail-toolbar">
+          <button id="backToListBtn" type="button" class="secondary">Volver a la lista</button>
+          <div class="detail-actions">
+            <button id="saveDetailBtn" type="submit" form="detailForm">Guardar detalle</button>
+            <button id="catastroBtn" type="button" class="secondary">Traer Catastro</button>
+            <button id="autoEnvelopeBtn" type="button" class="secondary">Autocompletar envolvente</button>
+            <button id="autoSystemsBtn" type="button" class="secondary">Autocompletar instalaciones</button>
+            <button id="copyDataBtn" type="button" class="secondary">Copiar datos</button>
+            <button id="deleteRecordBtn" type="button" class="danger">Eliminar expediente</button>
+            <button id="downloadJsonBtn" type="button" class="secondary">Descargar JSON</button>
+            <button id="downloadCexBtn" type="button" class="secondary">Descargar .cex</button>
+          </div>
+        </div>
+
+        <div class="record-head">
+          <div>
+            <h2 id="recordTitle">Detalle del expediente</h2>
+            <p id="recordSubtitle">Selecciona o crea una referencia.</p>
+          </div>
+          <span id="recordBadge" class="badge">BORRADOR</span>
+        </div>
+
+        <nav id="sectionTabs" class="tabs" aria-label="Secciones CE3X"></nav>
+        <form id="detailForm">
+          <div id="sectionFields" class="section-fields"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="configDialog">
+    <form method="dialog" id="configForm">
+      <h2>Configuracion</h2>
+      <label>Apps Script URL<input name="apiUrl" placeholder="https://script.google.com/macros/s/.../exec"></label>
+      <label>APP_SECRET<input name="secret" type="password"></label>
+      <p>La app trabaja solo con Google Sheets. Sin URL no se cargan ni se guardan expedientes.</p>
+      <div class="form-actions">
+        <button type="submit">Guardar config</button>
+        <button type="button" class="secondary" id="testConfigBtn">Probar conexión</button>
+        <button type="button" class="secondary" id="copyConfigLinkBtn">Copiar enlace config</button>
+        <button type="button" class="secondary" id="closeConfigBtn">Cerrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="copyDataDialog">
+    <form method="dialog" id="copyDataForm">
+      <h2>Copiar datos</h2>
+      <label>Expediente origen<select name="sourceId" id="copySourceSelect"></select></label>
+      <p>Se copiarán Envolvente térmica e Instalaciones al expediente abierto.</p>
+      <div class="form-actions">
+        <button type="submit">Guardar copia</button>
+        <button type="button" class="secondary" id="closeCopyDataBtn">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+    <script src="app.js?v=20260719-cex-clean-improvements"></script>
+</body>
+</html>
