@@ -66,6 +66,7 @@ const SCALAR_DATA_PATHS = [
   'generales.definicion.planoSituacion',
   'catastro.x',
   'catastro.y',
+  'catastro.reference',
   'catastro.srs',
 ];
 const JSON_DATA_PATHS = [
