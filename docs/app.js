@@ -20,6 +20,11 @@ const DEFAULT_TECHNICIAN = {
   'admin.tecnico.titulacion': 'INGENIERO TÉCNICO DE MINAS',
 };
 
+const DEFAULT_CLIENT = {
+  'admin.cliente.telefono': '.',
+  'admin.cliente.email': '.',
+};
+
 const CEX37_DEFAULTS = {
   'admin.localizacion.nombreEdificio': 'PL SEN-1 ENTRENUCLEOS 40(D)',
   'admin.localizacion.direccion': 'C/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37',
@@ -510,6 +515,9 @@ function normalizeRecord(record) {
     if (!hasValue(data[path])) data[path] = DEFAULT_TECHNICIAN[path];
   });
   migrateLegacy(record, data);
+  Object.keys(DEFAULT_CLIENT).forEach(path => {
+    if (!hasValue(data[path])) data[path] = DEFAULT_CLIENT[path];
+  });
   if (normalizeReference(data['admin.localizacion.referenciaCatastral']) === CASA37_REFERENCE) {
     Object.entries(CEX37_DEFAULTS).forEach(([path, value]) => {
       if (!hasValue(data[path])) data[path] = clone(value);
