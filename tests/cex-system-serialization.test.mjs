@@ -467,8 +467,37 @@ test('maps Catastro data and fills reviewable CE3X estimates', () => {
   assert.equal(patch['catastro.y'], '37.3044423187296');
   assert.equal(patch['catastro.srs'], 'EPSG:4326');
   assert.equal(patch['catastro.reference'], '0128501TG4302N0037ZI');
+  assert.equal(patch['catastro.superficiePlantaInferior'], '17');
+  assert.equal(patch['catastro.superficiePlantaMayor'], '75');
   assert.equal(patch['generales.definicion.planoSituacion'], 'data:image/png;base64,iVBORw0KGgoCATASTROMAP');
   assert.equal(patch['generales.datos.normativaVigente'], 'NBE-CT-79');
+});
+
+test('uses the lowest and largest Catastro floor surfaces for soil and roof', () => {
+  const { estimatedEnvelopePatch } = loadCexHelpers();
+  const patch = estimatedEnvelopePatch({
+    'generales.definicion.superficieUtilHabitable': '165',
+    'generales.definicion.numeroPlantasHabitables': '3',
+    'generales.definicion.alturaLibrePlanta': '2.70',
+    'catastro.superficiePlantaInferior': '17',
+    'catastro.superficiePlantaMayor': '75',
+  });
+  const byType = Object.fromEntries(patch['envolvente.cerramientos.items'].map(item => [item.tipoCerramiento, item]));
+  assert.equal(byType.Suelo.superficie, '17');
+  assert.equal(byType.Cubierta.superficie, '75');
+});
+
+test('uses the Catastro neighbour heuristic to choose exposed facade count', () => {
+  const { estimatedEnvelopePatch } = loadCexHelpers();
+  const patch = estimatedEnvelopePatch({
+    'generales.definicion.superficieUtilHabitable': '165',
+    'generales.definicion.numeroPlantasHabitables': '3',
+    'catastro.superficiePlantaInferior': '17',
+    'catastro.superficiePlantaMayor': '75',
+    'catastro.fachadasExpuestas': '2',
+  });
+  assert.equal(patch['envolvente.cerramientos.items'].filter(item => item.tipoCerramiento === 'Fachada').length, 2);
+  assert.equal(patch['envolvente.huecos.items'].every(item => ['Muro de fachada NO', 'Muro de fachada SE'].includes(item.cerramientoAsociado)), true);
 });
 
 test('builds the Catastro cartography link from the expediente', () => {
