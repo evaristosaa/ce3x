@@ -1598,11 +1598,17 @@ async function deleteSelectedRecord() {
   if (!confirmed) return;
 
   try {
-    await api({
+    const deleteRequest = {
       action: 'delete',
       id: record.id,
       referenciaCatastral: valueAt(record, 'admin.localizacion.referenciaCatastral'),
-    });
+    };
+    try {
+      await api(deleteRequest);
+    } catch (error) {
+      const confirmed = await recoverConfirmedDelete(deleteRequest);
+      if (!confirmed) throw error;
+    }
 
     state.records = state.records.filter(item => item.id !== record.id);
     state.selectedId = state.records[0]?.id || '';
@@ -1610,7 +1616,26 @@ async function deleteSelectedRecord() {
     state.rightView = 'list';
     window.location.reload();
   } catch (error) {
+    showSyncAlert(sheetErrorHelp(error));
     addChatMessage('assistant', 'No he podido eliminar el expediente: ' + error.message);
+  }
+}
+
+async function recoverConfirmedDelete(request) {
+  try {
+    const response = await jsonpAppsScript(state.config.apiUrl, {
+      action: 'list',
+      secret: state.config.secret,
+    });
+    const reference = normalizeReference(request.referenciaCatastral);
+    const stillExists = (response.items || []).some(item => {
+      const sameId = request.id && String(item.id || '') === String(request.id);
+      const sameReference = reference && normalizeReference(item.referenciaCatastral) === reference;
+      return sameId || sameReference;
+    });
+    return !stillExists;
+  } catch (error) {
+    return false;
   }
 }
 
