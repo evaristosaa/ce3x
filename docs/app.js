@@ -92,7 +92,7 @@ const CEX37_DEFAULTS = {
 };
 
 const SELECT_OPTIONS = {
-  normativaVigente: ['CTE 2013', 'CTE 2006', 'Anterior'],
+  normativaVigente: ['Anterior', 'NBE-CT-79', 'CTE 2006', 'CTE 2013'],
   tipoEdificio: ['Unifamiliar', 'Bloque de viviendas', 'Vivienda individual', 'Terciario'],
   provincia: ['Sevilla', 'Huelva', 'Cádiz', 'Córdoba', 'Málaga'],
   localidad: ['Dos Hermanas', 'DOS HERMANAS', 'Sevilla'],
@@ -396,6 +396,8 @@ activeRecordSelect.addEventListener('change', () => {
   renderAll();
 });
 detailForm.addEventListener('submit', saveDetail);
+detailForm.addEventListener('input', updateNormativaFromConstructionYear);
+detailForm.addEventListener('change', updateNormativaFromConstructionYear);
 configForm.addEventListener('submit', saveConfig);
 copyDataForm.addEventListener('submit', copyDataFromSelectedSource);
 window.addEventListener('error', event => {
@@ -513,9 +515,18 @@ function normalizeRecord(record) {
       if (!hasValue(data[path])) data[path] = clone(value);
     });
   }
+  const normativa = normativaVigenteDesdeAnio(data['generales.datos.anioConstruccion']);
+  if (normativa) data['generales.datos.normativaVigente'] = normativa;
   const next = Object.assign({}, record, { data });
   next.estado = inferStatus(next);
   return next;
+}
+
+function updateNormativaFromConstructionYear(event) {
+  if (event.target?.name !== 'generales.datos.anioConstruccion') return;
+  const normativa = normativaVigenteDesdeAnio(event.target.value);
+  const select = detailForm.elements['generales.datos.normativaVigente'];
+  if (normativa && select) select.value = normativa;
 }
 
 function mergeDefaults(record, defaults) {
@@ -1928,6 +1939,7 @@ function catastroPatchFromData(item) {
     'admin.cliente.localidad': localidad,
     'admin.cliente.codigoPostal': codigoPostal,
     'generales.datos.anioConstruccion': item.anioConstruccion || '',
+    'generales.datos.normativaVigente': normativaVigenteDesdeAnio(item.anioConstruccion),
     'generales.datos.tipoEdificio': residentialUse ? 'Vivienda individual' : '',
     'generales.datos.provincia': provincia,
     'generales.datos.localidad': localidad,
@@ -4037,6 +4049,16 @@ function escapeHtml(value) {
 
 function normalizeReference(value) {
   return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function normativaVigenteDesdeAnio(value) {
+  const match = String(value || '').match(/(?:19|20)\d{2}/);
+  if (!match) return '';
+  const year = Number(match[0]);
+  if (year < 1981) return 'Anterior';
+  if (year < 2007) return 'NBE-CT-79';
+  if (year < 2014) return 'CTE 2006';
+  return 'CTE 2013';
 }
 
 function normalizeText(value) {
