@@ -370,6 +370,7 @@ const copySourceSelect = document.querySelector('#copySourceSelect');
 
 document.querySelector('#newBtn').addEventListener('click', () => createNewRecord().catch(error => addChatMessage('assistant', sheetErrorHelp(error))));
 document.querySelector('#catastroBtn').addEventListener('click', loadCatastroForSelected);
+document.querySelector('#catastroMapBtn').addEventListener('click', openCatastroCartography);
 document.querySelector('#autoEnvelopeBtn').addEventListener('click', autocompleteEnvelopeForSelected);
 document.querySelector('#autoSystemsBtn').addEventListener('click', autocompleteSystemsForSelected);
 document.querySelector('#copyDataBtn').addEventListener('click', openCopyDataDialog);
@@ -692,6 +693,13 @@ function renderDetail() {
   recordBadge.textContent = statusLabel(status);
   recordBadge.className = 'badge ' + status;
 
+  const catastroMapBtn = document.querySelector('#catastroMapBtn');
+  const catastroUrl = record ? catastroCartographyUrl(record) : '';
+  catastroMapBtn.disabled = !catastroUrl;
+  catastroMapBtn.title = catastroUrl
+    ? 'Abrir la cartografía del Catastro para este expediente'
+    : 'Falta una referencia catastral válida';
+
   sectionFields.innerHTML = '';
   sectionItem.groups.forEach(groupItem => {
     const fieldset = document.createElement('fieldset');
@@ -707,6 +715,16 @@ function renderDetail() {
     });
     sectionFields.appendChild(fieldset);
   });
+}
+
+function openCatastroCartography() {
+  const record = selectedRecord();
+  const url = record ? catastroCartographyUrl(record) : '';
+  if (!url) {
+    addChatMessage('assistant', 'No puedo abrir la cartografía: el expediente no tiene una referencia catastral válida.');
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 function inputHtml(item, path, value) {
@@ -1917,6 +1935,49 @@ function catastroMapUrlFromData({ reference, x, y, srs }) {
     y,
     srs: srs || 'EPSG:4326',
   });
+  return `https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?${params.toString()}`;
+}
+
+const CATASTRO_PROVINCE_CODES = {
+  almeria: '04',
+  cadiz: '11',
+  cordoba: '14',
+  granada: '18',
+  huelva: '21',
+  jaen: '23',
+  malaga: '29',
+  sevilla: '41',
+};
+
+const CATASTRO_MUNICIPALITY_CODES = {
+  'sevilla|dos hermanas': '38',
+  'sevilla|sevilla': '15',
+};
+
+function catastroCartographyUrl(record) {
+  const reference = normalizeReference(valueAt(record, 'admin.localizacion.referenciaCatastral'));
+  if (reference.length !== 20) return '';
+
+  const x = valueAt(record, 'catastro.x');
+  const y = valueAt(record, 'catastro.y');
+  if (x && y) return catastroMapUrlFromData({
+    reference,
+    x,
+    y,
+    srs: valueAt(record, 'catastro.srs') || 'EPSG:4326',
+  });
+
+  const province = normalizeText(valueAt(record, 'admin.localizacion.provincia'));
+  const locality = normalizeText(valueAt(record, 'admin.localizacion.localidad'));
+  const params = new URLSearchParams();
+  const provinceCode = CATASTRO_PROVINCE_CODES[province];
+  const municipalityCode = CATASTRO_MUNICIPALITY_CODES[`${province}|${locality}`];
+  if (provinceCode) params.set('del', provinceCode);
+  if (municipalityCode) params.set('mun', municipalityCode);
+  params.set('refcat', reference);
+  params.set('final', '');
+  params.set('ZV', 'NO');
+  params.set('anyoZV', '');
   return `https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?${params.toString()}`;
 }
 
