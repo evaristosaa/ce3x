@@ -68,6 +68,10 @@ const SCALAR_DATA_PATHS = [
   'catastro.y',
   'catastro.reference',
   'catastro.srs',
+  'catastro.superficiePlantaInferior',
+  'catastro.superficiePlantaMayor',
+  'catastro.parcelasColindantes',
+  'catastro.fachadasExpuestas',
 ];
 const JSON_DATA_PATHS = [
   'envolvente.cerramientos.items',
@@ -437,6 +441,7 @@ function getCatastro_(reference) {
   const xml = response.getContentText();
   assertCatastroResponseOk_(xml);
   const coordinates = getCatastroCoordinates_(rc);
+  const neighbourInfo = getCatastroNeighbourInfo_(rc);
   const streetViewImage = getStreetViewImage_(coordinates);
   const situationPlanImage = getCatastroSituationPlanImage_(coordinates);
   return {
@@ -454,6 +459,8 @@ function getCatastro_(reference) {
     srs: coordinates.srs,
     imagenEdificio: streetViewImage,
     planoSituacion: situationPlanImage,
+    parcelasColindantes: neighbourInfo.parcelasColindantes,
+    fachadasExpuestas: neighbourInfo.fachadasExpuestas,
   };
 }
 
@@ -480,6 +487,25 @@ function getCatastroCoordinates_(reference) {
       x: extractTag_(xml, 'xcen'),
       y: extractTag_(xml, 'ycen'),
       srs: extractTag_(xml, 'srs') || 'EPSG:4326',
+    };
+  } catch (error) {
+    return {};
+  }
+}
+
+function getCatastroNeighbourInfo_(reference) {
+  try {
+    const parcelReference = normalizeReference_(reference).slice(0, 14);
+    if (parcelReference.length !== 14) return {};
+    const url = 'https://ovc.catastro.meh.es/INSPIRE/wfsCP.aspx?service=WFS&version=2.0.0&request=GetFeature&STOREDQUERIE_ID=GETNEIGHBOURPARCEL&refcat=' + encodeURIComponent(parcelReference) + '&srsname=EPSG::25830';
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (response.getResponseCode() >= 400) return {};
+    const xml = response.getContentText();
+    const parcels = String(xml || '').match(/<(?:[A-Za-z0-9_]+:)?CadastralParcel\b/gi) || [];
+    const neighbours = Math.max(0, parcels.length - 1);
+    return {
+      parcelasColindantes: String(neighbours),
+      fachadasExpuestas: String(neighbours >= 2 ? 2 : neighbours === 1 ? 3 : 4),
     };
   } catch (error) {
     return {};
