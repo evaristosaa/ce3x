@@ -1321,10 +1321,8 @@ function estimatedEnvelopePatch(data) {
   const floorAreas = estimatedFloorAreas(surface, floors, lowestFloorSurface, largestFloorSurface);
   const soilSurface = floorAreas[0] || surface / floors;
   const roofSurface = Math.max(...floorAreas, soilSurface);
-  const facadeRows = normalizeCexRows(CEX37_DEFAULTS['envolvente.cerramientos.items'], [
-    'nombre', 'tipoCerramiento', 'superficie', 'u', 'peso', 'posicion', 'modoDefinicion', 'patronSombras',
-  ]).filter(rowItem => rowItem.tipoCerramiento === 'Fachada');
   const hasCatastroFacadeEstimate = Number(cexDecimal(data['catastro.fachadasExpuestas'] || 0)) >= 2;
+  const hasCatastroFloorEstimate = lowestFloorSurface > 0 || largestFloorSurface > 0;
   const facadeCount = hasCatastroFacadeEstimate
     ? Math.min(4, Math.max(2, Math.round(Number(cexDecimal(data['catastro.fachadasExpuestas'])))))
     : 4;
@@ -1362,23 +1360,23 @@ function estimatedEnvelopePatch(data) {
   let huecos = normalizeCexRows(CEX37_DEFAULTS['envolvente.huecos.items'], [
     'nombre', 'cerramientoAsociado', 'longitud', 'altura', 'multiplicador', 'superficie', 'uVidrio', 'gVidrio', 'uMarco', 'porcMarco', 'absortividadMarco', 'modoDefinicion', 'permeabilidad', 'orientacion', 'patronSombras',
   ]);
-  if (hasCatastroFacadeEstimate) {
-    const facadeNames = new Set(selectedFacadeRows.map(rowItem => rowItem.nombre));
-    huecos = huecos.filter(rowItem => facadeNames.has(rowItem.cerramientoAsociado));
+  if (hasCatastroFacadeEstimate || hasCatastroFloorEstimate) {
+    huecos = estimateHuecosByFacadeAndFloor(selectedFacadeRows, floorAreas, height, noShadow);
+  } else {
+    const defaultOpeningArea = huecos.reduce((sum, rowItem) => sum + (Number(cexDecimal(rowItem.superficie)) || 0), 0) || 1;
+    huecos.forEach(rowItem => {
+      const defaultSurface = Number(cexDecimal(rowItem.superficie)) || (defaultOpeningArea / huecos.length);
+      const nextSurface = Math.max(0.25, openingArea * defaultSurface / defaultOpeningArea);
+      const defaultLength = Math.max(0.1, Number(cexDecimal(rowItem.longitud)) || 1);
+      const defaultHeight = Math.max(0.1, Number(cexDecimal(rowItem.altura)) || 1);
+      const shapeScale = Math.sqrt(nextSurface / Math.max(0.1, defaultLength * defaultHeight));
+      rowItem.longitud = decimalForApp(defaultLength * shapeScale);
+      rowItem.altura = decimalForApp(defaultHeight * shapeScale);
+      rowItem.superficie = decimalForApp(nextSurface);
+      rowItem.modoDefinicion = 'Estimadas';
+      rowItem.patronSombras = noShadow;
+    });
   }
-  const defaultOpeningArea = huecos.reduce((sum, rowItem) => sum + (Number(cexDecimal(rowItem.superficie)) || 0), 0) || 1;
-  huecos.forEach(rowItem => {
-    const defaultSurface = Number(cexDecimal(rowItem.superficie)) || (defaultOpeningArea / huecos.length);
-    const nextSurface = Math.max(0.25, openingArea * defaultSurface / defaultOpeningArea);
-    const defaultLength = Math.max(0.1, Number(cexDecimal(rowItem.longitud)) || 1);
-    const defaultHeight = Math.max(0.1, Number(cexDecimal(rowItem.altura)) || 1);
-    const shapeScale = Math.sqrt(nextSurface / Math.max(0.1, defaultLength * defaultHeight));
-    rowItem.longitud = decimalForApp(defaultLength * shapeScale);
-    rowItem.altura = decimalForApp(defaultHeight * shapeScale);
-    rowItem.superficie = decimalForApp(nextSurface);
-    rowItem.modoDefinicion = 'Estimadas';
-    rowItem.patronSombras = noShadow;
-  });
 
   let puentes = normalizeCexRows(CEX37_DEFAULTS['envolvente.puentesTermicos.items'], [
     'nombre', 'cerramientoAsociado', 'tipoPuenteTermico', 'fi', 'longitud',
@@ -1418,6 +1416,42 @@ function normalizeEstimatedFacadeTopology(cerramientos, facadeCount, useCatastro
     posicion: position,
   }));
   return cerramientos.filter(rowItem => rowItem.tipoCerramiento !== 'Fachada').concat(selected);
+}
+
+function estimateHuecosByFacadeAndFloor(facadeRows, floorAreas, height, noShadow) {
+  const totalFloorArea = floorAreas.reduce((sum, value) => sum + Math.max(1, value), 0) || 1;
+  const windowHeight = Math.min(1.50, Math.max(1.10, height * 0.45));
+  const openingsRatio = 0.22;
+  const rows = [];
+  facadeRows.forEach(facade => {
+    const wallSurface = Math.max(1, Number(cexDecimal(facade.superficie)) || 1);
+    const facadeOpeningSurface = wallSurface * openingsRatio / (1 - openingsRatio);
+    floorAreas.forEach((floorSurface, floorIndex) => {
+      const floorOpeningSurface = facadeOpeningSurface * Math.max(1, floorSurface) / totalFloorArea;
+      const windowsOnFloor = Math.max(1, Math.min(4, Math.ceil(floorOpeningSurface / (2.5 * windowHeight))));
+      const windowSurface = floorOpeningSurface / windowsOnFloor;
+      for (let windowIndex = 0; windowIndex < windowsOnFloor; windowIndex += 1) {
+        rows.push({
+          nombre: `Hueco estimado ${facade.posicion} P${floorIndex + 1}${windowsOnFloor > 1 ? `-${windowIndex + 1}` : ''}`,
+          cerramientoAsociado: facade.nombre,
+          longitud: decimalForApp(windowSurface / windowHeight),
+          altura: decimalForApp(windowHeight),
+          multiplicador: '1',
+          superficie: decimalForApp(windowSurface),
+          uVidrio: '3.30',
+          gVidrio: '0.75',
+          uMarco: '4.00',
+          porcMarco: '20',
+          absortividadMarco: '0.65',
+          modoDefinicion: 'Estimadas',
+          permeabilidad: '50',
+          orientacion: facade.posicion,
+          patronSombras: noShadow,
+        });
+      }
+    });
+  });
+  return rows;
 }
 
 function estimatedFloorAreas(surface, floors, lowestFloorSurface, largestFloorSurface) {
