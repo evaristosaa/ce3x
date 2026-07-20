@@ -26,6 +26,7 @@ const DEFAULT_CLIENT = {
 };
 
 const DEFAULT_GENERAL = {
+  'generales.definicion.alturaLibrePlanta': '2.70',
   'generales.definicion.masaParticionesInternas': 'Ligera',
 };
 
@@ -1170,7 +1171,7 @@ function estimatedEnvelopePatchLegacy(data) {
   const noShadow = SELECT_OPTIONS.patronSombras[0] || 'Sin patrón';
   const surface = Math.max(1, Number(cexDecimal(data['generales.definicion.superficieUtilHabitable'] || data.superficieCatastral || 100)));
   const floors = Math.max(1, Math.round(Number(cexDecimal(data['generales.definicion.numeroPlantasHabitables'] || 1))));
-  const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.6)));
+  const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.7)));
   const footprint = surface / floors;
   const side = Math.sqrt(footprint);
   const perimeter = side * 4;
@@ -1235,7 +1236,7 @@ function estimatedEnvelopePatch(data) {
   const noShadow = SELECT_OPTIONS.patronSombras[0] || 'Sin patron';
   const surface = Math.max(1, Number(cexDecimal(data['generales.definicion.superficieUtilHabitable'] || data.superficieCatastral || 100)));
   const floors = Math.max(1, Math.round(Number(cexDecimal(data['generales.definicion.numeroPlantasHabitables'] || 1))));
-  const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.6)));
+  const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.7)));
   const footprint = surface / floors;
   const side = Math.sqrt(footprint);
   const perimeter = side * 4;
@@ -1984,7 +1985,7 @@ function catastroPatchFromData(item) {
     'generales.datos.localidad': localidad,
     'generales.definicion.superficieUtilHabitable': viviendaSurface || builtSurface,
     'generales.definicion.numeroPlantasHabitables': viviendaFloors,
-    'generales.definicion.alturaLibrePlanta': residentialUse ? '2.60' : '',
+    'generales.definicion.alturaLibrePlanta': residentialUse ? '2.70' : '',
     'generales.definicion.ventilacionInmueble': residentialUse ? '0.63' : '',
     'generales.definicion.demandaDiariaACS': residentialUse ? '120' : '',
     'generales.definicion.masaParticionesInternas': 'Ligera',
