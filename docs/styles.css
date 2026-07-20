@@ -565,28 +565,38 @@ dialog::backdrop {
   gap: 14px;
 }
 
+#newRecordForm {
+  text-align: center;
+}
+
 .new-record-options {
   border: 1px solid var(--line);
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
   padding: 10px;
+  text-align: left;
 }
 
 .new-record-options legend {
   color: var(--muted);
   font-size: 13px;
+  text-align: left;
   padding: 0 5px;
 }
 
 .new-record-option {
-  align-items: flex-start;
+  align-items: center;
   border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   gap: 10px;
+  justify-content: center;
+  min-height: 76px;
   padding: 9px;
+  text-align: center;
 }
 
 .new-record-option:has(input:checked) {
@@ -595,13 +605,50 @@ dialog::backdrop {
 }
 
 .new-record-option span {
-  display: grid;
-  gap: 3px;
+  display: block;
 }
 
-.new-record-option small,
-.dialog-help {
+.dialog-help,
+.dialog-status {
   color: var(--muted);
+  margin: 0;
+}
+
+.dialog-status {
+  align-items: center;
+  color: var(--accent);
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  font-weight: 700;
+}
+
+#newRecordForm > label {
+  text-align: left;
+}
+
+#newRecordForm .form-actions {
+  justify-content: center;
+}
+
+.button-spinner {
+  animation: button-spin .8s linear infinite;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  display: none;
+  height: 13px;
+  margin-right: 7px;
+  vertical-align: -2px;
+  width: 13px;
+}
+
+#createNewRecordBtn.is-loading .button-spinner {
+  display: inline-block;
+}
+
+@keyframes button-spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 980px) {
@@ -616,6 +663,10 @@ dialog::backdrop {
 
   .app-shell {
     padding: 10px;
+  }
+
+  .new-record-options {
+    grid-template-columns: 1fr;
   }
 
   .panel {
