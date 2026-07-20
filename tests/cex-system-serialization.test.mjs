@@ -498,6 +498,8 @@ test('uses the Catastro neighbour heuristic to choose exposed facade count', () 
   });
   assert.equal(patch['envolvente.cerramientos.items'].filter(item => item.tipoCerramiento === 'Fachada').length, 2);
   assert.equal(patch['envolvente.huecos.items'].every(item => ['Muro de fachada NO', 'Muro de fachada SE'].includes(item.cerramientoAsociado)), true);
+  assert.ok(patch['envolvente.huecos.items'].length >= 6);
+  assert.ok(patch['envolvente.huecos.items'].every(item => Number(item.superficie) > 0 && Number(item.altura) > 0));
 });
 
 test('builds the Catastro cartography link from the expediente', () => {
