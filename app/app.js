@@ -20,6 +20,16 @@ const DEFAULT_TECHNICIAN = {
   'admin.tecnico.titulacion': 'INGENIERO TÉCNICO DE MINAS',
 };
 
+const DEFAULT_CLIENT = {
+  'admin.cliente.telefono': '.',
+  'admin.cliente.email': '.',
+};
+
+const DEFAULT_GENERAL = {
+  'generales.definicion.alturaLibrePlanta': '2.70',
+  'generales.definicion.masaParticionesInternas': 'Ligera',
+};
+
 const CEX37_DEFAULTS = {
   'admin.localizacion.nombreEdificio': 'PL SEN-1 ENTRENUCLEOS 40(D)',
   'admin.localizacion.direccion': 'C/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37',
@@ -92,7 +102,7 @@ const CEX37_DEFAULTS = {
 };
 
 const SELECT_OPTIONS = {
-  normativaVigente: ['CTE 2013', 'CTE 2006', 'Anterior'],
+  normativaVigente: ['Anterior', 'NBE-CT-79', 'CTE 2006', 'CTE 2013'],
   tipoEdificio: ['Unifamiliar', 'Bloque de viviendas', 'Vivienda individual', 'Terciario'],
   provincia: ['Sevilla', 'Huelva', 'Cádiz', 'Córdoba', 'Málaga'],
   localidad: ['Dos Hermanas', 'DOS HERMANAS', 'Sevilla'],
@@ -367,9 +377,17 @@ const configForm = document.querySelector('#configForm');
 const copyDataDialog = document.querySelector('#copyDataDialog');
 const copyDataForm = document.querySelector('#copyDataForm');
 const copySourceSelect = document.querySelector('#copySourceSelect');
+const newRecordDialog = document.querySelector('#newRecordDialog');
+const newRecordForm = document.querySelector('#newRecordForm');
+const newRecordReferenceField = document.querySelector('#newRecordReferenceField');
+const newRecordFileField = document.querySelector('#newRecordFileField');
+const newRecordHelp = document.querySelector('#newRecordHelp');
+const createNewRecordBtn = document.querySelector('#createNewRecordBtn');
 
-document.querySelector('#newBtn').addEventListener('click', () => createNewRecord().catch(error => addChatMessage('assistant', sheetErrorHelp(error))));
+document.querySelector('#newBtn').addEventListener('click', openNewRecordDialog);
 document.querySelector('#catastroBtn').addEventListener('click', loadCatastroForSelected);
+document.querySelector('#catastroMapBtn').addEventListener('click', openCatastroCartography);
+document.querySelector('#catastro3dBtn').addEventListener('click', openCatastro3d);
 document.querySelector('#autoEnvelopeBtn').addEventListener('click', autocompleteEnvelopeForSelected);
 document.querySelector('#autoSystemsBtn').addEventListener('click', autocompleteSystemsForSelected);
 document.querySelector('#copyDataBtn').addEventListener('click', openCopyDataDialog);
@@ -377,6 +395,7 @@ document.querySelector('#deleteRecordBtn').addEventListener('click', deleteSelec
 document.querySelector('#configBtn').addEventListener('click', openConfig);
 document.querySelector('#closeConfigBtn').addEventListener('click', () => configDialog.close());
 document.querySelector('#closeCopyDataBtn').addEventListener('click', () => copyDataDialog.close());
+document.querySelector('#closeNewRecordBtn').addEventListener('click', () => newRecordDialog.close());
 document.querySelector('#testConfigBtn').addEventListener('click', testConfigConnection);
 document.querySelector('#copyConfigLinkBtn').addEventListener('click', copyConfigLink);
 document.querySelector('#downloadJsonBtn').addEventListener('click', downloadJson);
@@ -394,8 +413,12 @@ activeRecordSelect.addEventListener('change', () => {
   renderAll();
 });
 detailForm.addEventListener('submit', saveDetail);
+detailForm.addEventListener('input', updateNormativaFromConstructionYear);
+detailForm.addEventListener('change', updateNormativaFromConstructionYear);
 configForm.addEventListener('submit', saveConfig);
 copyDataForm.addEventListener('submit', copyDataFromSelectedSource);
+newRecordForm.addEventListener('submit', submitNewRecordForm);
+newRecordForm.addEventListener('change', updateNewRecordMode);
 window.addEventListener('error', event => {
   addChatMessage('assistant', 'Ha fallado el chat: ' + (event.error?.message || event.message || 'error desconocido'));
 });
@@ -477,7 +500,62 @@ function ensureCasa37Record() {
   }
 }
 
-async function createNewRecord(persist = true) {
+function openNewRecordDialog() {
+  newRecordForm.reset();
+  updateNewRecordMode();
+  newRecordDialog.showModal();
+}
+
+function updateNewRecordMode() {
+  const mode = newRecordForm.elements.newRecordMode.value;
+  const catastroMode = mode === 'catastro';
+  newRecordReferenceField.hidden = !catastroMode;
+  newRecordFileField.hidden = catastroMode;
+  newRecordHelp.textContent = catastroMode
+    ? 'Se creará el expediente y se consultará Catastro automáticamente.'
+    : 'Se copiarán al expediente los datos que existan dentro del archivo .cex.';
+}
+
+async function submitNewRecordForm(event) {
+  event.preventDefault();
+  const mode = newRecordForm.elements.newRecordMode.value;
+  const reference = normalizeReference(newRecordForm.elements.reference.value);
+  const file = newRecordForm.elements.cexFile.files?.[0];
+  if (mode === 'catastro' && reference.length !== 20) {
+    addChatMessage('assistant', 'La referencia catastral debe tener 20 caracteres.');
+    return;
+  }
+  if (mode === 'cex' && !file) {
+    addChatMessage('assistant', 'Selecciona un archivo .cex para crear el expediente.');
+    return;
+  }
+
+  createNewRecordBtn.disabled = true;
+  try {
+    if (mode === 'catastro') {
+      const record = await createNewRecord(true, {
+        'admin.localizacion.referenciaCatastral': reference,
+      });
+      newRecordDialog.close();
+      await loadCatastroForRecord(record);
+      addChatMessage('assistant', `Expediente creado y Catastro consultado para ${reference}.`);
+      return;
+    }
+
+    const buffer = await file.arrayBuffer();
+    const text = new TextDecoder('iso-8859-1').decode(buffer);
+    const importedData = parseCexRecordData(text);
+    const record = await createNewRecord(true, importedData);
+    newRecordDialog.close();
+    addChatMessage('assistant', `Expediente creado desde ${file.name}: ${recordLabel(record)}.`);
+  } catch (error) {
+    addChatMessage('assistant', 'No he podido crear el expediente: ' + (error.message || error));
+  } finally {
+    createNewRecordBtn.disabled = false;
+  }
+}
+
+async function createNewRecord(persist = true, initialData = {}) {
   if (!state.config.apiUrl && persist) {
     throw new Error('Configura Google Sheet antes de crear expedientes. Esta app ya no guarda expedientes en local.');
   }
@@ -487,7 +565,7 @@ async function createNewRecord(persist = true) {
     estado: 'BORRADOR',
     createdAt: now,
     updatedAt: now,
-    data: Object.assign({}, DEFAULT_TECHNICIAN),
+    data: Object.assign({}, DEFAULT_TECHNICIAN, initialData),
   });
   if (persist) {
     const saved = await persistRecord(record);
@@ -506,14 +584,29 @@ function normalizeRecord(record) {
     if (!hasValue(data[path])) data[path] = DEFAULT_TECHNICIAN[path];
   });
   migrateLegacy(record, data);
+  Object.keys(DEFAULT_CLIENT).forEach(path => {
+    if (!hasValue(data[path])) data[path] = DEFAULT_CLIENT[path];
+  });
   if (normalizeReference(data['admin.localizacion.referenciaCatastral']) === CASA37_REFERENCE) {
     Object.entries(CEX37_DEFAULTS).forEach(([path, value]) => {
       if (!hasValue(data[path])) data[path] = clone(value);
     });
   }
+  Object.keys(DEFAULT_GENERAL).forEach(path => {
+    if (!hasValue(data[path])) data[path] = DEFAULT_GENERAL[path];
+  });
+  const normativa = normativaVigenteDesdeAnio(data['generales.datos.anioConstruccion']);
+  if (normativa) data['generales.datos.normativaVigente'] = normativa;
   const next = Object.assign({}, record, { data });
   next.estado = inferStatus(next);
   return next;
+}
+
+function updateNormativaFromConstructionYear(event) {
+  if (event.target?.name !== 'generales.datos.anioConstruccion') return;
+  const normativa = normativaVigenteDesdeAnio(event.target.value);
+  const select = detailForm.elements['generales.datos.normativaVigente'];
+  if (normativa && select) select.value = normativa;
 }
 
 function mergeDefaults(record, defaults) {
@@ -692,6 +785,12 @@ function renderDetail() {
   recordBadge.textContent = statusLabel(status);
   recordBadge.className = 'badge ' + status;
 
+  const catastroMapBtn = document.querySelector('#catastroMapBtn');
+  const catastroUrl = record ? catastroCartographyUrl(record) : '';
+  catastroMapBtn.title = catastroUrl
+    ? 'Abrir la cartografía del Catastro para este expediente'
+    : 'Falta una referencia catastral válida';
+
   sectionFields.innerHTML = '';
   sectionItem.groups.forEach(groupItem => {
     const fieldset = document.createElement('fieldset');
@@ -707,6 +806,35 @@ function renderDetail() {
     });
     sectionFields.appendChild(fieldset);
   });
+}
+
+function openCatastroCartography() {
+  const currentRecord = selectedRecordWithCurrentReference();
+  const url = currentRecord ? catastroCartographyUrl(currentRecord) : '';
+  if (!url) {
+    addChatMessage('assistant', 'No puedo abrir la cartografía: el expediente no tiene una referencia catastral válida.');
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function openCatastro3d() {
+  const currentRecord = selectedRecordWithCurrentReference();
+  const url = currentRecord ? catastro3dUrl(currentRecord) : '';
+  if (!url) {
+    addChatMessage('assistant', 'No puedo abrir el Visor 3D: el expediente no tiene una referencia catastral válida.');
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function selectedRecordWithCurrentReference() {
+  const record = selectedRecord();
+  const currentReference = detailForm.querySelector('[name="admin.localizacion.referenciaCatastral"]')?.value?.trim();
+  if (!record || !currentReference) return record;
+  return Object.assign({}, record, { data: Object.assign({}, record.data, {
+    'admin.localizacion.referenciaCatastral': currentReference,
+  }) });
 }
 
 function inputHtml(item, path, value) {
@@ -1107,7 +1235,7 @@ function estimatedEnvelopePatchLegacy(data) {
   const noShadow = SELECT_OPTIONS.patronSombras[0] || 'Sin patrón';
   const surface = Math.max(1, Number(cexDecimal(data['generales.definicion.superficieUtilHabitable'] || data.superficieCatastral || 100)));
   const floors = Math.max(1, Math.round(Number(cexDecimal(data['generales.definicion.numeroPlantasHabitables'] || 1))));
-  const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.6)));
+  const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.7)));
   const footprint = surface / floors;
   const side = Math.sqrt(footprint);
   const perimeter = side * 4;
@@ -1172,7 +1300,7 @@ function estimatedEnvelopePatch(data) {
   const noShadow = SELECT_OPTIONS.patronSombras[0] || 'Sin patron';
   const surface = Math.max(1, Number(cexDecimal(data['generales.definicion.superficieUtilHabitable'] || data.superficieCatastral || 100)));
   const floors = Math.max(1, Math.round(Number(cexDecimal(data['generales.definicion.numeroPlantasHabitables'] || 1))));
-  const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.6)));
+  const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.7)));
   const footprint = surface / floors;
   const side = Math.sqrt(footprint);
   const perimeter = side * 4;
@@ -1535,20 +1663,44 @@ async function deleteSelectedRecord() {
   if (!confirmed) return;
 
   try {
-    await api({
+    const deleteRequest = {
       action: 'delete',
       id: record.id,
       referenciaCatastral: valueAt(record, 'admin.localizacion.referenciaCatastral'),
-    });
+    };
+    try {
+      await api(deleteRequest);
+    } catch (error) {
+      const confirmed = await recoverConfirmedDelete(deleteRequest);
+      if (!confirmed) throw error;
+    }
 
     state.records = state.records.filter(item => item.id !== record.id);
     state.selectedId = state.records[0]?.id || '';
     state.activeChatId = state.records.find(item => inferStatus(item) !== 'COMPLETA')?.id || '';
     state.rightView = 'list';
-    renderAll();
-    addChatMessage('assistant', `Eliminado ${label}.`);
+    window.location.reload();
   } catch (error) {
+    showSyncAlert(sheetErrorHelp(error));
     addChatMessage('assistant', 'No he podido eliminar el expediente: ' + error.message);
+  }
+}
+
+async function recoverConfirmedDelete(request) {
+  try {
+    const response = await jsonpAppsScript(state.config.apiUrl, {
+      action: 'list',
+      secret: state.config.secret,
+    });
+    const reference = normalizeReference(request.referenciaCatastral);
+    const stillExists = (response.items || []).some(item => {
+      const sameId = request.id && String(item.id || '') === String(request.id);
+      const sameReference = reference && normalizeReference(item.referenciaCatastral) === reference;
+      return sameId || sameReference;
+    });
+    return !stillExists;
+  } catch (error) {
+    return false;
   }
 }
 
@@ -1786,17 +1938,23 @@ function buildMultipleMatchesMessage(matches) {
 }
 
 async function loadCatastroForSelected() {
-  let record = selectedRecord();
+  return loadCatastroForRecord(selectedRecord());
+}
+
+async function loadCatastroForRecord(sourceRecord) {
+  let record = sourceRecord;
   if (!record) return;
   if (!state.config.apiUrl) {
     addChatMessage('assistant', 'Configura Google Sheet antes de consultar Catastro. Esta app ya no trabaja con expedientes locales.');
     return;
   }
   const data = Object.assign({}, record.data);
-  Array.from(new FormData(detailForm).entries()).forEach(([path, value]) => {
-    data[path] = String(value || '').trim();
-  });
-  collectTables(data);
+  if (record.id === state.selectedId && !detailView.hidden) {
+    Array.from(new FormData(detailForm).entries()).forEach(([path, value]) => {
+      data[path] = String(value || '').trim();
+    });
+    collectTables(data);
+  }
   record = Object.assign({}, record, { data });
   const reference = normalizeReference(valueAt(record, 'admin.localizacion.referenciaCatastral'));
   if (!reference || reference.length !== 20) {
@@ -1891,19 +2049,22 @@ function catastroPatchFromData(item) {
     'admin.cliente.localidad': localidad,
     'admin.cliente.codigoPostal': codigoPostal,
     'generales.datos.anioConstruccion': item.anioConstruccion || '',
+    'generales.datos.normativaVigente': normativaVigenteDesdeAnio(item.anioConstruccion),
     'generales.datos.tipoEdificio': residentialUse ? 'Vivienda individual' : '',
     'generales.datos.provincia': provincia,
     'generales.datos.localidad': localidad,
     'generales.definicion.superficieUtilHabitable': viviendaSurface || builtSurface,
     'generales.definicion.numeroPlantasHabitables': viviendaFloors,
-    'generales.definicion.alturaLibrePlanta': residentialUse ? '2.60' : '',
+    'generales.definicion.alturaLibrePlanta': residentialUse ? '2.70' : '',
     'generales.definicion.ventilacionInmueble': residentialUse ? '0.63' : '',
     'generales.definicion.demandaDiariaACS': residentialUse ? '120' : '',
+    'generales.definicion.masaParticionesInternas': 'Ligera',
     'generales.definicion.imagenEdificio': item.imagenEdificio || item.streetViewImage || '',
     'generales.definicion.planoSituacion': item.planoSituacion || item.situationPlanImage || situationMapUrl || (reference ? `Catastro: ${reference}` : ''),
     'catastro.x': x,
     'catastro.y': y,
     'catastro.srs': srs,
+    'catastro.reference': reference,
     uso: item.uso || '',
     superficieCatastral: builtSurface,
   });
@@ -1918,6 +2079,64 @@ function catastroMapUrlFromData({ reference, x, y, srs }) {
     srs: srs || 'EPSG:4326',
   });
   return `https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?${params.toString()}`;
+}
+
+const CATASTRO_PROVINCE_CODES = {
+  almeria: '04',
+  cadiz: '11',
+  cordoba: '14',
+  granada: '18',
+  huelva: '21',
+  jaen: '23',
+  malaga: '29',
+  sevilla: '41',
+};
+
+const CATASTRO_MUNICIPALITY_CODES = {
+  'sevilla|dos hermanas': '38',
+  'sevilla|sevilla': '15',
+};
+
+function catastroCartographyUrl(record) {
+  const reference = normalizeReference(valueAt(record, 'admin.localizacion.referenciaCatastral'));
+  if (reference.length !== 20) return '';
+
+  const x = valueAt(record, 'catastro.x');
+  const y = valueAt(record, 'catastro.y');
+  const coordinateReference = normalizeReference(valueAt(record, 'catastro.reference'));
+  if (x && y && (!coordinateReference || coordinateReference === reference)) return catastroMapUrlFromData({
+    reference,
+    x,
+    y,
+    srs: valueAt(record, 'catastro.srs') || 'EPSG:4326',
+  });
+
+  const params = catastroLocationParams(record);
+  params.set('refcat', reference);
+  params.set('final', '');
+  params.set('ZV', 'NO');
+  params.set('anyoZV', '');
+  return `https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?${params.toString()}`;
+}
+
+function catastro3dUrl(record) {
+  const reference = normalizeReference(valueAt(record, 'admin.localizacion.referenciaCatastral'));
+  if (reference.length !== 20) return '';
+  const params = catastroLocationParams(record);
+  params.set('refcat', reference);
+  params.set('final', '');
+  return `https://www1.sedecatastro.gob.es/Cartografia/FXCC/Visor3D.aspx?${params.toString()}`;
+}
+
+function catastroLocationParams(record) {
+  const province = normalizeText(valueAt(record, 'admin.localizacion.provincia'));
+  const locality = normalizeText(valueAt(record, 'admin.localizacion.localidad'));
+  const params = new URLSearchParams();
+  const provinceCode = CATASTRO_PROVINCE_CODES[province];
+  const municipalityCode = CATASTRO_MUNICIPALITY_CODES[`${province}|${locality}`];
+  if (provinceCode) params.set('del', provinceCode);
+  if (municipalityCode) params.set('mun', municipalityCode);
+  return params;
 }
 
 async function addGeneratedSituationPlan(patch) {
@@ -3941,6 +4160,16 @@ function escapeHtml(value) {
 
 function normalizeReference(value) {
   return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function normativaVigenteDesdeAnio(value) {
+  const match = String(value || '').match(/(?:19|20)\d{2}/);
+  if (!match) return '';
+  const year = Number(match[0]);
+  if (year < 1981) return 'Anterior';
+  if (year < 2007) return 'NBE-CT-79';
+  if (year < 2014) return 'CTE 2006';
+  return 'CTE 2013';
 }
 
 function normalizeText(value) {
