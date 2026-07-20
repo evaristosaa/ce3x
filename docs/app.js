@@ -371,6 +371,7 @@ const copySourceSelect = document.querySelector('#copySourceSelect');
 document.querySelector('#newBtn').addEventListener('click', () => createNewRecord().catch(error => addChatMessage('assistant', sheetErrorHelp(error))));
 document.querySelector('#catastroBtn').addEventListener('click', loadCatastroForSelected);
 document.querySelector('#catastroMapBtn').addEventListener('click', openCatastroCartography);
+document.querySelector('#catastro3dBtn').addEventListener('click', openCatastro3d);
 document.querySelector('#autoEnvelopeBtn').addEventListener('click', autocompleteEnvelopeForSelected);
 document.querySelector('#autoSystemsBtn').addEventListener('click', autocompleteSystemsForSelected);
 document.querySelector('#copyDataBtn').addEventListener('click', openCopyDataDialog);
@@ -717,19 +718,32 @@ function renderDetail() {
 }
 
 function openCatastroCartography() {
-  const record = selectedRecord();
-  const currentReference = detailForm.querySelector('[name="admin.localizacion.referenciaCatastral"]')?.value?.trim();
-  const currentRecord = record && currentReference
-    ? Object.assign({}, record, { data: Object.assign({}, record.data, {
-      'admin.localizacion.referenciaCatastral': currentReference,
-    }) })
-    : record;
+  const currentRecord = selectedRecordWithCurrentReference();
   const url = currentRecord ? catastroCartographyUrl(currentRecord) : '';
   if (!url) {
     addChatMessage('assistant', 'No puedo abrir la cartografía: el expediente no tiene una referencia catastral válida.');
     return;
   }
   window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function openCatastro3d() {
+  const currentRecord = selectedRecordWithCurrentReference();
+  const url = currentRecord ? catastro3dUrl(currentRecord) : '';
+  if (!url) {
+    addChatMessage('assistant', 'No puedo abrir el Visor 3D: el expediente no tiene una referencia catastral válida.');
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function selectedRecordWithCurrentReference() {
+  const record = selectedRecord();
+  const currentReference = detailForm.querySelector('[name="admin.localizacion.referenciaCatastral"]')?.value?.trim();
+  if (!record || !currentReference) return record;
+  return Object.assign({}, record, { data: Object.assign({}, record.data, {
+    'admin.localizacion.referenciaCatastral': currentReference,
+  }) });
 }
 
 function inputHtml(item, path, value) {
@@ -1974,6 +1988,24 @@ function catastroCartographyUrl(record) {
     srs: valueAt(record, 'catastro.srs') || 'EPSG:4326',
   });
 
+  const params = catastroLocationParams(record);
+  params.set('refcat', reference);
+  params.set('final', '');
+  params.set('ZV', 'NO');
+  params.set('anyoZV', '');
+  return `https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?${params.toString()}`;
+}
+
+function catastro3dUrl(record) {
+  const reference = normalizeReference(valueAt(record, 'admin.localizacion.referenciaCatastral'));
+  if (reference.length !== 20) return '';
+  const params = catastroLocationParams(record);
+  params.set('refcat', reference);
+  params.set('final', '');
+  return `https://www1.sedecatastro.gob.es/Cartografia/FXCC/Visor3D.aspx?${params.toString()}`;
+}
+
+function catastroLocationParams(record) {
   const province = normalizeText(valueAt(record, 'admin.localizacion.provincia'));
   const locality = normalizeText(valueAt(record, 'admin.localizacion.localidad'));
   const params = new URLSearchParams();
@@ -1981,11 +2013,7 @@ function catastroCartographyUrl(record) {
   const municipalityCode = CATASTRO_MUNICIPALITY_CODES[`${province}|${locality}`];
   if (provinceCode) params.set('del', provinceCode);
   if (municipalityCode) params.set('mun', municipalityCode);
-  params.set('refcat', reference);
-  params.set('final', '');
-  params.set('ZV', 'NO');
-  params.set('anyoZV', '');
-  return `https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?${params.toString()}`;
+  return params;
 }
 
 async function addGeneratedSituationPlan(patch) {
