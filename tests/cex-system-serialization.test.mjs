@@ -57,6 +57,10 @@ globalThis.__cexHelpers = {
   alignCexEnvelopeReferences,
   applyCexReplacements,
   catastroPatchFromData,
+  catastroCartographyUrl,
+  catastro3dUrl,
+  normativaVigenteDesdeAnio,
+  normalizeRecord,
   emptyOnlyPatch,
   serializeCexSystemsStream,
   storedValueForPatchPath,
@@ -66,12 +70,23 @@ globalThis.__cexHelpers = {
   estimatedEnvelopePatch,
   estimatedSystemsPatch,
   criticalCexIssues,
+  stripCexImprovements,
   serializeCexCerramientosInput,
   serializeCexHuecosInput,
   serializeCexContribucionesInput,
   isUsefulCexContribution,
 };`, context);
   return context.__cexHelpers;
+}
+
+function loadCexImportHelpers() {
+  const source = readFileSync(new URL('../app/cex-import.js', import.meta.url), 'utf8');
+  const context = {};
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(`${source}
+globalThis.__cexImportHelpers = { parseCexRecordData };`, context);
+  return context.__cexImportHelpers;
 }
 
 function loadAppsScriptHelpers() {
@@ -85,7 +100,7 @@ function loadAppsScriptHelpers() {
     Session: {
       getScriptTimeZone() { return 'Europe/Madrid'; },
     },
-  };
+};
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(`${source}
@@ -158,6 +173,24 @@ test('serializes every installation row into the CEX systems stream', () => {
   }
 
   assert.equal(unpickledTopLevelLength(stream), 12);
+});
+
+test('imports CE3X CEX streams into the editable expediente model', () => {
+  const { parseCexRecordData } = loadCexImportHelpers();
+  const source = readFileSync(new URL('../app/templates/base.cex', import.meta.url), 'latin1');
+  const data = parseCexRecordData(source);
+
+  assert.equal(data['admin.localizacion.referenciaCatastral'], '0128501TG4302N0037ZI');
+  assert.equal(data['generales.definicion.superficieUtilHabitable'], '149.40');
+  assert.equal(data['envolvente.cerramientos.items'].length, 5);
+  assert.equal(data['envolvente.huecos.items'].length, 10);
+  assert.equal(data['envolvente.puentesTermicos.items'].length, 8);
+  assert.equal(data['instalaciones.acs.items'].length, 1);
+  assert.equal(data['instalaciones.calefaccion.items'].length, 1);
+  assert.equal(data['instalaciones.refrigeracion.items'].length, 1);
+  assert.equal(data['instalaciones.contribuciones.items'].length, 1);
+  assert.match(data['generales.definicion.imagenEdificio'], /^data:image\/png;base64,/);
+  assert.match(data['generales.definicion.planoSituacion'], /^data:image\/png;base64,/);
 });
 
 test('keeps envelope row counts and reassigns broken references to the remaining enclosure', () => {
@@ -275,6 +308,8 @@ test('serializes CE3X envelope enclosures with editable default shapes', () => {
   });
   const rows = unpickleJson(serializeCexCerramientosInput(patch['envolvente.cerramientos.items']) + '.');
 
+  assert.equal(rows[0][5], 'Techo');
+  assert.equal(rows[1][5], 'Suelo');
   assert.equal(rows[0][8], 'Por defecto');
   assert.equal(rows[1][1], 'Suelo');
   assert.equal(rows[1].length, 17);
@@ -327,6 +362,17 @@ test('omits zero renewable contribution rows from CEX export', () => {
   assert.equal(stream.includes('Contribuciones energ'), false);
 });
 
+test('removes inherited improvement packages from a new CEX export', () => {
+  const { stripCexImprovements } = loadCexHelpers();
+  const source = readFileSync(new URL('../app/templates/base.cex', import.meta.url), 'latin1');
+  const cleaned = stripCexImprovements(source);
+
+  assert.equal(cleaned.includes('iMedidasDeMejora.objetoGrupoMejoras'), false);
+  assert.equal(cleaned.includes('CONJUNTO DE MEJORAS 1'), false);
+  assert.equal(cleaned.includes('CONJUNTO DE MEJORAS 2'), false);
+  assert.match(cleaned, /^S'CEXv2\.3 Residencial'/);
+});
+
 test('keeps estimated envelope compatible with the CE3X reference shape', () => {
   const { estimatedEnvelopePatch } = loadCexHelpers();
   const data = {
@@ -347,6 +393,41 @@ test('reports critical CE3X gaps before export', () => {
   assert.ok(issues.includes('Tipo de edificio'));
   assert.ok(issues.includes('Envolvente: cerramientos'));
   assert.ok(issues.includes('Instalaciones: equipo ACS'));
+});
+
+test('applies the CE3X normative rule from the construction year', () => {
+  const { normativaVigenteDesdeAnio } = loadCexHelpers();
+
+  assert.equal(normativaVigenteDesdeAnio('1952'), 'Anterior');
+  assert.equal(normativaVigenteDesdeAnio('1981'), 'NBE-CT-79');
+  assert.equal(normativaVigenteDesdeAnio('2006'), 'NBE-CT-79');
+  assert.equal(normativaVigenteDesdeAnio('2007'), 'CTE 2006');
+  assert.equal(normativaVigenteDesdeAnio('2013'), 'CTE 2006');
+  assert.equal(normativaVigenteDesdeAnio('2014'), 'CTE 2013');
+  assert.equal(normativaVigenteDesdeAnio(''), '');
+});
+
+test('defaults empty client contact fields to a dot', () => {
+  const { normalizeRecord } = loadCexHelpers();
+  const record = normalizeRecord({ data: {
+    'admin.cliente.telefono': '',
+    'admin.cliente.email': '',
+  } });
+
+  assert.equal(record.data['admin.cliente.telefono'], '.');
+  assert.equal(record.data['admin.cliente.email'], '.');
+  assert.equal(normalizeRecord({ data: {
+    'admin.cliente.telefono': '600123123',
+    'admin.cliente.email': 'cliente@example.com',
+  } }).data['admin.cliente.telefono'], '600123123');
+});
+
+test('defaults empty internal partition mass to light', () => {
+  const { normalizeRecord } = loadCexHelpers();
+  assert.equal(normalizeRecord({ data: {} }).data['generales.definicion.masaParticionesInternas'], 'Ligera');
+  assert.equal(normalizeRecord({ data: {
+    'generales.definicion.masaParticionesInternas': 'Pesada',
+  } }).data['generales.definicion.masaParticionesInternas'], 'Pesada');
 });
 
 test('maps Catastro data and fills reviewable CE3X estimates', () => {
@@ -376,7 +457,7 @@ test('maps Catastro data and fills reviewable CE3X estimates', () => {
   assert.equal(patch['admin.localizacion.referenciaCatastral'], '0128501TG4302N0037ZI');
   assert.equal(patch['generales.definicion.superficieUtilHabitable'], '165');
   assert.equal(patch['generales.definicion.numeroPlantasHabitables'], '3');
-  assert.equal(patch['generales.definicion.alturaLibrePlanta'], '2.60');
+  assert.equal(patch['generales.definicion.alturaLibrePlanta'], '2.70');
   assert.equal(patch['generales.definicion.ventilacionInmueble'], '0.63');
   assert.equal(patch['generales.definicion.demandaDiariaACS'], '120');
   assert.equal(patch['generales.definicion.imagenEdificio'], 'data:image/jpeg;base64,/9j/BUILDINGIMAGE');
@@ -385,7 +466,49 @@ test('maps Catastro data and fills reviewable CE3X estimates', () => {
   assert.equal(patch['catastro.x'], '-5.93289982319168');
   assert.equal(patch['catastro.y'], '37.3044423187296');
   assert.equal(patch['catastro.srs'], 'EPSG:4326');
+  assert.equal(patch['catastro.reference'], '0128501TG4302N0037ZI');
   assert.equal(patch['generales.definicion.planoSituacion'], 'data:image/png;base64,iVBORw0KGgoCATASTROMAP');
+  assert.equal(patch['generales.datos.normativaVigente'], 'NBE-CT-79');
+});
+
+test('builds the Catastro cartography link from the expediente', () => {
+  const { catastroCartographyUrl, catastro3dUrl } = loadCexHelpers();
+  const withCoordinates = catastroCartographyUrl({
+    data: {
+      'admin.localizacion.referenciaCatastral': '8676623QB4387N0001EU',
+      'catastro.x': '-5.983',
+      'catastro.y': '37.389',
+      'catastro.srs': 'EPSG:4326',
+    },
+  });
+  assert.match(withCoordinates, /mapa\.aspx\?refcat=8676623QB4387N0001EU/);
+  assert.match(withCoordinates, /x=-5\.983/);
+  assert.match(withCoordinates, /y=37\.389/);
+
+  const withoutCoordinates = catastroCartographyUrl({
+    data: {
+      'admin.localizacion.referenciaCatastral': '8676623QB4387N0001EU',
+      'admin.localizacion.provincia': 'Sevilla',
+      'admin.localizacion.localidad': 'Sevilla',
+    },
+  });
+  assert.equal(
+    withoutCoordinates,
+    'https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?del=41&mun=15&refcat=8676623QB4387N0001EU&final=&ZV=NO&anyoZV=',
+  );
+  assert.equal(
+    catastro3dUrl({
+      data: {
+        'admin.localizacion.referenciaCatastral': '8676623QB4387N0001EU',
+        'admin.localizacion.provincia': 'Sevilla',
+        'admin.localizacion.localidad': 'Sevilla',
+      },
+    }),
+    'https://www1.sedecatastro.gob.es/Cartografia/FXCC/Visor3D.aspx?del=41&mun=15&refcat=8676623QB4387N0001EU&final=',
+  );
+
+  assert.equal(catastroCartographyUrl({ data: { 'admin.localizacion.referenciaCatastral': 'incompleta' } }), '');
+  assert.equal(catastro3dUrl({ data: { 'admin.localizacion.referenciaCatastral': 'incompleta' } }), '');
 });
 
 test('infers residential floors from construction rows when Catastro does not provide floor labels', () => {
