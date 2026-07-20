@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store">
   <title>CE3X Captura</title>
-  <link rel="stylesheet" href="styles.css?v=20260720-new-record">
+  <link rel="stylesheet" href="styles.css?v=20260720-new-record-loading">
 </head>
 <body>
   <header class="topbar">
@@ -134,14 +134,12 @@
           <input type="radio" name="newRecordMode" value="catastro" checked>
           <span>
             <strong>Introducir referencia catastral</strong>
-            <small>Crear el expediente y traer sus datos desde Catastro.</small>
           </span>
         </label>
         <label class="new-record-option">
           <input type="radio" name="newRecordMode" value="cex">
           <span>
             <strong>Cargar .cex local</strong>
-            <small>Crear el expediente a partir de un archivo CE3X del equipo.</small>
           </span>
         </label>
       </fieldset>
@@ -152,14 +150,15 @@
         <input name="cexFile" type="file" accept=".cex,application/octet-stream">
       </label>
       <p id="newRecordHelp" class="dialog-help">Se creará el expediente y se consultará Catastro automáticamente.</p>
+      <p id="newRecordStatus" class="dialog-status" role="status" aria-live="polite" hidden></p>
       <div class="form-actions">
-        <button type="submit" id="createNewRecordBtn">Crear expediente</button>
+        <button type="submit" id="createNewRecordBtn"><span class="button-spinner" aria-hidden="true"></span><span id="createNewRecordBtnLabel">Crear expediente</span></button>
         <button type="button" class="secondary" id="closeNewRecordBtn">Cancelar</button>
       </div>
     </form>
   </dialog>
 
-    <script src="cex-import.js?v=20260720-new-record"></script>
-    <script src="app.js?v=20260720-new-record"></script>
+    <script src="cex-import.js?v=20260720-new-record-loading"></script>
+    <script src="app.js?v=20260720-new-record-loading"></script>
 </body>
 </html>
