@@ -1608,8 +1608,7 @@ async function deleteSelectedRecord() {
     state.selectedId = state.records[0]?.id || '';
     state.activeChatId = state.records.find(item => inferStatus(item) !== 'COMPLETA')?.id || '';
     state.rightView = 'list';
-    renderAll();
-    addChatMessage('assistant', `Eliminado ${label}.`);
+    window.location.reload();
   } catch (error) {
     addChatMessage('assistant', 'No he podido eliminar el expediente: ' + error.message);
   }
