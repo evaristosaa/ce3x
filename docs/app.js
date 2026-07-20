@@ -25,6 +25,10 @@ const DEFAULT_CLIENT = {
   'admin.cliente.email': '.',
 };
 
+const DEFAULT_GENERAL = {
+  'generales.definicion.masaParticionesInternas': 'Ligera',
+};
+
 const CEX37_DEFAULTS = {
   'admin.localizacion.nombreEdificio': 'PL SEN-1 ENTRENUCLEOS 40(D)',
   'admin.localizacion.direccion': 'C/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37',
@@ -523,6 +527,9 @@ function normalizeRecord(record) {
       if (!hasValue(data[path])) data[path] = clone(value);
     });
   }
+  Object.keys(DEFAULT_GENERAL).forEach(path => {
+    if (!hasValue(data[path])) data[path] = DEFAULT_GENERAL[path];
+  });
   const normativa = normativaVigenteDesdeAnio(data['generales.datos.anioConstruccion']);
   if (normativa) data['generales.datos.normativaVigente'] = normativa;
   const next = Object.assign({}, record, { data });
@@ -1956,6 +1963,7 @@ function catastroPatchFromData(item) {
     'generales.definicion.alturaLibrePlanta': residentialUse ? '2.60' : '',
     'generales.definicion.ventilacionInmueble': residentialUse ? '0.63' : '',
     'generales.definicion.demandaDiariaACS': residentialUse ? '120' : '',
+    'generales.definicion.masaParticionesInternas': 'Ligera',
     'generales.definicion.imagenEdificio': item.imagenEdificio || item.streetViewImage || '',
     'generales.definicion.planoSituacion': item.planoSituacion || item.situationPlanImage || situationMapUrl || (reference ? `Catastro: ${reference}` : ''),
     'catastro.x': x,
