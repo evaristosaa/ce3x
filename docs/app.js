@@ -1316,35 +1316,56 @@ function estimatedEnvelopePatch(data) {
   const surface = Math.max(1, Number(cexDecimal(data['generales.definicion.superficieUtilHabitable'] || data.superficieCatastral || 100)));
   const floors = Math.max(1, Math.round(Number(cexDecimal(data['generales.definicion.numeroPlantasHabitables'] || 1))));
   const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.7)));
-  const footprint = surface / floors;
-  const side = Math.sqrt(footprint);
-  const perimeter = side * 4;
-  const facadeArea = perimeter * height * floors;
+  const lowestFloorSurface = Number(cexDecimal(data['catastro.superficiePlantaInferior'] || 0));
+  const largestFloorSurface = Number(cexDecimal(data['catastro.superficiePlantaMayor'] || 0));
+  const floorAreas = estimatedFloorAreas(surface, floors, lowestFloorSurface, largestFloorSurface);
+  const soilSurface = floorAreas[0] || surface / floors;
+  const roofSurface = Math.max(...floorAreas, soilSurface);
+  const facadeRows = normalizeCexRows(CEX37_DEFAULTS['envolvente.cerramientos.items'], [
+    'nombre', 'tipoCerramiento', 'superficie', 'u', 'peso', 'posicion', 'modoDefinicion', 'patronSombras',
+  ]).filter(rowItem => rowItem.tipoCerramiento === 'Fachada');
+  const hasCatastroFacadeEstimate = Number(cexDecimal(data['catastro.fachadasExpuestas'] || 0)) >= 2;
+  const facadeCount = hasCatastroFacadeEstimate
+    ? Math.min(4, Math.max(2, Math.round(Number(cexDecimal(data['catastro.fachadasExpuestas'])))))
+    : 4;
+  const perimeter = floorAreas.reduce((total, floorSurface) => total + Math.sqrt(Math.max(1, floorSurface)) * 4, 0);
+  const exposedPerimeter = perimeter * (facadeCount / 4);
+  const facadeArea = exposedPerimeter * height;
   const openingArea = facadeArea * 0.22;
   const baseSurface = Number(cexDecimal(CEX37_DEFAULTS['generales.definicion.superficieUtilHabitable'])) || 149.4;
   const areaScale = Math.max(0.05, surface / baseSurface);
   const lengthScale = Math.sqrt(areaScale);
 
-  const cerramientos = normalizeCexRows(CEX37_DEFAULTS['envolvente.cerramientos.items'], [
-    'nombre', 'tipoCerramiento', 'superficie', 'u', 'peso', 'posicion', 'modoDefinicion', 'patronSombras',
-  ]);
-  const facadeRows = cerramientos.filter(rowItem => rowItem.tipoCerramiento === 'Fachada');
-  const defaultFacadeArea = facadeRows.reduce((sum, rowItem) => sum + (Number(cexDecimal(rowItem.superficie)) || 0), 0) || 1;
+  const cerramientos = normalizeEstimatedFacadeTopology(
+    normalizeCexRows(CEX37_DEFAULTS['envolvente.cerramientos.items'], [
+      'nombre', 'tipoCerramiento', 'superficie', 'u', 'peso', 'posicion', 'modoDefinicion', 'patronSombras',
+    ]),
+    facadeCount,
+    hasCatastroFacadeEstimate,
+  );
+  const selectedFacadeRows = cerramientos.filter(rowItem => rowItem.tipoCerramiento === 'Fachada');
+  const defaultFacadeArea = selectedFacadeRows.reduce((sum, rowItem) => sum + (Number(cexDecimal(rowItem.superficie)) || 0), 0) || 1;
   const adjustedWallArea = Math.max(1, facadeArea - openingArea);
   cerramientos.forEach(rowItem => {
     rowItem.modoDefinicion = 'Por defecto';
     rowItem.patronSombras = noShadow;
-    if (rowItem.tipoCerramiento === 'Cubierta' || rowItem.tipoCerramiento === 'Suelo') {
-      rowItem.superficie = decimalForApp(footprint);
+    if (rowItem.tipoCerramiento === 'Cubierta') {
+      rowItem.superficie = decimalForApp(roofSurface);
+    } else if (rowItem.tipoCerramiento === 'Suelo') {
+      rowItem.superficie = decimalForApp(soilSurface);
     } else if (rowItem.tipoCerramiento === 'Fachada') {
-      const defaultArea = Number(cexDecimal(rowItem.superficie)) || (defaultFacadeArea / facadeRows.length);
+      const defaultArea = Number(cexDecimal(rowItem.superficie)) || (defaultFacadeArea / selectedFacadeRows.length);
       rowItem.superficie = decimalForApp(adjustedWallArea * defaultArea / defaultFacadeArea);
     }
   });
 
-  const huecos = normalizeCexRows(CEX37_DEFAULTS['envolvente.huecos.items'], [
+  let huecos = normalizeCexRows(CEX37_DEFAULTS['envolvente.huecos.items'], [
     'nombre', 'cerramientoAsociado', 'longitud', 'altura', 'multiplicador', 'superficie', 'uVidrio', 'gVidrio', 'uMarco', 'porcMarco', 'absortividadMarco', 'modoDefinicion', 'permeabilidad', 'orientacion', 'patronSombras',
   ]);
+  if (hasCatastroFacadeEstimate) {
+    const facadeNames = new Set(selectedFacadeRows.map(rowItem => rowItem.nombre));
+    huecos = huecos.filter(rowItem => facadeNames.has(rowItem.cerramientoAsociado));
+  }
   const defaultOpeningArea = huecos.reduce((sum, rowItem) => sum + (Number(cexDecimal(rowItem.superficie)) || 0), 0) || 1;
   huecos.forEach(rowItem => {
     const defaultSurface = Number(cexDecimal(rowItem.superficie)) || (defaultOpeningArea / huecos.length);
@@ -1359,9 +1380,13 @@ function estimatedEnvelopePatch(data) {
     rowItem.patronSombras = noShadow;
   });
 
-  const puentes = normalizeCexRows(CEX37_DEFAULTS['envolvente.puentesTermicos.items'], [
+  let puentes = normalizeCexRows(CEX37_DEFAULTS['envolvente.puentesTermicos.items'], [
     'nombre', 'cerramientoAsociado', 'tipoPuenteTermico', 'fi', 'longitud',
   ]);
+  if (hasCatastroFacadeEstimate) {
+    const validNames = new Set(cerramientos.map(rowItem => rowItem.nombre));
+    puentes = puentes.filter(rowItem => validNames.has(rowItem.cerramientoAsociado));
+  }
   puentes.forEach(rowItem => {
     const defaultLength = Number(cexDecimal(rowItem.longitud)) || perimeter;
     rowItem.longitud = decimalForApp(Math.max(0.1, defaultLength * lengthScale));
@@ -1372,6 +1397,40 @@ function estimatedEnvelopePatch(data) {
     'envolvente.huecos.items': huecos,
     'envolvente.puentesTermicos.items': puentes,
   };
+}
+
+function normalizeEstimatedFacadeTopology(cerramientos, facadeCount, useCatastroEstimate) {
+  if (!useCatastroEstimate) return cerramientos;
+  const orientations = [
+    ['NO', 'Muro de fachada NO'],
+    ['SE', 'Muro de fachada SE'],
+    ['SO', 'Muro de fachada SO'],
+    ['NE', 'Muro de fachada NE'],
+  ].slice(0, facadeCount);
+  const existing = cerramientos.filter(rowItem => rowItem.tipoCerramiento === 'Fachada');
+  const byPosition = new Map(existing.map(rowItem => [String(rowItem.posicion || '').toUpperCase(), rowItem]));
+  const template = existing[0] || {
+    nombre: 'Muro de fachada NO', tipoCerramiento: 'Fachada', superficie: '1', u: '0.38', peso: '200', posicion: 'NO', modoDefinicion: 'Por defecto', patronSombras: 'Sin patron',
+  };
+  const selected = orientations.map(([position, name]) => Object.assign({}, byPosition.get(position) || template, {
+    nombre: name,
+    tipoCerramiento: 'Fachada',
+    posicion: position,
+  }));
+  return cerramientos.filter(rowItem => rowItem.tipoCerramiento !== 'Fachada').concat(selected);
+}
+
+function estimatedFloorAreas(surface, floors, lowestFloorSurface, largestFloorSurface) {
+  const count = Math.max(1, Math.round(Number(floors) || 1));
+  const total = Math.max(1, Number(surface) || 1);
+  const lowest = lowestFloorSurface > 0 ? lowestFloorSurface : total / count;
+  const largest = largestFloorSurface > 0 ? largestFloorSurface : total / count;
+  if (count === 1) return [Math.max(1, largestFloorSurface || lowestFloorSurface || total)];
+  if (count === 2) return [Math.max(1, lowest), Math.max(1, largest)];
+
+  const middleTotal = Math.max(0, total - lowest - largest);
+  const middle = middleTotal > 0 ? middleTotal / (count - 2) : total / count;
+  return [Math.max(1, lowest), ...Array.from({ length: count - 2 }, () => Math.max(1, middle)), Math.max(1, largest)];
 }
 
 function estimatedSystemsPatch(data) {
@@ -2056,6 +2115,7 @@ function catastroPatchFromData(item) {
   const situationMapUrl = catastroMapUrlFromData({ reference, x, y, srs });
   const viviendaSurface = surfaceForUse(item.construcciones, 'VIVIENDA');
   const viviendaFloors = floorsForUse(item.construcciones, 'VIVIENDA');
+  const floorSurfaces = floorSurfaceSummary(item.construcciones, 'VIVIENDA');
   const builtSurface = item.superficieCatastral || viviendaSurface || '';
   const residentialUse = String(item.uso || '').toLowerCase().includes('residencial');
   return compactPatch({
@@ -2086,6 +2146,10 @@ function catastroPatchFromData(item) {
     'catastro.y': y,
     'catastro.srs': srs,
     'catastro.reference': reference,
+    'catastro.superficiePlantaInferior': floorSurfaces.lowest,
+    'catastro.superficiePlantaMayor': floorSurfaces.largest,
+    'catastro.parcelasColindantes': item.parcelasColindantes || '',
+    'catastro.fachadasExpuestas': item.fachadasExpuestas || '',
     uso: item.uso || '',
     superficieCatastral: builtSurface,
   });
@@ -2318,6 +2382,34 @@ function floorsForUse(items, useName) {
   const floors = new Set(matchingRows.map(item => String(item.planta || '').trim()).filter(Boolean));
   const count = floors.size || matchingRows.length;
   return count ? String(count) : '';
+}
+
+function floorSurfaceSummary(items, useName) {
+  const normalizedUse = normalizeText(useName);
+  const byFloor = new Map();
+  (items || []).forEach((item, index) => {
+    if (!normalizeText(item.destino).includes(normalizedUse)) return;
+    const surface = numericCatastroSurface(item.superficie);
+    if (surface <= 0) return;
+    const rawFloor = String(item.planta || '').trim();
+    const floor = rawFloor || `__row_${index}`;
+    byFloor.set(floor, (byFloor.get(floor) || 0) + surface);
+  });
+  const floors = [...byFloor.entries()].map(([floor, surface]) => ({ floor, surface }));
+  floors.sort((left, right) => {
+    const leftNumber = Number(String(left.floor).replace(',', '.'));
+    const rightNumber = Number(String(right.floor).replace(',', '.'));
+    if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) return leftNumber - rightNumber;
+    if (Number.isFinite(leftNumber)) return -1;
+    if (Number.isFinite(rightNumber)) return 1;
+    return left.floor.localeCompare(right.floor);
+  });
+  const lowest = floors[0]?.surface || 0;
+  const largest = floors.reduce((max, item) => Math.max(max, item.surface), 0);
+  return {
+    lowest: lowest > 0 ? decimalForApp(lowest) : '',
+    largest: largest > 0 ? decimalForApp(largest) : '',
+  };
 }
 
 function numericCatastroSurface(value) {
