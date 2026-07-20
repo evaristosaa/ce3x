@@ -377,8 +377,14 @@ const configForm = document.querySelector('#configForm');
 const copyDataDialog = document.querySelector('#copyDataDialog');
 const copyDataForm = document.querySelector('#copyDataForm');
 const copySourceSelect = document.querySelector('#copySourceSelect');
+const newRecordDialog = document.querySelector('#newRecordDialog');
+const newRecordForm = document.querySelector('#newRecordForm');
+const newRecordReferenceField = document.querySelector('#newRecordReferenceField');
+const newRecordFileField = document.querySelector('#newRecordFileField');
+const newRecordHelp = document.querySelector('#newRecordHelp');
+const createNewRecordBtn = document.querySelector('#createNewRecordBtn');
 
-document.querySelector('#newBtn').addEventListener('click', () => createNewRecord().catch(error => addChatMessage('assistant', sheetErrorHelp(error))));
+document.querySelector('#newBtn').addEventListener('click', openNewRecordDialog);
 document.querySelector('#catastroBtn').addEventListener('click', loadCatastroForSelected);
 document.querySelector('#catastroMapBtn').addEventListener('click', openCatastroCartography);
 document.querySelector('#catastro3dBtn').addEventListener('click', openCatastro3d);
@@ -389,6 +395,7 @@ document.querySelector('#deleteRecordBtn').addEventListener('click', deleteSelec
 document.querySelector('#configBtn').addEventListener('click', openConfig);
 document.querySelector('#closeConfigBtn').addEventListener('click', () => configDialog.close());
 document.querySelector('#closeCopyDataBtn').addEventListener('click', () => copyDataDialog.close());
+document.querySelector('#closeNewRecordBtn').addEventListener('click', () => newRecordDialog.close());
 document.querySelector('#testConfigBtn').addEventListener('click', testConfigConnection);
 document.querySelector('#copyConfigLinkBtn').addEventListener('click', copyConfigLink);
 document.querySelector('#downloadJsonBtn').addEventListener('click', downloadJson);
@@ -410,6 +417,8 @@ detailForm.addEventListener('input', updateNormativaFromConstructionYear);
 detailForm.addEventListener('change', updateNormativaFromConstructionYear);
 configForm.addEventListener('submit', saveConfig);
 copyDataForm.addEventListener('submit', copyDataFromSelectedSource);
+newRecordForm.addEventListener('submit', submitNewRecordForm);
+newRecordForm.addEventListener('change', updateNewRecordMode);
 window.addEventListener('error', event => {
   addChatMessage('assistant', 'Ha fallado el chat: ' + (event.error?.message || event.message || 'error desconocido'));
 });
@@ -491,7 +500,62 @@ function ensureCasa37Record() {
   }
 }
 
-async function createNewRecord(persist = true) {
+function openNewRecordDialog() {
+  newRecordForm.reset();
+  updateNewRecordMode();
+  newRecordDialog.showModal();
+}
+
+function updateNewRecordMode() {
+  const mode = newRecordForm.elements.newRecordMode.value;
+  const catastroMode = mode === 'catastro';
+  newRecordReferenceField.hidden = !catastroMode;
+  newRecordFileField.hidden = catastroMode;
+  newRecordHelp.textContent = catastroMode
+    ? 'Se creará el expediente y se consultará Catastro automáticamente.'
+    : 'Se copiarán al expediente los datos que existan dentro del archivo .cex.';
+}
+
+async function submitNewRecordForm(event) {
+  event.preventDefault();
+  const mode = newRecordForm.elements.newRecordMode.value;
+  const reference = normalizeReference(newRecordForm.elements.reference.value);
+  const file = newRecordForm.elements.cexFile.files?.[0];
+  if (mode === 'catastro' && reference.length !== 20) {
+    addChatMessage('assistant', 'La referencia catastral debe tener 20 caracteres.');
+    return;
+  }
+  if (mode === 'cex' && !file) {
+    addChatMessage('assistant', 'Selecciona un archivo .cex para crear el expediente.');
+    return;
+  }
+
+  createNewRecordBtn.disabled = true;
+  try {
+    if (mode === 'catastro') {
+      const record = await createNewRecord(true, {
+        'admin.localizacion.referenciaCatastral': reference,
+      });
+      newRecordDialog.close();
+      await loadCatastroForRecord(record);
+      addChatMessage('assistant', `Expediente creado y Catastro consultado para ${reference}.`);
+      return;
+    }
+
+    const buffer = await file.arrayBuffer();
+    const text = new TextDecoder('iso-8859-1').decode(buffer);
+    const importedData = parseCexRecordData(text);
+    const record = await createNewRecord(true, importedData);
+    newRecordDialog.close();
+    addChatMessage('assistant', `Expediente creado desde ${file.name}: ${recordLabel(record)}.`);
+  } catch (error) {
+    addChatMessage('assistant', 'No he podido crear el expediente: ' + (error.message || error));
+  } finally {
+    createNewRecordBtn.disabled = false;
+  }
+}
+
+async function createNewRecord(persist = true, initialData = {}) {
   if (!state.config.apiUrl && persist) {
     throw new Error('Configura Google Sheet antes de crear expedientes. Esta app ya no guarda expedientes en local.');
   }
@@ -501,7 +565,7 @@ async function createNewRecord(persist = true) {
     estado: 'BORRADOR',
     createdAt: now,
     updatedAt: now,
-    data: Object.assign({}, DEFAULT_TECHNICIAN),
+    data: Object.assign({}, DEFAULT_TECHNICIAN, initialData),
   });
   if (persist) {
     const saved = await persistRecord(record);
@@ -1874,17 +1938,23 @@ function buildMultipleMatchesMessage(matches) {
 }
 
 async function loadCatastroForSelected() {
-  let record = selectedRecord();
+  return loadCatastroForRecord(selectedRecord());
+}
+
+async function loadCatastroForRecord(sourceRecord) {
+  let record = sourceRecord;
   if (!record) return;
   if (!state.config.apiUrl) {
     addChatMessage('assistant', 'Configura Google Sheet antes de consultar Catastro. Esta app ya no trabaja con expedientes locales.');
     return;
   }
   const data = Object.assign({}, record.data);
-  Array.from(new FormData(detailForm).entries()).forEach(([path, value]) => {
-    data[path] = String(value || '').trim();
-  });
-  collectTables(data);
+  if (record.id === state.selectedId && !detailView.hidden) {
+    Array.from(new FormData(detailForm).entries()).forEach(([path, value]) => {
+      data[path] = String(value || '').trim();
+    });
+    collectTables(data);
+  }
   record = Object.assign({}, record, { data });
   const reference = normalizeReference(valueAt(record, 'admin.localizacion.referenciaCatastral'));
   if (!reference || reference.length !== 20) {
