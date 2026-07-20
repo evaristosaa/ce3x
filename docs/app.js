@@ -1922,6 +1922,7 @@ function catastroPatchFromData(item) {
     'catastro.x': x,
     'catastro.y': y,
     'catastro.srs': srs,
+    'catastro.reference': reference,
     uso: item.uso || '',
     superficieCatastral: builtSurface,
   });
@@ -1960,7 +1961,8 @@ function catastroCartographyUrl(record) {
 
   const x = valueAt(record, 'catastro.x');
   const y = valueAt(record, 'catastro.y');
-  if (x && y) return catastroMapUrlFromData({
+  const coordinateReference = normalizeReference(valueAt(record, 'catastro.reference'));
+  if (x && y && (!coordinateReference || coordinateReference === reference)) return catastroMapUrlFromData({
     reference,
     x,
     y,
