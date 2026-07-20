@@ -382,7 +382,9 @@ const newRecordForm = document.querySelector('#newRecordForm');
 const newRecordReferenceField = document.querySelector('#newRecordReferenceField');
 const newRecordFileField = document.querySelector('#newRecordFileField');
 const newRecordHelp = document.querySelector('#newRecordHelp');
+const newRecordStatus = document.querySelector('#newRecordStatus');
 const createNewRecordBtn = document.querySelector('#createNewRecordBtn');
+const createNewRecordBtnLabel = document.querySelector('#createNewRecordBtnLabel');
 
 document.querySelector('#newBtn').addEventListener('click', openNewRecordDialog);
 document.querySelector('#catastroBtn').addEventListener('click', loadCatastroForSelected);
@@ -516,6 +518,19 @@ function updateNewRecordMode() {
     : 'Se copiarán al expediente los datos que existan dentro del archivo .cex.';
 }
 
+function setNewRecordLoading(loading, message = '') {
+  createNewRecordBtn.disabled = loading;
+  createNewRecordBtn.classList.toggle('is-loading', loading);
+  createNewRecordBtn.setAttribute('aria-busy', String(loading));
+  createNewRecordBtnLabel.textContent = loading ? 'Esperando datos...' : 'Crear expediente';
+  newRecordStatus.hidden = !loading;
+  newRecordStatus.textContent = message;
+  newRecordForm.querySelectorAll('input[type="radio"], input[name="reference"], input[name="cexFile"]').forEach(input => {
+    input.disabled = loading;
+  });
+  document.querySelector('#closeNewRecordBtn').disabled = loading;
+}
+
 async function submitNewRecordForm(event) {
   event.preventDefault();
   const mode = newRecordForm.elements.newRecordMode.value;
@@ -530,14 +545,14 @@ async function submitNewRecordForm(event) {
     return;
   }
 
-  createNewRecordBtn.disabled = true;
+  setNewRecordLoading(true, mode === 'catastro' ? 'Consultando Catastro y rellenando el expediente...' : 'Leyendo el archivo .cex...');
   try {
     if (mode === 'catastro') {
       const record = await createNewRecord(true, {
         'admin.localizacion.referenciaCatastral': reference,
       });
+      await loadCatastroForRecord(record, { throwOnError: true });
       newRecordDialog.close();
-      await loadCatastroForRecord(record);
       addChatMessage('assistant', `Expediente creado y Catastro consultado para ${reference}.`);
       return;
     }
@@ -551,7 +566,7 @@ async function submitNewRecordForm(event) {
   } catch (error) {
     addChatMessage('assistant', 'No he podido crear el expediente: ' + (error.message || error));
   } finally {
-    createNewRecordBtn.disabled = false;
+    setNewRecordLoading(false);
   }
 }
 
@@ -1480,7 +1495,7 @@ async function processChatText(text) {
   await applyChatPatch(target.record, patch);
 }
 
-async function applyChatPatch(record, patch) {
+async function applyChatPatch(record, patch, options = {}) {
   const current = normalizeRecord(record || {});
   const data = Object.assign({}, current.data);
 
@@ -1518,11 +1533,13 @@ async function applyChatPatch(record, patch) {
   } catch (error) {
     showSyncAlert(sheetErrorHelp(error));
     addChatMessage('assistant', 'Lo he aplicado en pantalla, pero Google Sheet no ha guardado. Al refrescar se perderá: ' + sheetErrorHelp(error));
+    if (options.throwOnError) throw error;
     return;
   }
 
   const changedSections = [...new Set(changes.map(([path]) => sectionLabel(path.split('.')[0])))].join(', ');
   addChatMessage('assistant', `Actualizado ${changedSections || 'expediente'} en ${recordLabel(saved)}. Faltan: ${missingSections(saved).join(', ') || 'nada importante'}.`);
+  return saved;
 }
 
 function mergeFieldValue(oldValue, newValue, path = '') {
@@ -1941,7 +1958,7 @@ async function loadCatastroForSelected() {
   return loadCatastroForRecord(selectedRecord());
 }
 
-async function loadCatastroForRecord(sourceRecord) {
+async function loadCatastroForRecord(sourceRecord, options = {}) {
   let record = sourceRecord;
   if (!record) return;
   if (!state.config.apiUrl) {
@@ -1972,9 +1989,13 @@ async function loadCatastroForRecord(sourceRecord) {
     await addGeneratedSituationPlan(rawPatch);
     const patch = emptyOnlyPatch(record, rawPatch);
     if (!Object.keys(patch).length) throw new Error('Catastro no devolvió datos útiles');
-    await applyChatPatch(record, patch);
+    const saved = await applyChatPatch(record, patch, options);
+    if (!saved && options.throwOnError) throw new Error('Catastro no pudo guardar los datos del expediente.');
+    return saved || record;
   } catch (error) {
     addChatMessage('assistant', 'No he podido consultar Catastro: ' + error.message);
+    if (options.throwOnError) throw error;
+    return null;
   }
 }
 
