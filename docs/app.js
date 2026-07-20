@@ -695,7 +695,6 @@ function renderDetail() {
 
   const catastroMapBtn = document.querySelector('#catastroMapBtn');
   const catastroUrl = record ? catastroCartographyUrl(record) : '';
-  catastroMapBtn.disabled = !catastroUrl;
   catastroMapBtn.title = catastroUrl
     ? 'Abrir la cartografía del Catastro para este expediente'
     : 'Falta una referencia catastral válida';
@@ -719,7 +718,13 @@ function renderDetail() {
 
 function openCatastroCartography() {
   const record = selectedRecord();
-  const url = record ? catastroCartographyUrl(record) : '';
+  const currentReference = detailForm.querySelector('[name="admin.localizacion.referenciaCatastral"]')?.value?.trim();
+  const currentRecord = record && currentReference
+    ? Object.assign({}, record, { data: Object.assign({}, record.data, {
+      'admin.localizacion.referenciaCatastral': currentReference,
+    }) })
+    : record;
+  const url = currentRecord ? catastroCartographyUrl(currentRecord) : '';
   if (!url) {
     addChatMessage('assistant', 'No puedo abrir la cartografía: el expediente no tiene una referencia catastral válida.');
     return;
