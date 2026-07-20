@@ -548,10 +548,9 @@ async function submitNewRecordForm(event) {
   setNewRecordLoading(true, mode === 'catastro' ? 'Consultando Catastro y rellenando el expediente...' : 'Leyendo el archivo .cex...');
   try {
     if (mode === 'catastro') {
-      const record = await createNewRecord(true, {
-        'admin.localizacion.referenciaCatastral': reference,
-      });
-      await loadCatastroForRecord(record, { throwOnError: true });
+      const catastroPatch = await fetchCatastroPatch(reference);
+      const record = await createNewRecord(true, catastroPatch);
+      selectRecord(record, { openDetail: true });
       newRecordDialog.close();
       addChatMessage('assistant', `Expediente creado y Catastro consultado para ${reference}.`);
       return;
@@ -2074,12 +2073,7 @@ async function loadCatastroForRecord(sourceRecord, options = {}) {
 
   addChatMessage('assistant', 'Consulto Catastro desde Apps Script para evitar bloqueos CORS del navegador.');
   try {
-    const catastroItem = (await api({ action: 'catastro', reference })).item || {};
-    if (!hasUsefulCatastroData(catastroItem)) {
-      throw new Error(catastroItem.error || 'Catastro no ha devuelto datos del inmueble. Puede ser una caída temporal del servicio.');
-    }
-    const rawPatch = catastroPatchFromData(catastroItem);
-    await addGeneratedSituationPlan(rawPatch);
+    const rawPatch = await fetchCatastroPatch(reference);
     const patch = emptyOnlyPatch(record, rawPatch);
     if (!Object.keys(patch).length) throw new Error('Catastro no devolvió datos útiles');
     const saved = await applyChatPatch(record, patch, options);
@@ -2090,6 +2084,17 @@ async function loadCatastroForRecord(sourceRecord, options = {}) {
     if (options.throwOnError) throw error;
     return null;
   }
+}
+
+async function fetchCatastroPatch(reference) {
+  const catastroItem = (await api({ action: 'catastro', reference })).item || {};
+  if (!hasUsefulCatastroData(catastroItem)) {
+    throw new Error(catastroItem.error || 'Catastro no ha devuelto datos del inmueble.');
+  }
+  const rawPatch = catastroPatchFromData(catastroItem);
+  await addGeneratedSituationPlan(rawPatch);
+  if (!Object.keys(rawPatch).length) throw new Error('Catastro no devolvio datos utiles');
+  return rawPatch;
 }
 
 function hasUsefulCatastroData(item) {
