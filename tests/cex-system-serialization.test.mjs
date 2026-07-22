@@ -69,6 +69,7 @@ globalThis.__cexHelpers = {
   hasUsefulCatastroData,
   estimatedEnvelopePatch,
   catastroAutocompletionPatch,
+  shouldPreferFormTransport,
   estimatedSystemsPatch,
   coveredSurfaceForPercentage,
   criticalCexIssues,
@@ -362,6 +363,14 @@ test('combines Catastro data with envelope and installation autocompletion', () 
   assert.ok(patch['instalaciones.acs.items'].length > 0);
   assert.ok(patch['instalaciones.calefaccion.items'].length > 0);
   assert.ok(patch['instalaciones.refrigeracion.items'].length > 0);
+});
+
+test('uses form transport for large Catastro patches with images', () => {
+  const { shouldPreferFormTransport } = loadCexHelpers();
+
+  assert.equal(shouldPreferFormTransport({ action: 'patch', dataPatch: { image: 'x'.repeat(50001) } }), true);
+  assert.equal(shouldPreferFormTransport({ action: 'patch', dataPatch: { image: 'x'.repeat(100) } }), false);
+  assert.equal(shouldPreferFormTransport({ action: 'save', item: { image: 'x'.repeat(50001) } }), false);
 });
 
 test('omits zero renewable contribution rows from CEX export', () => {
