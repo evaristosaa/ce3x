@@ -4075,6 +4075,13 @@ async function apiWithConfig(config, payload) {
   }
 
   if (WRITE_ACTIONS.includes(request.action)) {
+    if (shouldPreferFormTransport(request)) {
+      try {
+        return await formMessageAppsScript(config.apiUrl, request, 30000);
+      } catch (formError) {
+        return await jsonpAppsScript(config.apiUrl, request);
+      }
+    }
     try {
       return await jsonpAppsScript(config.apiUrl, request);
     } catch (jsonpError) {
@@ -4091,6 +4098,11 @@ async function apiWithConfig(config, payload) {
     if (!isNetworkFetchError(error)) throw error;
     return await jsonpAppsScript(config.apiUrl, request);
   }
+}
+
+function shouldPreferFormTransport(request) {
+  if (request?.action !== 'patch') return false;
+  return JSON.stringify(request).length > 50000;
 }
 
 async function recoverConfirmedWrite(apiUrl, request, originalError) {
