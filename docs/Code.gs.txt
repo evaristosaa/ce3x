@@ -452,6 +452,7 @@ function getCatastro_(reference) {
     uso: result.uso,
     superficieCatastral: result.superficieCatastral,
     anioConstruccion: result.anioConstruccion,
+    plantas: result.plantas,
     construcciones: result.construcciones,
     x: coordinates.x,
     y: coordinates.y,
@@ -495,6 +496,15 @@ function parseCatastroJson_(text) {
   }).filter(function(item) {
     return item.destino || item.superficie;
   });
+  const residentialConstructions = constructions.filter(function(item) {
+    return String(item.destino || '').toUpperCase().indexOf('VIVIENDA') >= 0;
+  });
+  const residentialFloors = {};
+  residentialConstructions.forEach(function(item) {
+    const floor = String(item.planta || '').trim();
+    if (floor) residentialFloors[floor] = true;
+  });
+  const plantas = String(Object.keys(residentialFloors).length || residentialConstructions.length || '');
   const building = bi.debi || {};
   const province = dt.np || dt.loine && dt.loine.np || '';
   const locality = dt.nm || dt.loine && dt.loine.nm || '';
@@ -510,6 +520,7 @@ function parseCatastroJson_(text) {
     uso: building.luso || '',
     superficieCatastral: building.sfc || '',
     anioConstruccion: building.ant || '',
+    plantas: plantas,
     construcciones: constructions,
   };
 }
