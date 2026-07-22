@@ -992,6 +992,7 @@ sectionFields.addEventListener('input', event => {
 
   const table = percentageInput.closest('[data-table]');
   const supportedTables = new Set([
+    'instalaciones.acs.items',
     'instalaciones.calefaccion.items',
     'instalaciones.refrigeracion.items',
   ]);
