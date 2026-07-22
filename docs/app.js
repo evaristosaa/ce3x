@@ -986,6 +986,31 @@ sectionFields.addEventListener('change', event => {
   if (rowSelect) updateTableSelectionState(rowSelect.closest('[data-table]'));
 });
 
+sectionFields.addEventListener('input', event => {
+  const percentageInput = event.target.closest('[data-col="demandaCubierta"]');
+  if (!percentageInput) return;
+
+  const table = percentageInput.closest('[data-table]');
+  const supportedTables = new Set([
+    'instalaciones.calefaccion.items',
+    'instalaciones.refrigeracion.items',
+  ]);
+  if (!table || !supportedTables.has(table.dataset.table)) return;
+
+  const row = percentageInput.closest('tr');
+  const surfaceInput = row?.querySelector('[data-col="m2Cubiertos"]');
+  if (!surfaceInput) return;
+
+  const record = selectedRecord();
+  const data = record?.data || {};
+  const usefulSurface = data['generales.definicion.superficieUtilHabitable']
+    || data.superficieCatastral
+    || record?.superficieUtil
+    || record?.superficieCatastral;
+  const coveredSurface = coveredSurfaceForPercentage(usefulSurface, percentageInput.value);
+  if (coveredSurface !== '') surfaceInput.value = coveredSurface;
+});
+
 function handleImageUpload(input) {
   const file = input.files?.[0];
   if (!file) return;
@@ -1526,6 +1551,16 @@ function decimalForApp(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return '';
   return String(Math.round(number * 100) / 100);
+}
+
+function coveredSurfaceForPercentage(usefulSurface, percentage) {
+  const surfaceText = String(usefulSurface ?? '').trim();
+  const percentageText = String(percentage ?? '').trim();
+  if (!surfaceText || !percentageText) return '';
+  const surface = Number(surfaceText.replace(',', '.'));
+  const percent = Number(percentageText.replace(',', '.'));
+  if (!Number.isFinite(surface) || !Number.isFinite(percent)) return '';
+  return decimalForApp(surface * percent / 100);
 }
 
 async function handleChatSubmit(event) {
