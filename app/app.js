@@ -2179,6 +2179,11 @@ async function fetchCatastroPatch(reference) {
     throw new Error(catastroItem.error || 'Catastro no ha devuelto datos del inmueble.');
   }
   const rawPatch = catastroPatchFromData(catastroItem);
+  const floorPath = 'generales.definicion.numeroPlantasHabitables';
+  if (!hasValue(rawPatch[floorPath])) {
+    const version = catastroItem.catastroParserVersion || 'desconocida';
+    throw new Error('Apps Script ha respondido sin las plantas habitables (parser ' + version + '). Copia el Code.gs actualizado y publica una nueva versión del despliegue /exec.');
+  }
   await addGeneratedSituationPlan(rawPatch);
   if (!Object.keys(rawPatch).length) throw new Error('Catastro no devolvio datos utiles');
   return rawPatch;
