@@ -433,27 +433,26 @@ function ensureCleanSchemaForWrite_(sheet) {
 function getCatastro_(reference) {
   const rc = String(reference || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (rc.length !== 20) throw new Error('Referencia catastral no valida');
-  const url = 'https://ovc.catastro.meh.es/OVCServWeb/OVCSWLocalizacionRC/OVCCallejero.asmx/Consulta_DNPRC?Provincia=&Municipio=&RC=' + encodeURIComponent(rc);
+  const url = 'https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/json/Consulta_DNPRC?RefCat=' + encodeURIComponent(rc);
   const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
   if (response.getResponseCode() >= 400) {
     throw new Error('Catastro respondio HTTP ' + response.getResponseCode());
   }
-  const xml = response.getContentText();
-  assertCatastroResponseOk_(xml);
+  const result = parseCatastroJson_(response.getContentText());
   const coordinates = getCatastroCoordinates_(rc);
   const neighbourInfo = getCatastroNeighbourInfo_(rc);
   const streetViewImage = getStreetViewImage_(coordinates);
   const situationPlanImage = getCatastroSituationPlanImage_(coordinates);
   return {
     referenciaCatastral: rc,
-    direccion: extractTag_(xml, 'ldt'),
-    provincia: titleCase_(extractTag_(xml, 'np')),
-    localidad: extractTag_(xml, 'nm'),
-    codigoPostal: extractTag_(xml, 'dp'),
-    uso: extractTag_(xml, 'luso'),
-    superficieCatastral: extractTag_(xml, 'sfc'),
-    anioConstruccion: extractTag_(xml, 'ant'),
-    construcciones: extractConstructions_(xml),
+    direccion: result.direccion,
+    provincia: result.provincia,
+    localidad: result.localidad,
+    codigoPostal: result.codigoPostal,
+    uso: result.uso,
+    superficieCatastral: result.superficieCatastral,
+    anioConstruccion: result.anioConstruccion,
+    construcciones: result.construcciones,
     x: coordinates.x,
     y: coordinates.y,
     srs: coordinates.srs,
@@ -461,6 +460,57 @@ function getCatastro_(reference) {
     planoSituacion: situationPlanImage,
     parcelasColindantes: neighbourInfo.parcelasColindantes,
     fachadasExpuestas: neighbourInfo.fachadasExpuestas,
+  };
+}
+
+function parseCatastroJson_(text) {
+  let payload;
+  try {
+    payload = JSON.parse(String(text || ''));
+  } catch (error) {
+    throw new Error('Catastro devolvio una respuesta no valida');
+  }
+
+  const result = payload && payload.consulta_dnprcResult;
+  const bi = result && result.bico && result.bico.bi;
+  if (!bi) throw new Error('Catastro no devolvio datos del inmueble');
+
+  const dt = bi.dt || {};
+  const location = dt.locs && dt.locs.lous && dt.locs.lous.lourb || {};
+  const addressParts = location.dir || {};
+  const address = dt.ldt || [
+    addressParts.tv,
+    addressParts.nv,
+    addressParts.pnp,
+    location.dp,
+    location.nm,
+  ].filter(Boolean).join(' ');
+  const constructions = (result.lcons || []).map(function(item) {
+    const internal = item.dt && item.dt.lourb && item.dt.lourb.loint || {};
+    return {
+      destino: item.lcd || '',
+      superficie: item.dfcons && item.dfcons.stl || '',
+      planta: internal.pt || '',
+    };
+  }).filter(function(item) {
+    return item.destino || item.superficie;
+  });
+  const building = bi.debi || {};
+  const province = dt.np || dt.loine && dt.loine.np || '';
+  const locality = dt.nm || dt.loine && dt.loine.nm || '';
+  if (!address && !building.sfc && !constructions.length) {
+    throw new Error('Catastro no devolvio datos del inmueble');
+  }
+
+  return {
+    direccion: address,
+    provincia: titleCase_(province),
+    localidad: locality,
+    codigoPostal: location.dp || '',
+    uso: building.luso || '',
+    superficieCatastral: building.sfc || '',
+    anioConstruccion: building.ant || '',
+    construcciones: constructions,
   };
 }
 
@@ -479,14 +529,26 @@ function getCatastroCoordinates_(reference) {
   try {
     const parcelReference = normalizeReference_(reference).slice(0, 14);
     if (parcelReference.length !== 14) return {};
-    const url = 'https://ovc.catastro.meh.es/OVCServWeb/OVCSWLocalizacionRC/OVCCoordenadas.asmx/Consulta_CPMRC?Provincia=&Municipio=&SRS=EPSG:4326&RC=' + encodeURIComponent(parcelReference);
+    const url = 'https://ovc.catastro.meh.es/INSPIRE/wfsCP.aspx?service=WFS&version=2.0.0&request=GetFeature&STOREDQUERIE_ID=GetParcel&refcat=' + encodeURIComponent(parcelReference) + '&srsname=EPSG::4326';
     const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     if (response.getResponseCode() >= 400) return {};
     const xml = response.getContentText();
+    const match = String(xml || '').match(/<gml:posList[^>]*>([^<]+)<\/gml:posList>/i);
+    if (!match) return {};
+    const values = match[1].trim().split(/\s+/).map(Number).filter(isFinite);
+    if (values.length < 2) return {};
+    let latitude = 0;
+    let longitude = 0;
+    let count = 0;
+    for (let index = 0; index + 1 < values.length; index += 2) {
+      latitude += values[index];
+      longitude += values[index + 1];
+      count += 1;
+    }
     return {
-      x: extractTag_(xml, 'xcen'),
-      y: extractTag_(xml, 'ycen'),
-      srs: extractTag_(xml, 'srs') || 'EPSG:4326',
+      x: String(longitude / count),
+      y: String(latitude / count),
+      srs: 'EPSG:4326',
     };
   } catch (error) {
     return {};
