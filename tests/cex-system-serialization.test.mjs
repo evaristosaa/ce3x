@@ -109,6 +109,7 @@ function loadAppsScriptHelpers() {
   vm.runInContext(`${source}
 globalThis.__appsScriptHelpers = {
   HEADERS,
+  parseCatastroJson_,
   recordToRow_,
   rowToRecord_,
 };`, context);
@@ -306,6 +307,60 @@ test('exports current administrative fields and habitable floors from the full C
   assert.equal(parsed['admin.localizacion.codigoPostal'], '41805');
   assert.equal(parsed['generales.definicion.numeroPlantasHabitables'], '2');
   assert.equal(parsed['generales.datos.normativaVigente'], 'NBE-CT-79');
+  assert.equal(parsed['generales.datos.anioConstruccion'], '2002');
+  assert.equal(parsed['generales.datos.localidad'], 'Benacazon');
+});
+
+test('returns an explicit residential floor count from Catastro constructions', () => {
+  const { parseCatastroJson_ } = loadAppsScriptHelpers();
+  const result = parseCatastroJson_(JSON.stringify({
+    consulta_dnprcResult: {
+      bico: {
+        bi: {
+          dt: {
+            ldt: 'CL TORRE DEL ORO 7',
+            np: 'SEVILLA',
+            nm: 'BENACAZON',
+            locs: { lous: { lourb: { dp: '41805' } } },
+          },
+          debi: { sfc: '108', ant: '2002', luso: 'Residencial' },
+        },
+      },
+      lcons: [
+        { lcd: 'VIVIENDA', dt: { lourb: { loint: { pt: '00' } } }, dfcons: { stl: '54' } },
+        { lcd: 'VIVIENDA', dt: { lourb: { loint: { pt: '01' } } }, dfcons: { stl: '54' } },
+      ],
+    },
+  }));
+
+  assert.equal(result.plantas, '2');
+  assert.equal(result.construcciones.length, 2);
+});
+
+test('reads the real Consulta_DNPRC construction list nested inside bico.bi', () => {
+  const { parseCatastroJson_ } = loadAppsScriptHelpers();
+  const result = parseCatastroJson_(JSON.stringify({
+    consulta_dnprcResult: {
+      control: { cudnp: 1, cucons: 3 },
+      bico: { bi: {
+        dt: {
+          ldt: 'CL TORRE DEL ORO 7 41805 BENACAZON (SEVILLA)',
+          np: 'SEVILLA',
+          nm: 'BENACAZON',
+          locs: { lous: { lourb: { dp: '41805' } } },
+        },
+        debi: { sfc: '108', ant: '2002', luso: 'Residencial' },
+        lcons: [
+          { lcd: 'VIVIENDA', dt: { lourb: { loint: { pt: '00' } } }, dfcons: { stl: '44' } },
+          { lcd: 'APARCAMIENTO', dt: { lourb: { loint: { pt: '00' } } }, dfcons: { stl: '20' } },
+          { lcd: 'VIVIENDA', dt: { lourb: { loint: { pt: '01' } } }, dfcons: { stl: '44' } },
+        ],
+      } },
+    },
+  }));
+
+  assert.equal(result.plantas, '2');
+  assert.equal(result.construcciones.map(row => row.planta).join(','), '00,00,01');
 });
 
 test('exports internal partition mass in all CE3X general fields', () => {
