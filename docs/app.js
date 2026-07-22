@@ -546,13 +546,14 @@ async function submitNewRecordForm(event) {
   }
 
   setNewRecordLoading(true, mode === 'catastro' ? 'Consultando Catastro y rellenando el expediente...' : 'Leyendo el archivo .cex...');
+  let createdRecord = null;
   try {
     if (mode === 'catastro') {
-      const record = await createNewRecord(true, {
+      createdRecord = await createNewRecord(true, {
         'admin.localizacion.referenciaCatastral': reference,
       });
       const catastroPatch = await fetchCatastroPatch(reference);
-      const completed = await saveCatastroCompletion(record, catastroPatch, { throwOnError: true });
+      const completed = await saveCatastroCompletion(createdRecord, catastroPatch, { throwOnError: true });
       selectRecord(completed, { openDetail: true });
       newRecordDialog.close();
       addChatMessage('assistant', `Expediente creado y Catastro consultado para ${reference}.`);
@@ -566,6 +567,11 @@ async function submitNewRecordForm(event) {
     newRecordDialog.close();
     addChatMessage('assistant', `Expediente creado desde ${file.name}: ${recordLabel(record)}.`);
   } catch (error) {
+    if (mode === 'catastro' && createdRecord) {
+      const current = state.records.find(item => item.id === createdRecord.id) || createdRecord;
+      selectRecord(current, { openDetail: true });
+      newRecordDialog.close();
+    }
     addChatMessage('assistant', 'No he podido crear el expediente: ' + (error.message || error));
   } finally {
     setNewRecordLoading(false);
