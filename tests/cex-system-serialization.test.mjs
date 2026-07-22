@@ -343,6 +343,7 @@ test('builds estimated system rows from useful surface', () => {
 test('calculates heating and cooling covered surface from demand percentage', () => {
   const { coveredSurfaceForPercentage } = loadCexHelpers();
 
+  assert.equal(coveredSurfaceForPercentage('152', '75'), '114');
   assert.equal(coveredSurfaceForPercentage('152', '50'), '76');
   assert.equal(coveredSurfaceForPercentage('149,40', '33.33'), '49.8');
   assert.equal(coveredSurfaceForPercentage('', '50'), '');
