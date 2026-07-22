@@ -1238,7 +1238,7 @@ async function autocompleteSystemsForSelected() {
   state.activeSection = 'instalaciones';
 }
 
-async function persistAutocompletePatch(record, data, paths, message) {
+async function persistAutocompletePatch(record, data, paths, message, options = {}) {
   const optimistic = normalizeRecord(Object.assign({}, record, { data, updatedAt: new Date().toISOString() }));
   addSummaryFields(optimistic);
   upsertRecord(optimistic);
@@ -1247,7 +1247,8 @@ async function persistAutocompletePatch(record, data, paths, message) {
   state.rightView = 'detail';
   renderAll();
   try {
-    const saved = await persistRecordPatch(optimistic, paths);
+    const saved = await persistRecordPatch(optimistic, paths, options);
+    clearSyncAlert();
     addChatMessage('assistant', message + ' Guardado en Google Sheet.');
     upsertRecord(saved);
     renderAll();
@@ -1711,7 +1712,7 @@ async function persistRecord(record) {
   return normalized;
 }
 
-async function persistRecordPatch(record, changedPaths) {
+async function persistRecordPatch(record, changedPaths, options = {}) {
   const now = new Date().toISOString();
   const next = normalizeRecord(Object.assign({}, record));
   next.id = next.id || createId();
@@ -1737,7 +1738,7 @@ async function persistRecordPatch(record, changedPaths) {
     dataPatch,
   })).item;
 
-  const verified = await verifyPatchSaved(next.id, dataPatch);
+  const verified = options.skipVerification ? null : await verifyPatchSaved(next.id, dataPatch);
   const normalized = normalizeRecord(verified || saved);
   upsertRecord(normalized);
   state.selectedId = normalized.id;
@@ -2160,6 +2161,7 @@ async function saveCatastroCompletion(record, rawPatch, options = {}) {
     data,
     paths,
     'Catastro consultado, envolvente e instalaciones autocompletadas. Revisar los valores estimados.',
+    { skipVerification: true },
   );
   if (!saved && options.throwOnError) throw new Error('Catastro no pudo guardar los datos del expediente.');
   return saved || selectedRecord() || record;
