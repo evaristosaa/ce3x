@@ -2240,7 +2240,7 @@ function catastroPatchFromData(item) {
   const srs = String(item.srs || '').trim() || (x && y ? 'EPSG:4326' : '');
   const situationMapUrl = catastroMapUrlFromData({ reference, x, y, srs });
   const viviendaSurface = surfaceForUse(item.construcciones, 'VIVIENDA');
-  const viviendaFloors = floorsForUse(item.construcciones, 'VIVIENDA');
+  const viviendaFloors = item.plantas || item.numeroPlantas || floorsForUse(item.construcciones, 'VIVIENDA');
   const floorSurfaces = floorSurfaceSummary(item.construcciones, 'VIVIENDA');
   const builtSurface = item.superficieCatastral || viviendaSurface || '';
   const residentialUse = String(item.uso || '').toLowerCase().includes('residencial');
@@ -2958,7 +2958,7 @@ function cexPatchMode() {
   return new URLSearchParams(window.location.search).get('cexMode') || 'all';
 }
 
-function applyCexAdminReplacements(text, record) {
+function applyCexAdminLegacyReplacements(text, record) {
   const data = record.data || {};
   let next = text;
   next = replaceFirstMemoValue(next, 'p6', cexAppendString(data['admin.cliente.nombreRazonSocial']));
@@ -2984,13 +2984,44 @@ function applyCexAdminReplacements(text, record) {
     ['aVjuanjmf8@gmail.com\np13', cexAppendString(data['admin.tecnico.email']) + '\np13'],
   ].filter(([, to]) => to !== 'V' && to !== 'aV' && to !== 'F0');
 
-  return scalarReplacements.reduce((current, [from, to]) => replaceAll(current, from, to), next);
+  return scalarReplacements.reduce((current, [from, to]) => replaceCexTextPattern(current, from, to), next);
+}
+
+function applyCexAdminReplacements(text, record) {
+  const data = record.data || {};
+  const append = value => cexAppendString(value);
+  const replacements = [
+    ['p1', cexString(data['admin.localizacion.nombreEdificio'])],
+    ['p2', append(data['admin.localizacion.direccion'])],
+    ['p3', append(titleCase(data['admin.localizacion.localidad']))],
+    ['p4', append(titleCase(data['admin.localizacion.provincia']))],
+    ['p6', append(data['admin.cliente.nombreRazonSocial'])],
+    ['p7', append(data['admin.cliente.direccion'])],
+    ['p8', append(data['admin.cliente.telefono'])],
+    ['p9', append(data['admin.cliente.email'])],
+    ['p10', append(data['admin.tecnico.razonSocial'])],
+    ['p11', append(data['admin.tecnico.nombre'])],
+    ['p12', append(data['admin.tecnico.telefono'])],
+    ['p13', append(data['admin.tecnico.email'])],
+    ['p14', append(data['admin.cliente.codigoPostal'])],
+    ['p16', cexString(data['admin.localizacion.referenciaCatastral'])],
+    ['p17', append(cexValue(data['admin.cliente.localidad']).toUpperCase())],
+    ['p18', append(data['admin.cliente.codigoPostal'])],
+    ['p19', append(data['admin.tecnico.nif'])],
+    ['p20', append(data['admin.tecnico.cif'])],
+    ['p21', append(data['admin.tecnico.direccion'])],
+    ['p22', append(cexValue(data['admin.tecnico.localidad']).toUpperCase())],
+    ['p23', append(data['admin.tecnico.codigoPostal'])],
+    ['p24', append(data['admin.tecnico.titulacion'])],
+  ].filter(([, replacement]) => replacement !== 'V' && replacement !== 'aV');
+  return replacements.reduce((current, [memo, replacement]) => replaceFirstMemoValue(current, memo, replacement), text);
 }
 
 function applyCexGeneralReplacements(text, record) {
   const data = record.data || {};
   let next = text;
   const buildingType = cexBuildingType(data['generales.datos.tipoEdificio']);
+  next = applyCexInputGeneralReplacements(next, record);
   const generalReplacements = [
     ['VCTE 2013', cexString(data['generales.datos.normativaVigente'])],
     ['VUnifamiliar', cexString(buildingType)],
@@ -3011,8 +3042,7 @@ function applyCexGeneralReplacements(text, record) {
     ["F3.0\nsS'tasaEqVentilacionNeta'", cexFloat(data['generales.definicion.numeroPlantasHabitables']) + "\nsS'tasaEqVentilacionNeta'"],
   ].filter(([, to]) => to !== 'V' && to !== 'aV' && to !== 'F0');
 
-  next = generalReplacements.reduce((current, [from, to]) => replaceAll(current, from, to), next);
-  next = applyCexInputGeneralReplacements(next, record);
+  next = generalReplacements.reduce((current, [from, to]) => replaceCexTextPattern(current, from, to), next);
   next = applyCexStructuredGeneralReplacements(next, record);
   return next;
 }
@@ -4024,6 +4054,14 @@ function replaceAll(text, from, to) {
   return text.split(from).join(to);
 }
 
+function replaceCexTextPattern(text, from, to) {
+  if (!from || from === to) return text;
+  const crlfFrom = from.replace(/\n/g, '\r\n');
+  const crlfTo = to.replace(/\n/g, '\r\n');
+  if (text.includes(crlfFrom)) return text.split(crlfFrom).join(crlfTo);
+  return replaceAll(text, from, to);
+}
+
 function replaceFirst(text, from, to) {
   if (!from || from === to) return text;
   const index = text.indexOf(from);
@@ -4037,7 +4075,8 @@ function escapeRegExp(value) {
 
 function replaceFirstMemoValue(text, memo, replacement) {
   if (!replacement || replacement === 'aV') return text;
-  return text.replace(new RegExp(`^a?V.*\\r?\\n${memo}\\r?$`, 'm'), `${replacement}\n${memo}`);
+  const pattern = new RegExp(`^a?(?:V[^\\r\\n]*|F[^\\r\\n]*|I[^\\r\\n]*|S'[^\\r\\n]*'|g\\d+)(\\r?\\n)${memo}(\\r?)$`, 'm');
+  return text.replace(pattern, `${replacement}$1${memo}$2`);
 }
 
 function cexString(value) {
