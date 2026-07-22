@@ -68,6 +68,7 @@ globalThis.__cexHelpers = {
   catastroSituationPlanModel,
   hasUsefulCatastroData,
   estimatedEnvelopePatch,
+  catastroAutocompletionPatch,
   estimatedSystemsPatch,
   coveredSurfaceForPercentage,
   criticalCexIssues,
@@ -347,6 +348,20 @@ test('calculates heating and cooling covered surface from demand percentage', ()
   assert.equal(coveredSurfaceForPercentage('152', '50'), '76');
   assert.equal(coveredSurfaceForPercentage('149,40', '33.33'), '49.8');
   assert.equal(coveredSurfaceForPercentage('', '50'), '');
+});
+
+test('combines Catastro data with envelope and installation autocompletion', () => {
+  const { catastroAutocompletionPatch } = loadCexHelpers();
+  const patch = catastroAutocompletionPatch({}, {
+    'generales.definicion.superficieUtilHabitable': '120',
+    'generales.definicion.numeroPlantasHabitables': '2',
+  });
+
+  assert.equal(patch['generales.definicion.superficieUtilHabitable'], '120');
+  assert.ok(patch['envolvente.cerramientos.items'].length > 0);
+  assert.ok(patch['instalaciones.acs.items'].length > 0);
+  assert.ok(patch['instalaciones.calefaccion.items'].length > 0);
+  assert.ok(patch['instalaciones.refrigeracion.items'].length > 0);
 });
 
 test('omits zero renewable contribution rows from CEX export', () => {
