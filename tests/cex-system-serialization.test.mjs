@@ -69,6 +69,7 @@ globalThis.__cexHelpers = {
   hasUsefulCatastroData,
   estimatedEnvelopePatch,
   estimatedSystemsPatch,
+  coveredSurfaceForPercentage,
   criticalCexIssues,
   stripCexImprovements,
   serializeCexCerramientosInput,
@@ -337,6 +338,14 @@ test('builds estimated system rows from useful surface', () => {
   assert.equal(patch['instalaciones.refrigeracion.items'][0].demandaCubierta, '100');
   assert.equal(patch['instalaciones.contribuciones.items'][0].nombre, 'Sin contribuciones renovables');
   assert.equal(patch['instalaciones.contribuciones.items'][0].acsRenovable, '0');
+});
+
+test('calculates heating and cooling covered surface from demand percentage', () => {
+  const { coveredSurfaceForPercentage } = loadCexHelpers();
+
+  assert.equal(coveredSurfaceForPercentage('152', '50'), '76');
+  assert.equal(coveredSurfaceForPercentage('149,40', '33.33'), '49.8');
+  assert.equal(coveredSurfaceForPercentage('', '50'), '');
 });
 
 test('omits zero renewable contribution rows from CEX export', () => {
