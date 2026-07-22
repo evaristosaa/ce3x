@@ -3027,6 +3027,7 @@ function applyCexGeneralReplacements(text, record) {
     ['VUnifamiliar', cexString(buildingType)],
     ['VB4', cexString(data['generales.datos.zonaClimaticaHE1'])],
     ['aVV\np6', cexAppendString(data['generales.datos.zonaClimaticaHE4']) + '\np6'],
+    ['VDos Hermanas', cexString(titleCase(data['generales.datos.localidad']))],
     ['V2021', cexString(data['generales.datos.anioConstruccion'])],
     ['V149.40', cexString(cexDecimal(data['generales.definicion.superficieUtilHabitable']))],
     ['V2.60', cexString(cexDecimal(data['generales.definicion.alturaLibrePlanta']))],
