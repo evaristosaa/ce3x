@@ -486,7 +486,13 @@ function parseCatastroJson_(text) {
     location.dp,
     location.nm,
   ].filter(Boolean).join(' ');
-  const constructions = (result.lcons || []).map(function(item) {
+  // Consulta_DNPRC places lcons inside bico.bi. Keep the root-level fallback
+  // for older responses and test fixtures that exposed it beside bico.
+  const rawConstructions = bi.lcons || result.lcons || [];
+  const constructionItems = Array.isArray(rawConstructions)
+    ? rawConstructions
+    : (rawConstructions ? [rawConstructions] : []);
+  const constructions = constructionItems.map(function(item) {
     const internal = item.dt && item.dt.lourb && item.dt.lourb.loint || {};
     return {
       destino: item.lcd || '',
