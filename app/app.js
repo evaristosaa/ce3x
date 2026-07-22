@@ -4067,17 +4067,14 @@ async function apiWithConfig(config, payload) {
   }
 
   if (WRITE_ACTIONS.includes(request.action)) {
-    if (request.action === 'patch') {
-      try {
-        return await jsonpAppsScript(config.apiUrl, request);
-      } catch (jsonpError) {
-        return await formMessageAppsScript(config.apiUrl, request);
-      }
-    }
     try {
-      return await formMessageAppsScript(config.apiUrl, request, request.action === 'save' ? 6000 : 20000);
-    } catch (error) {
-      return await recoverConfirmedWrite(config.apiUrl, request, error);
+      return await jsonpAppsScript(config.apiUrl, request);
+    } catch (jsonpError) {
+      try {
+        return await formMessageAppsScript(config.apiUrl, request, 20000);
+      } catch (formError) {
+        return await recoverConfirmedWrite(config.apiUrl, request, formError);
+      }
     }
   }
   try {
