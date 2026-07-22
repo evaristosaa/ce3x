@@ -1,6 +1,7 @@
 const SHEET_NAME = 'referencias';
 const APP_SECRET = 'CAMBIAR_ESTE_SECRETO';
 const GOOGLE_MAPS_API_KEY = '';
+const CATASTRO_PARSER_VERSION = '20260722-lcons-bi-1';
 const LEGACY_RAW_JSON_HEADERS = [
   'rawJson',
   'rawJson2',
@@ -453,6 +454,7 @@ function getCatastro_(reference) {
     superficieCatastral: result.superficieCatastral,
     anioConstruccion: result.anioConstruccion,
     plantas: result.plantas,
+    catastroParserVersion: CATASTRO_PARSER_VERSION,
     construcciones: result.construcciones,
     x: coordinates.x,
     y: coordinates.y,
