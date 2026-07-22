@@ -260,6 +260,54 @@ test('exports CE3X-compatible building type values in all general fields', () =>
   assert.doesNotMatch(next, /Vivienda Individual/);
 });
 
+test('exports current administrative fields and habitable floors from the full CEX template', () => {
+  const { applyCexReplacements } = loadCexHelpers();
+  const { parseCexRecordData } = loadCexImportHelpers();
+  const source = readFileSync(new URL('../app/templates/base.cex', import.meta.url), 'latin1');
+  const output = applyCexReplacements(source, {
+    data: {
+      'admin.localizacion.nombreEdificio': 'CL TORRE DEL ORO 7 41805',
+      'admin.localizacion.direccion': 'CL TORRE DEL ORO 7 41805',
+      'admin.localizacion.localidad': 'BENACAZON',
+      'admin.localizacion.provincia': 'Sevilla',
+      'admin.localizacion.codigoPostal': '41805',
+      'admin.localizacion.referenciaCatastral': '8676623QB4387N0001EU',
+      'admin.cliente.direccion': 'CL TORRE DEL ORO 7 41805',
+      'admin.cliente.localidad': 'BENACAZON',
+      'admin.cliente.codigoPostal': '41805',
+      'admin.cliente.telefono': '.',
+      'admin.cliente.email': '.',
+      'admin.tecnico.nombre': 'JUAN JOSE MORENO FRESNO',
+      'admin.tecnico.nif': '28629645G',
+      'admin.tecnico.cif': '.',
+      'admin.tecnico.direccion': 'C/ JOSE MEJIAS SALGUERO Nº4, CASA 37',
+      'admin.tecnico.localidad': 'DOS HERMANAS',
+      'admin.tecnico.codigoPostal': '41704',
+      'admin.tecnico.titulacion': 'INGENIERO TECNICO DE MINAS',
+      'generales.datos.normativaVigente': 'NBE-CT-79',
+      'generales.datos.tipoEdificio': 'Vivienda individual',
+      'generales.datos.provincia': 'Sevilla',
+      'generales.datos.localidad': 'BENACAZON',
+      'generales.datos.zonaClimaticaHE1': 'B4',
+      'generales.datos.zonaClimaticaHE4': 'V',
+      'generales.datos.anioConstruccion': '2002',
+      'generales.definicion.superficieUtilHabitable': '108',
+      'generales.definicion.alturaLibrePlanta': '2.70',
+      'generales.definicion.numeroPlantasHabitables': '2',
+      'generales.definicion.ventilacionInmueble': '0.63',
+      'generales.definicion.demandaDiariaACS': '120',
+      'generales.definicion.masaParticionesInternas': 'Ligera',
+    },
+  });
+
+  const parsed = parseCexRecordData(output);
+  assert.equal(parsed['admin.localizacion.referenciaCatastral'], '8676623QB4387N0001EU');
+  assert.equal(parsed['admin.localizacion.localidad'], 'Benacazon');
+  assert.equal(parsed['admin.localizacion.codigoPostal'], '41805');
+  assert.equal(parsed['generales.definicion.numeroPlantasHabitables'], '2');
+  assert.equal(parsed['generales.datos.normativaVigente'], 'NBE-CT-79');
+});
+
 test('exports internal partition mass in all CE3X general fields', () => {
   const { applyCexReplacements } = loadCexHelpers();
   const source = [
@@ -590,6 +638,17 @@ test('infers residential floors from construction rows when Catastro does not pr
   });
 
   assert.equal(patch['generales.definicion.numeroPlantasHabitables'], '3');
+});
+
+test('uses the explicit Catastro residential floor count when available', () => {
+  const { catastroPatchFromData } = loadCexHelpers();
+  const patch = catastroPatchFromData({
+    uso: 'Residencial',
+    plantas: '2',
+    construcciones: [{ destino: 'VIVIENDA', superficie: '108' }],
+  });
+
+  assert.equal(patch['generales.definicion.numeroPlantasHabitables'], '2');
 });
 
 test('keeps existing values when applying Catastro only to empty fields', () => {
