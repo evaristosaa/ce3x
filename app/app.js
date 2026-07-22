@@ -548,9 +548,12 @@ async function submitNewRecordForm(event) {
   setNewRecordLoading(true, mode === 'catastro' ? 'Consultando Catastro y rellenando el expediente...' : 'Leyendo el archivo .cex...');
   try {
     if (mode === 'catastro') {
+      const record = await createNewRecord(true, {
+        'admin.localizacion.referenciaCatastral': reference,
+      });
       const catastroPatch = await fetchCatastroPatch(reference);
-      const record = await createNewRecord(true, catastroPatch);
-      selectRecord(record, { openDetail: true });
+      const completed = await saveCatastroCompletion(record, catastroPatch, { throwOnError: true });
+      selectRecord(completed, { openDetail: true });
       newRecordDialog.close();
       addChatMessage('assistant', `Expediente creado y Catastro consultado para ${reference}.`);
       return;
@@ -1248,9 +1251,11 @@ async function persistAutocompletePatch(record, data, paths, message) {
     addChatMessage('assistant', message + ' Guardado en Google Sheet.');
     upsertRecord(saved);
     renderAll();
+    return saved;
   } catch (error) {
     showSyncAlert(sheetErrorHelp(error));
     addChatMessage('assistant', message + ' Lo he aplicado en pantalla, pero Google Sheet no ha guardado: ' + sheetErrorHelp(error));
+    return null;
   }
 }
 
@@ -2138,6 +2143,26 @@ async function loadCatastroForRecord(sourceRecord, options = {}) {
 function catastroAutocompletionPatch(currentData, catastroPatch) {
   const data = Object.assign({}, currentData || {}, catastroPatch || {});
   return Object.assign({}, catastroPatch || {}, estimatedEnvelopePatch(data), estimatedSystemsPatch(data));
+}
+
+async function saveCatastroCompletion(record, rawPatch, options = {}) {
+  const catastroPatch = emptyOnlyPatch(record, rawPatch);
+  if (!Object.keys(catastroPatch).length) throw new Error('Catastro no devolvio datos utiles');
+  const completedPatch = catastroAutocompletionPatch(record.data, catastroPatch);
+  const data = Object.assign({}, record.data, completedPatch);
+  const paths = [...new Set([
+    ...Object.keys(catastroPatch),
+    ...envelopeDataPaths(),
+    ...systemsDataPaths(),
+  ])];
+  const saved = await persistAutocompletePatch(
+    record,
+    data,
+    paths,
+    'Catastro consultado, envolvente e instalaciones autocompletadas. Revisar los valores estimados.',
+  );
+  if (!saved && options.throwOnError) throw new Error('Catastro no pudo guardar los datos del expediente.');
+  return saved || selectedRecord() || record;
 }
 
 async function fetchCatastroPatch(reference) {
