@@ -2110,16 +2110,34 @@ async function loadCatastroForRecord(sourceRecord, options = {}) {
   addChatMessage('assistant', 'Consulto Catastro desde Apps Script para evitar bloqueos CORS del navegador.');
   try {
     const rawPatch = await fetchCatastroPatch(reference);
-    const patch = emptyOnlyPatch(record, rawPatch);
+    const catastroPatch = emptyOnlyPatch(record, rawPatch);
+    const patch = catastroPatch;
     if (!Object.keys(patch).length) throw new Error('Catastro no devolvió datos útiles');
-    const saved = await applyChatPatch(record, patch, options);
+    const completedPatch = catastroAutocompletionPatch(record.data, catastroPatch);
+    const data = Object.assign({}, record.data, completedPatch);
+    const paths = [...new Set([
+      ...Object.keys(catastroPatch),
+      ...envelopeDataPaths(),
+      ...systemsDataPaths(),
+    ])];
+    const saved = await persistAutocompletePatch(
+      record,
+      data,
+      paths,
+      'Catastro consultado, envolvente e instalaciones autocompletadas. Revisar los valores estimados.',
+    );
     if (!saved && options.throwOnError) throw new Error('Catastro no pudo guardar los datos del expediente.');
-    return saved || record;
+    return saved || selectedRecord() || record;
   } catch (error) {
     addChatMessage('assistant', 'No he podido consultar Catastro: ' + error.message);
     if (options.throwOnError) throw error;
     return null;
   }
+}
+
+function catastroAutocompletionPatch(currentData, catastroPatch) {
+  const data = Object.assign({}, currentData || {}, catastroPatch || {});
+  return Object.assign({}, catastroPatch || {}, estimatedEnvelopePatch(data), estimatedSystemsPatch(data));
 }
 
 async function fetchCatastroPatch(reference) {
