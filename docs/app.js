@@ -2239,7 +2239,7 @@ function catastroPatchFromData(item) {
   const y = String(item.y || '').trim();
   const srs = String(item.srs || '').trim() || (x && y ? 'EPSG:4326' : '');
   const situationMapUrl = catastroMapUrlFromData({ reference, x, y, srs });
-  const viviendaSurface = surfaceForUse(item.construcciones, 'VIVIENDA');
+  const viviendaSurface = item.superficieVivienda || surfaceForUse(item.construcciones, 'VIVIENDA');
   const residentialUse = String(item.uso || '').toLowerCase().includes('residencial');
   const viviendaFloors = item.plantas || item.numeroPlantas || floorsForUse(item.construcciones, 'VIVIENDA') || (residentialUse ? '1' : '');
   const floorSurfaces = floorSurfaceSummary(item.construcciones, 'VIVIENDA');
