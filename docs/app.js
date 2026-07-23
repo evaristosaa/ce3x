@@ -7,17 +7,17 @@ const CASA37_REFERENCE = '0128501TG4302N0037ZI';
 const TECHNICIAN_PATH_PREFIX = 'admin.tecnico.';
 
 const DEFAULT_TECHNICIAN = {
-  'admin.tecnico.nombre': 'JUAN JOSÃ‰ MORENO FRESNO',
+  'admin.tecnico.nombre': 'JUAN JOSÉ MORENO FRESNO',
   'admin.tecnico.razonSocial': '.',
   'admin.tecnico.nif': '28629645G',
   'admin.tecnico.cif': '.',
-  'admin.tecnico.direccion': 'C/ JOSÃ‰ MEJIAS SALGUERO NÂº4, CASA 37',
+  'admin.tecnico.direccion': 'C/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37',
   'admin.tecnico.provincia': 'Sevilla',
   'admin.tecnico.localidad': 'DOS HERMANAS',
   'admin.tecnico.codigoPostal': '41704',
   'admin.tecnico.telefono': '665379127',
   'admin.tecnico.email': 'juanjmf8@gmail.com',
-  'admin.tecnico.titulacion': 'INGENIERO TÃ‰CNICO DE MINAS',
+  'admin.tecnico.titulacion': 'INGENIERO TÉCNICO DE MINAS',
 };
 
 const DEFAULT_CLIENT = {
@@ -32,13 +32,13 @@ const DEFAULT_GENERAL = {
 
 const CEX37_DEFAULTS = {
   'admin.localizacion.nombreEdificio': 'PL SEN-1 ENTRENUCLEOS 40(D)',
-  'admin.localizacion.direccion': 'C/ JOSÃ‰ MEJIAS SALGUERO NÂº4, CASA 37',
+  'admin.localizacion.direccion': 'C/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37',
   'admin.localizacion.provincia': 'Sevilla',
   'admin.localizacion.localidad': 'Dos Hermanas',
   'admin.localizacion.codigoPostal': '41704',
   'admin.localizacion.referenciaCatastral': CASA37_REFERENCE,
-  'admin.cliente.nombreRazonSocial': 'JUAN JOSÃ‰ MORENO FRESNO',
-  'admin.cliente.direccion': 'C/ JOSÃ‰ MEJIAS SALGUERO NÂº4, CASA 37',
+  'admin.cliente.nombreRazonSocial': 'JUAN JOSÉ MORENO FRESNO',
+  'admin.cliente.direccion': 'C/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37',
   'admin.cliente.provincia': 'Sevilla',
   'admin.cliente.localidad': 'DOS HERMANAS',
   'admin.cliente.codigoPostal': '41704',
@@ -59,23 +59,23 @@ const CEX37_DEFAULTS = {
   'generales.definicion.masaParticionesInternas': 'Media',
   'generales.definicion.ensayoEstanqueidad': 'No',
   'envolvente.cerramientos.items': [
-    row(['Cubierta con aire', 'Cubierta', '76', '0.33', '344', 'Techo', 'Por defecto', 'Sin patrÃ³n']),
-    row(['Suelo con terreno', 'Suelo', '18', '0.38', '750', 'Suelo', 'Por defecto', 'Sin patrÃ³n']),
-    row(['Muro de fachada no', 'Fachada', '39.98', '0.38', '200.0', 'NO', 'Por defecto', 'Sin patrÃ³n']),
-    row(['Muro de fachada se', 'Fachada', '39.98', '0.38', '200.0', 'SE', 'Por defecto', 'Sin patrÃ³n']),
-    row(['Muro de fachada so', 'Fachada', '12.67', '0.38', '200.0', 'SO', 'Por defecto', 'Sin patrÃ³n']),
+    row(['Cubierta con aire', 'Cubierta', '76', '0.33', '344', 'Techo', 'Por defecto', 'Sin patrón']),
+    row(['Suelo con terreno', 'Suelo', '18', '0.38', '750', 'Suelo', 'Por defecto', 'Sin patrón']),
+    row(['Muro de fachada no', 'Fachada', '39.98', '0.38', '200.0', 'NO', 'Por defecto', 'Sin patrón']),
+    row(['Muro de fachada se', 'Fachada', '39.98', '0.38', '200.0', 'SE', 'Por defecto', 'Sin patrón']),
+    row(['Muro de fachada so', 'Fachada', '12.67', '0.38', '200.0', 'SO', 'Por defecto', 'Sin patrón']),
   ],
   'envolvente.huecos.items': [
-    row(['Hueco 1', 'Muro de fachada no', '0.90', '1.25', '1', '1.13', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'NO', 'Sin patrÃ³n']),
-    row(['Hueco 3', 'Muro de fachada no', '0.45', '1.25', '1', '0.56', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'NO', 'Sin patrÃ³n']),
-    row(['Hueco 2', 'Muro de fachada so', '0.85', '1.25', '1', '1.06', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SO', 'Sin patrÃ³n']),
-    row(['Hueco 7', 'Muro de fachada so', '0.85', '1.30', '1', '1.1', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SO', 'Sin patrÃ³n']),
-    row(['Hueco 6', 'Muro de fachada no', '0.95', '2.25', '1', '2.14', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'NO', 'Sin patrÃ³n']),
-    row(['Hueco 8', 'Muro de fachada no', '0.45', '1.25', '1', '0.56', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'NO', 'Sin patrÃ³n']),
-    row(['Hueco 4', 'Muro de fachada se', '2.65', '2.05', '1', '5.43', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SE', 'Sin patrÃ³n']),
-    row(['Hueco 5', 'Muro de fachada se', '1.35', '2.05', '1', '2.77', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SE', 'Sin patrÃ³n']),
-    row(['Hueco 10', 'Muro de fachada se', '1.30', '1.30', '1', '1.69', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SE', 'Sin patrÃ³n']),
-    row(['Hueco 9', 'Muro de fachada se', '1.85', '2.15', '1', '3.98', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SE', 'Sin patrÃ³n']),
+    row(['Hueco 1', 'Muro de fachada no', '0.90', '1.25', '1', '1.13', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'NO', 'Sin patrón']),
+    row(['Hueco 3', 'Muro de fachada no', '0.45', '1.25', '1', '0.56', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'NO', 'Sin patrón']),
+    row(['Hueco 2', 'Muro de fachada so', '0.85', '1.25', '1', '1.06', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SO', 'Sin patrón']),
+    row(['Hueco 7', 'Muro de fachada so', '0.85', '1.30', '1', '1.1', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SO', 'Sin patrón']),
+    row(['Hueco 6', 'Muro de fachada no', '0.95', '2.25', '1', '2.14', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'NO', 'Sin patrón']),
+    row(['Hueco 8', 'Muro de fachada no', '0.45', '1.25', '1', '0.56', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'NO', 'Sin patrón']),
+    row(['Hueco 4', 'Muro de fachada se', '2.65', '2.05', '1', '5.43', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SE', 'Sin patrón']),
+    row(['Hueco 5', 'Muro de fachada se', '1.35', '2.05', '1', '2.77', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SE', 'Sin patrón']),
+    row(['Hueco 10', 'Muro de fachada se', '1.30', '1.30', '1', '1.69', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SE', 'Sin patrón']),
+    row(['Hueco 9', 'Muro de fachada se', '1.85', '2.15', '1', '3.98', '3.3', '0.75', '4.0', '20', '0.65', 'Estimadas', '50', 'SE', 'Sin patrón']),
   ],
   'envolvente.puentesTermicos.items': [
     row(['PT Encuentro de fachada con cubierta-Cubierta con aire', 'Cubierta con aire', 'Encuentro de fachada con cubierta', '0.82', '34.86']),
@@ -88,95 +88,95 @@ const CEX37_DEFAULTS = {
     row(['Fachada con forjado-Muro de fachada NE', 'Muro de fachada so', 'Encuentro de fachada con forjado', '1.31', '3.9']),
   ],
   'instalaciones.acs.items': [
-    row(['Equipo ACS', 'ACS', 'Estimado segÃºn InstalaciÃ³n', 'Caldera EstÃ¡ndar', 'Electricidad', '100.0', '149.4', '100', 'Edificio Objeto', 'SÃ­']),
+    row(['Equipo ACS', 'ACS', 'Estimado según Instalación', 'Caldera Estándar', 'Electricidad', '100.0', '149.4', '100', 'Edificio Objeto', 'Sí']),
   ],
   'instalaciones.calefaccion.items': [
-    row(['CalefacciÃ³n y refrigeraciÃ³n', 'CalefacciÃ³n y refrigeraciÃ³n', 'Estimado segÃºn InstalaciÃ³n', 'Bomba de Calor', 'Electricidad', '187.7', '121.7', '81.46', 'Edificio Objeto']),
+    row(['Calefacción y refrigeración', 'Calefacción y refrigeración', 'Estimado según Instalación', 'Bomba de Calor', 'Electricidad', '187.7', '121.7', '81.46', 'Edificio Objeto']),
   ],
   'instalaciones.refrigeracion.items': [
-    row(['CalefacciÃ³n y refrigeraciÃ³n', 'CalefacciÃ³n y refrigeraciÃ³n', 'Estimado segÃºn InstalaciÃ³n', 'Bomba de Calor', 'Electricidad', '142.4', '121.7', '81.46', 'Edificio Objeto']),
+    row(['Calefacción y refrigeración', 'Calefacción y refrigeración', 'Estimado según Instalación', 'Bomba de Calor', 'Electricidad', '142.4', '121.7', '81.46', 'Edificio Objeto']),
   ],
   'instalaciones.contribuciones.items': [
-    row(['Contribuciones energÃ©ticas', 'Edificio Objeto', '80', '', '', '', '', '', '10200', 'Electricidad']),
+    row(['Contribuciones energéticas', 'Edificio Objeto', '80', '', '', '', '', '', '10200', 'Electricidad']),
   ],
 };
 
 const SELECT_OPTIONS = {
   normativaVigente: ['Anterior', 'NBE-CT-79', 'CTE 2006', 'CTE 2013'],
   tipoEdificio: ['Unifamiliar', 'Bloque de viviendas', 'Vivienda individual', 'Terciario'],
-  provincia: ['Sevilla', 'Huelva', 'CÃ¡diz', 'CÃ³rdoba', 'MÃ¡laga'],
+  provincia: ['Sevilla', 'Huelva', 'Cádiz', 'Córdoba', 'Málaga'],
   localidad: ['Dos Hermanas', 'DOS HERMANAS', 'Sevilla'],
   zonaClimaticaHE1: ['B4', 'A3', 'A4', 'B3', 'C3', 'C4', 'D3'],
   zonaClimaticaHE4: ['V', 'I', 'II', 'III', 'IV'],
   masaParticionesInternas: ['Ligera', 'Media', 'Pesada'],
-  ensayoEstanqueidad: ['No', 'SÃ­'],
+  ensayoEstanqueidad: ['No', 'Sí'],
   tipoCerramiento: ['Cubierta', 'Suelo', 'Fachada', 'Medianera'],
   posicion: ['Techo', 'Suelo', 'NO', 'NE', 'SE', 'SO', 'N', 'S', 'E', 'O'],
-  modoDefinicion: ['Por defecto', 'Estimadas', 'Estimado', 'Estimado segÃºn InstalaciÃ³n', 'Conocido'],
-  patronSombras: ['Sin patrÃ³n'],
-  tipoEquipo: ['ACS', 'CalefacciÃ³n', 'RefrigeraciÃ³n', 'CalefacciÃ³n y refrigeraciÃ³n'],
-  tipoGenerador: ['Caldera EstÃ¡ndar', 'Bomba de Calor', 'Efecto Joule', 'Equipo autÃ³nomo'],
-  combustible: ['Electricidad', 'Gas Natural', 'GasÃ³leo-C', 'GLP', 'Biomasa'],
+  modoDefinicion: ['Por defecto', 'Estimadas', 'Estimado', 'Estimado según Instalación', 'Conocido'],
+  patronSombras: ['Sin patrón'],
+  tipoEquipo: ['ACS', 'Calefacción', 'Refrigeración', 'Calefacción y refrigeración'],
+  tipoGenerador: ['Caldera Estándar', 'Bomba de Calor', 'Efecto Joule', 'Equipo autónomo'],
+  combustible: ['Electricidad', 'Gas Natural', 'Gasóleo-C', 'GLP', 'Biomasa'],
   zona: ['Edificio Objeto'],
-  acumulacion: ['SÃ­', 'No'],
+  acumulacion: ['Sí', 'No'],
 };
 
 const SECTIONS = [
   section('admin', 'Datos administrativos', [
-    group('localizacion', 'LocalizaciÃ³n e identificaciÃ³n del edificio', ['nombreEdificio', 'direccion', 'provincia', 'localidad', 'codigoPostal', 'referenciaCatastral'], [
+    group('localizacion', 'Localización e identificación del edificio', ['nombreEdificio', 'direccion', 'provincia', 'localidad', 'codigoPostal', 'referenciaCatastral'], [
       field('nombreEdificio', 'Nombre del edificio'),
-      field('direccion', 'DirecciÃ³n'),
-      field('provincia', 'Provincia/Ciudad autÃ³noma', 'select', { optionsKey: 'provincia' }),
+      field('direccion', 'Dirección'),
+      field('provincia', 'Provincia/Ciudad autónoma', 'select', { optionsKey: 'provincia' }),
       field('localidad', 'Localidad', 'select', { optionsKey: 'localidad' }),
-      field('codigoPostal', 'CÃ³digo Postal'),
+      field('codigoPostal', 'Código Postal'),
       field('referenciaCatastral', 'Referencia Catastral'),
     ]),
     group('cliente', 'Datos del cliente', ['nombreRazonSocial', 'direccion', 'provincia', 'localidad', 'codigoPostal', 'telefono'], [
-      field('nombreRazonSocial', 'Nombre o razÃ³n social'),
-      field('direccion', 'DirecciÃ³n'),
-      field('provincia', 'Provincia/Ciudad autÃ³noma', 'select', { optionsKey: 'provincia' }),
+      field('nombreRazonSocial', 'Nombre o razón social'),
+      field('direccion', 'Dirección'),
+      field('provincia', 'Provincia/Ciudad autónoma', 'select', { optionsKey: 'provincia' }),
       field('localidad', 'Localidad'),
-      field('codigoPostal', 'CÃ³digo Postal'),
-      field('telefono', 'TelÃ©fono'),
+      field('codigoPostal', 'Código Postal'),
+      field('telefono', 'Teléfono'),
       field('email', 'E-mail'),
     ]),
-    group('tecnico', 'Datos del tÃ©cnico certificador', ['nombre', 'nif', 'direccion', 'provincia', 'localidad', 'codigoPostal', 'telefono', 'email', 'titulacion'], [
+    group('tecnico', 'Datos del técnico certificador', ['nombre', 'nif', 'direccion', 'provincia', 'localidad', 'codigoPostal', 'telefono', 'email', 'titulacion'], [
       field('nombre', 'Nombre y Apellidos'),
       field('nif', 'NIF'),
-      field('razonSocial', 'RazÃ³n social'),
+      field('razonSocial', 'Razón social'),
       field('cif', 'CIF'),
-      field('direccion', 'DirecciÃ³n'),
-      field('provincia', 'Provincia/Ciudad autÃ³noma', 'select', { optionsKey: 'provincia' }),
+      field('direccion', 'Dirección'),
+      field('provincia', 'Provincia/Ciudad autónoma', 'select', { optionsKey: 'provincia' }),
       field('localidad', 'Localidad'),
-      field('codigoPostal', 'CÃ³digo Postal'),
-      field('telefono', 'TelÃ©fono'),
+      field('codigoPostal', 'Código Postal'),
+      field('telefono', 'Teléfono'),
       field('email', 'E-mail'),
-      field('titulacion', 'TitulaciÃ³n habilitante segÃºn normativa vigente'),
+      field('titulacion', 'Titulación habilitante según normativa vigente'),
     ]),
   ]),
   section('generales', 'Datos generales', [
     group('datos', 'Datos generales', ['normativaVigente', 'anioConstruccion', 'tipoEdificio', 'provincia', 'localidad', 'zonaClimaticaHE1', 'zonaClimaticaHE4'], [
       field('normativaVigente', 'Normativa vigente', 'select', { optionsKey: 'normativaVigente' }),
-      field('anioConstruccion', 'AÃ±o construcciÃ³n'),
+      field('anioConstruccion', 'Año construcción'),
       field('tipoEdificio', 'Tipo de edificio', 'select', { optionsKey: 'tipoEdificio' }),
-      field('provincia', 'Provincia/Ciudad autÃ³noma', 'select', { optionsKey: 'provincia' }),
+      field('provincia', 'Provincia/Ciudad autónoma', 'select', { optionsKey: 'provincia' }),
       field('localidad', 'Localidad', 'select', { optionsKey: 'localidad' }),
-      field('zonaClimaticaHE1', 'Zona climÃ¡tica HE-1', 'select', { optionsKey: 'zonaClimaticaHE1' }),
-      field('zonaClimaticaHE4', 'Zona climÃ¡tica HE-4', 'select', { optionsKey: 'zonaClimaticaHE4' }),
+      field('zonaClimaticaHE1', 'Zona climática HE-1', 'select', { optionsKey: 'zonaClimaticaHE1' }),
+      field('zonaClimaticaHE4', 'Zona climática HE-4', 'select', { optionsKey: 'zonaClimaticaHE4' }),
     ]),
-    group('definicion', 'DefiniciÃ³n edificio', ['superficieUtilHabitable', 'alturaLibrePlanta', 'numeroPlantasHabitables', 'ventilacionInmueble', 'demandaDiariaACS', 'masaParticionesInternas'], [
-      field('superficieUtilHabitable', 'Superficie Ãºtil habitable', 'number', { unit: 'm2' }),
+    group('definicion', 'Definición edificio', ['superficieUtilHabitable', 'alturaLibrePlanta', 'numeroPlantasHabitables', 'ventilacionInmueble', 'demandaDiariaACS', 'masaParticionesInternas'], [
+      field('superficieUtilHabitable', 'Superficie útil habitable', 'number', { unit: 'm2' }),
       field('alturaLibrePlanta', 'Altura libre de planta', 'number', { unit: 'm' }),
-      field('numeroPlantasHabitables', 'NÃºmero de plantas habitables', 'number'),
-      field('ventilacionInmueble', 'VentilaciÃ³n del inmueble', 'number', { unit: 'ren/h' }),
-      field('demandaDiariaACS', 'Demanda diaria de ACS', 'number', { unit: 'l/dÃ­a' }),
+      field('numeroPlantasHabitables', 'Número de plantas habitables', 'number'),
+      field('ventilacionInmueble', 'Ventilación del inmueble', 'number', { unit: 'ren/h' }),
+      field('demandaDiariaACS', 'Demanda diaria de ACS', 'number', { unit: 'l/día' }),
       field('masaParticionesInternas', 'Masa de las particiones internas', 'select', { optionsKey: 'masaParticionesInternas' }),
       field('ensayoEstanqueidad', 'Se ha ensayado la estanqueidad del edificio', 'select', { optionsKey: 'ensayoEstanqueidad' }),
       field('imagenEdificio', 'Imagen edificio', 'image'),
-      field('planoSituacion', 'Plano situaciÃ³n', 'image'),
+      field('planoSituacion', 'Plano situación', 'image'),
     ]),
   ]),
-  section('envolvente', 'Envolvente tÃ©rmica', [
+  section('envolvente', 'Envolvente térmica', [
     group('cerramientos', 'Cerramientos', ['items'], [
       field('items', 'Cerramientos', 'table', {
         columns: [
@@ -185,9 +185,9 @@ const SECTIONS = [
           col('superficie', 'Superficie (m2)'),
           col('u', 'U (W/m2K)'),
           col('peso', 'Peso/m2 (kg/m2)'),
-          col('posicion', 'PosiciÃ³n', 'select', 'posicion'),
-          col('modoDefinicion', 'Modo definiciÃ³n', 'select', 'modoDefinicion'),
-          col('patronSombras', 'PatrÃ³n de sombras', 'select', 'patronSombras'),
+          col('posicion', 'Posición', 'select', 'posicion'),
+          col('modoDefinicion', 'Modo definición', 'select', 'modoDefinicion'),
+          col('patronSombras', 'Patrón de sombras', 'select', 'patronSombras'),
         ],
       }),
     ]),
@@ -205,20 +205,20 @@ const SECTIONS = [
           col('uMarco', 'U marco (W/m2K)'),
           col('porcMarco', '% Marco'),
           col('absortividadMarco', 'Absortividad marco'),
-          col('modoDefinicion', 'Modo definiciÃ³n', 'select', 'modoDefinicion'),
+          col('modoDefinicion', 'Modo definición', 'select', 'modoDefinicion'),
           col('permeabilidad', 'Permeabilidad (m3/hm2)'),
-          col('orientacion', 'OrientaciÃ³n', 'select', 'posicion'),
-          col('patronSombras', 'PatrÃ³n de sombras', 'select', 'patronSombras'),
+          col('orientacion', 'Orientación', 'select', 'posicion'),
+          col('patronSombras', 'Patrón de sombras', 'select', 'patronSombras'),
         ],
       }),
     ]),
-    group('puentesTermicos', 'Puentes tÃ©rmicos', ['items'], [
-      field('items', 'Puentes tÃ©rmicos', 'table', {
+    group('puentesTermicos', 'Puentes térmicos', ['items'], [
+      field('items', 'Puentes térmicos', 'table', {
         columns: [
           col('nombre', 'Nombre'),
           col('cerramientoAsociado', 'Cerramiento asociado'),
-          col('tipoPuenteTermico', 'Tipo de puente tÃ©rmico'),
-          col('fi', 'Î¨ (W/mK)'),
+          col('tipoPuenteTermico', 'Tipo de puente térmico'),
+          col('fi', 'Ψ (W/mK)'),
           col('longitud', 'Longitud (m)'),
         ],
       }),
@@ -230,23 +230,23 @@ const SECTIONS = [
         columns: [
           col('nombre', 'Nombre'),
           col('tipoEquipo', 'Tipo de equipo', 'select', 'tipoEquipo'),
-          col('modoDefinicion', 'Modo definiciÃ³n', 'select', 'modoDefinicion'),
+          col('modoDefinicion', 'Modo definición', 'select', 'modoDefinicion'),
           col('tipoGenerador', 'Tipo generador', 'select', 'tipoGenerador'),
           col('combustible', 'Combustible', 'select', 'combustible'),
           col('rendimientoEstacional', 'Rendimiento estacional (%)'),
           col('m2Cubiertos', 'm2 cubiertos'),
           col('demandaCubierta', 'Demanda cubierta (%)'),
           col('zona', 'Zona', 'select', 'zona'),
-          col('acumulacion', 'AcumulaciÃ³n', 'select', 'acumulacion'),
+          col('acumulacion', 'Acumulación', 'select', 'acumulacion'),
         ],
       }),
     ]),
-    group('calefaccion', 'Equipos de calefacciÃ³n', ['items'], [
-      field('items', 'Equipos de calefacciÃ³n', 'table', {
+    group('calefaccion', 'Equipos de calefacción', ['items'], [
+      field('items', 'Equipos de calefacción', 'table', {
         columns: [
           col('nombre', 'Nombre'),
           col('tipoEquipo', 'Tipo de equipo', 'select', 'tipoEquipo'),
-          col('modoDefinicion', 'Modo definiciÃ³n', 'select', 'modoDefinicion'),
+          col('modoDefinicion', 'Modo definición', 'select', 'modoDefinicion'),
           col('tipoGenerador', 'Tipo generador', 'select', 'tipoGenerador'),
           col('combustible', 'Combustible', 'select', 'combustible'),
           col('rendimientoEstacional', 'Rendimiento estacional (%)'),
@@ -256,12 +256,12 @@ const SECTIONS = [
         ],
       }),
     ]),
-    group('refrigeracion', 'Equipos de refrigeraciÃ³n', ['items'], [
-      field('items', 'Equipos de refrigeraciÃ³n', 'table', {
+    group('refrigeracion', 'Equipos de refrigeración', ['items'], [
+      field('items', 'Equipos de refrigeración', 'table', {
         columns: [
           col('nombre', 'Nombre'),
           col('tipoEquipo', 'Tipo de equipo', 'select', 'tipoEquipo'),
-          col('modoDefinicion', 'Modo definiciÃ³n', 'select', 'modoDefinicion'),
+          col('modoDefinicion', 'Modo definición', 'select', 'modoDefinicion'),
           col('tipoGenerador', 'Tipo generador', 'select', 'tipoGenerador'),
           col('combustible', 'Combustible', 'select', 'combustible'),
           col('rendimientoEstacional', 'Rendimiento estacional (%)'),
@@ -271,18 +271,18 @@ const SECTIONS = [
         ],
       }),
     ]),
-    group('contribuciones', 'Contribuciones energÃ©ticas', ['items'], [
-      field('items', 'Contribuciones energÃ©ticas', 'table', {
+    group('contribuciones', 'Contribuciones energéticas', ['items'], [
+      field('items', 'Contribuciones energéticas', 'table', {
         columns: [
           col('nombre', 'Nombre'),
           col('zona', 'Zona', 'select', 'zona'),
           col('acsRenovable', '% demanda ACS cubierto con renovables'),
-          col('calefaccionRenovable', '% calefacciÃ³n cubierto con renovables'),
-          col('refrigeracionRenovable', '% refrigeraciÃ³n cubierto con renovables'),
-          col('calorRecuperadoAcs', 'Calor recuperado para ACS (kWh/aÃ±o)'),
-          col('calorRecuperadoCalefaccion', 'Calor recuperado para calefacciÃ³n (kWh/aÃ±o)'),
-          col('frioRecuperado', 'FrÃ­o recuperado (kWh/aÃ±o)'),
-          col('energiaConsumidaGeneracionElectricidad', 'EnergÃ­a consumida en generaciÃ³n de electricidad (kWh/aÃ±o)'),
+          col('calefaccionRenovable', '% calefacción cubierto con renovables'),
+          col('refrigeracionRenovable', '% refrigeración cubierto con renovables'),
+          col('calorRecuperadoAcs', 'Calor recuperado para ACS (kWh/año)'),
+          col('calorRecuperadoCalefaccion', 'Calor recuperado para calefacción (kWh/año)'),
+          col('frioRecuperado', 'Frío recuperado (kWh/año)'),
+          col('energiaConsumidaGeneracionElectricidad', 'Energía consumida en generación de electricidad (kWh/año)'),
           col('combustible', 'Combustible', 'select', 'combustible'),
         ],
       }),
@@ -314,10 +314,10 @@ const manualAliases = [
   alias('admin.cliente.provincia', ['provincia cliente', 'provincia del cliente']),
   alias('admin.cliente.localidad', ['localidad cliente', 'municipio cliente', 'poblacion cliente']),
   alias('admin.cliente.codigoPostal', ['codigo postal cliente', 'cp cliente', 'c p cliente']),
-  alias('admin.cliente.telefono', ['telefono cliente', 'telefono', 'movil cliente', 'movil', 'mÃ³vil']),
+  alias('admin.cliente.telefono', ['telefono cliente', 'telefono', 'movil cliente', 'movil', 'móvil']),
   alias('admin.cliente.email', ['email cliente', 'email', 'e mail', 'correo cliente', 'correo', 'correo electronico']),
   alias('generales.datos.normativaVigente', ['normativa vigente', 'normativa']),
-  alias('generales.datos.anioConstruccion', ['aÃ±o construcciÃ³n', 'ano construccion', 'aÃ±o de construcciÃ³n', 'ano de construccion', 'anio construccion']),
+  alias('generales.datos.anioConstruccion', ['año construcción', 'ano construccion', 'año de construcción', 'ano de construccion', 'anio construccion']),
   alias('generales.datos.tipoEdificio', ['tipo edificio', 'tipo de edificio']),
   alias('generales.datos.zonaClimaticaHE1', ['zona climatica he 1', 'zona climatica']),
   alias('generales.datos.zonaClimaticaHE4', ['zona climatica he 4']),
@@ -432,7 +432,7 @@ cleanupLocalDataStorage();
 renderTabs();
 renderStorageMode();
 loadRecords();
-addChatMessage('assistant', 'Selecciona arriba el expediente para el chat. Casa 37 queda cargado como primer expediente; todo lo que dictes irÃ¡ al expediente seleccionado.');
+addChatMessage('assistant', 'Selecciona arriba el expediente para el chat. Casa 37 queda cargado como primer expediente; todo lo que dictes irá al expediente seleccionado.');
 
 function row(values) {
   return { values };
@@ -514,8 +514,8 @@ function updateNewRecordMode() {
   newRecordReferenceField.hidden = !catastroMode;
   newRecordFileField.hidden = catastroMode;
   newRecordHelp.textContent = catastroMode
-    ? 'Se crearÃ¡ el expediente y se consultarÃ¡ Catastro automÃ¡ticamente.'
-    : 'Se copiarÃ¡n al expediente los datos que existan dentro del archivo .cex.';
+    ? 'Se creará el expediente y se consultará Catastro automáticamente.'
+    : 'Se copiarán al expediente los datos que existan dentro del archivo .cex.';
 }
 
 function setNewRecordLoading(loading, message = '') {
@@ -594,7 +594,7 @@ async function createNewRecord(persist = true, initialData = {}) {
     const saved = await persistRecord(record);
     state.rightView = 'detail';
     selectRecord(saved, { openDetail: true });
-    addChatMessage('assistant', 'Nuevo expediente creado y guardado como borrador. Juan JosÃ© queda cargado como tÃ©cnico por defecto.');
+    addChatMessage('assistant', 'Nuevo expediente creado y guardado como borrador. Juan José queda cargado como técnico por defecto.');
     return saved;
   }
   selectRecord(record, { openDetail: true });
@@ -690,13 +690,13 @@ function clearSyncAlert() {
 function sheetErrorHelp(error) {
   const message = String(error && error.message ? error.message : error);
   if (/No autorizado/i.test(message)) {
-    return 'Google Sheet responde, pero dice â€œNo autorizadoâ€. Revisa que el APP_SECRET de Config coincida exactamente con el del Apps Script y, si cambiaste el cÃ³digo, publica una nueva versiÃ³n de la implementaciÃ³n web.';
+    return 'Google Sheet responde, pero dice “No autorizado”. Revisa que el APP_SECRET de Config coincida exactamente con el del Apps Script y, si cambiaste el código, publica una nueva versión de la implementación web.';
   }
   if (/Apps Script no devolvio JSON|Apps Script devolvio respuesta vacia|Content-Type=/i.test(message)) {
-    return 'Apps Script ha respondido al servidor, pero no con JSON vÃ¡lido. Casi seguro es URL/despliegue/permisos de Google. Detalle tÃ©cnico: ' + message;
+    return 'Apps Script ha respondido al servidor, pero no con JSON válido. Casi seguro es URL/despliegue/permisos de Google. Detalle técnico: ' + message;
   }
-  if (/Failed to fetch|NetworkError|Load failed|CORS|JSONP|Apps Script no respondiÃ³|formulario/i.test(message)) {
-    return 'No puedo confirmar el guardado en Google Sheet desde este navegador. No hay copia local persistente; revisa que Apps Script estÃ© actualizado, publicado como nueva versiÃ³n y que la URL acabe en /exec.';
+  if (/Failed to fetch|NetworkError|Load failed|CORS|JSONP|Apps Script no respondió|formulario/i.test(message)) {
+    return 'No puedo confirmar el guardado en Google Sheet desde este navegador. No hay copia local persistente; revisa que Apps Script esté actualizado, publicado como nueva versión y que la URL acabe en /exec.';
   }
   return 'No se pudo sincronizar con Google Sheet: ' + message;
 }
@@ -743,8 +743,8 @@ function renderRecords() {
     const empty = document.createElement('div');
     empty.className = 'empty-list';
     empty.textContent = state.records.length
-      ? 'No hay expedientes con este filtro. Prueba â€œTodos los estadosâ€.'
-      : 'No hay expedientes guardados todavÃ­a.';
+      ? 'No hay expedientes con este filtro. Prueba “Todos los estados”.'
+      : 'No hay expedientes guardados todavía.';
     expedientList.appendChild(empty);
     return;
   }
@@ -811,8 +811,8 @@ function renderDetail() {
   const catastroMapBtn = document.querySelector('#catastroMapBtn');
   const catastroUrl = record ? catastroCartographyUrl(record) : '';
   catastroMapBtn.title = catastroUrl
-    ? 'Abrir la cartografÃ­a del Catastro para este expediente'
-    : 'Falta una referencia catastral vÃ¡lida';
+    ? 'Abrir la cartografía del Catastro para este expediente'
+    : 'Falta una referencia catastral válida';
 
   sectionFields.innerHTML = '';
   sectionItem.groups.forEach(groupItem => {
@@ -835,7 +835,7 @@ function openCatastroCartography() {
   const currentRecord = selectedRecordWithCurrentReference();
   const url = currentRecord ? catastroCartographyUrl(currentRecord) : '';
   if (!url) {
-    addChatMessage('assistant', 'No puedo abrir la cartografÃ­a: el expediente no tiene una referencia catastral vÃ¡lida.');
+    addChatMessage('assistant', 'No puedo abrir la cartografía: el expediente no tiene una referencia catastral válida.');
     return;
   }
   window.open(url, '_blank', 'noopener,noreferrer');
@@ -845,7 +845,7 @@ function openCatastro3d() {
   const currentRecord = selectedRecordWithCurrentReference();
   const url = currentRecord ? catastro3dUrl(currentRecord) : '';
   if (!url) {
-    addChatMessage('assistant', 'No puedo abrir el Visor 3D: el expediente no tiene una referencia catastral vÃ¡lida.');
+    addChatMessage('assistant', 'No puedo abrir el Visor 3D: el expediente no tiene una referencia catastral válida.');
     return;
   }
   window.open(url, '_blank', 'noopener,noreferrer');
@@ -918,7 +918,7 @@ function tableHtml(item, path, value) {
         </tbody>
       </table>
       <div class="table-actions">
-        <button type="button" class="secondary add-row-btn" data-add-row="${escapeHtml(path)}">AÃ±adir fila</button>
+        <button type="button" class="secondary add-row-btn" data-add-row="${escapeHtml(path)}">Añadir fila</button>
         <button type="button" class="danger delete-row-btn" data-delete-rows="${escapeHtml(path)}" disabled>Eliminar fila</button>
       </div>
     </div>
@@ -1179,7 +1179,7 @@ async function copyDataFromSelectedSource(event) {
     state.activeSection = 'envolvente';
     const changedPaths = copySectionPaths();
     const saved = await persistRecordPatch(Object.assign({}, target, { data }), changedPaths);
-    addChatMessage('assistant', `Copiados Envolvente tÃ©rmica e Instalaciones desde ${recordLabel(source)} a ${recordLabel(saved)}.`);
+    addChatMessage('assistant', `Copiados Envolvente térmica e Instalaciones desde ${recordLabel(source)} a ${recordLabel(saved)}.`);
   } catch (error) {
     showSyncAlert(sheetErrorHelp(error));
     addChatMessage('assistant', 'No he copiado esos datos porque Google Sheet no ha confirmado el guardado: ' + sheetErrorHelp(error));
@@ -1232,7 +1232,7 @@ async function autocompleteEnvelopeForSelected() {
   const record = selectedRecordWithCurrentFormData();
   if (!record) return;
   const data = Object.assign({}, record.data, estimatedEnvelopePatch(record.data || {}));
-  await persistAutocompletePatch(record, data, envelopeDataPaths(), 'Envolvente tÃ©rmica autocompletada con valores estimados revisables.');
+  await persistAutocompletePatch(record, data, envelopeDataPaths(), 'Envolvente térmica autocompletada con valores estimados revisables.');
   state.activeSection = 'envolvente';
 }
 
@@ -1240,7 +1240,7 @@ async function autocompleteSystemsForSelected() {
   const record = selectedRecordWithCurrentFormData();
   if (!record) return;
   const data = Object.assign({}, record.data, estimatedSystemsPatch(record.data || {}));
-  await persistAutocompletePatch(record, data, systemsDataPaths(), 'Instalaciones autocompletadas con una plantilla bÃ¡sica revisable.');
+  await persistAutocompletePatch(record, data, systemsDataPaths(), 'Instalaciones autocompletadas con una plantilla básica revisable.');
   state.activeSection = 'instalaciones';
 }
 
@@ -1284,7 +1284,7 @@ function systemsDataPaths() {
 }
 
 function estimatedEnvelopePatchLegacy(data) {
-  const noShadow = SELECT_OPTIONS.patronSombras[0] || 'Sin patrÃ³n';
+  const noShadow = SELECT_OPTIONS.patronSombras[0] || 'Sin patrón';
   const surface = Math.max(1, Number(cexDecimal(data['generales.definicion.superficieUtilHabitable'] || data.superficieCatastral || 100)));
   const floors = Math.max(1, Math.round(Number(cexDecimal(data['generales.definicion.numeroPlantasHabitables'] || 1))));
   const height = Math.max(2.2, Number(cexDecimal(data['generales.definicion.alturaLibrePlanta'] || 2.7)));
@@ -1505,17 +1505,17 @@ function estimatedFloorAreas(surface, floors, lowestFloorSurface, largestFloorSu
 }
 
 function estimatedSystemsPatch(data) {
-  const estimatedBySystem = SELECT_OPTIONS.modoDefinicion[3] || 'Estimado segÃºn InstalaciÃ³n';
+  const estimatedBySystem = SELECT_OPTIONS.modoDefinicion[3] || 'Estimado según Instalación';
   const electric = SELECT_OPTIONS.combustible[0] || 'Electricidad';
   const buildingZone = SELECT_OPTIONS.zona[0] || 'Edificio Objeto';
-  const yes = SELECT_OPTIONS.acumulacion[0] || 'SÃ­';
+  const yes = SELECT_OPTIONS.acumulacion[0] || 'Sí';
   const surface = decimalForApp(Math.max(1, Number(cexDecimal(data['generales.definicion.superficieUtilHabitable'] || data.superficieCatastral || 100))));
   return {
     'instalaciones.acs.items': [{
       nombre: 'ACS estimado',
       tipoEquipo: 'ACS',
       modoDefinicion: estimatedBySystem,
-      tipoGenerador: 'Caldera EstÃ¡ndar',
+      tipoGenerador: 'Caldera Estándar',
       combustible: electric,
       rendimientoEstacional: '100',
       m2Cubiertos: surface,
@@ -1524,8 +1524,8 @@ function estimatedSystemsPatch(data) {
       acumulacion: yes,
     }],
     'instalaciones.calefaccion.items': [{
-      nombre: 'CalefacciÃ³n estimada',
-      tipoEquipo: 'CalefacciÃ³n',
+      nombre: 'Calefacción estimada',
+      tipoEquipo: 'Calefacción',
       modoDefinicion: estimatedBySystem,
       tipoGenerador: 'Bomba de Calor',
       combustible: electric,
@@ -1535,8 +1535,8 @@ function estimatedSystemsPatch(data) {
       zona: buildingZone,
     }],
     'instalaciones.refrigeracion.items': [{
-      nombre: 'RefrigeraciÃ³n estimada',
-      tipoEquipo: 'RefrigeraciÃ³n',
+      nombre: 'Refrigeración estimada',
+      tipoEquipo: 'Refrigeración',
       modoDefinicion: estimatedBySystem,
       tipoGenerador: 'Bomba de Calor',
       combustible: electric,
@@ -1607,7 +1607,7 @@ async function processChatText(text) {
   if (state.pendingMatches.length) {
     const selected = resolvePendingSelection(text);
     if (!selected) {
-      addChatMessage('assistant', 'No he pillado cuÃ¡l. Responde con el nÃºmero del expediente.');
+      addChatMessage('assistant', 'No he pillado cuál. Responde con el número del expediente.');
       return;
     }
     const patch = state.pendingPatch || {};
@@ -1650,7 +1650,7 @@ async function applyChatPatch(record, patch, options = {}) {
     .filter(([path, value]) => !isTechnicianPath(path) && hasValue(value));
 
   if (!changes.length) {
-    addChatMessage('assistant', 'No he encontrado ningÃºn campo editable en ese mensaje. Prueba con â€œnombre clienteâ€¦â€, â€œtelÃ©fonoâ€¦â€, â€œsuperficie Ãºtilâ€¦â€, etc.');
+    addChatMessage('assistant', 'No he encontrado ningún campo editable en ese mensaje. Prueba con “nombre cliente…”, “teléfono…”, “superficie útil…”, etc.');
     return;
   }
 
@@ -1672,7 +1672,7 @@ async function applyChatPatch(record, patch, options = {}) {
     saved = await persistRecordPatch(optimistic, changes.map(([path]) => path));
   } catch (error) {
     showSyncAlert(sheetErrorHelp(error));
-    addChatMessage('assistant', 'Lo he aplicado en pantalla, pero Google Sheet no ha guardado. Al refrescar se perderÃ¡: ' + sheetErrorHelp(error));
+    addChatMessage('assistant', 'Lo he aplicado en pantalla, pero Google Sheet no ha guardado. Al refrescar se perderá: ' + sheetErrorHelp(error));
     if (options.throwOnError) throw error;
     return;
   }
@@ -1758,13 +1758,13 @@ async function verifyPatchSaved(id, dataPatch) {
   if (!id || !dataPatch || !Object.keys(dataPatch).length) return null;
   const response = await api({ action: 'get', id });
   const item = response.item;
-  if (!item) throw new Error('Google Sheet no devolviÃ³ el expediente tras guardar');
+  if (!item) throw new Error('Google Sheet no devolvió el expediente tras guardar');
   const record = normalizeRecord(item);
   const missing = Object.entries(dataPatch).filter(([path, expected]) => {
     return !sameStoredValue(storedValueForPatchPath(record, path), expected);
   });
   if (missing.length) {
-    throw new Error('Google Sheet respondiÃ³, pero no devolviÃ³ confirmados estos campos: ' + missing.map(([path]) => path).join(', '));
+    throw new Error('Google Sheet respondió, pero no devolvió confirmados estos campos: ' + missing.map(([path]) => path).join(', '));
   }
   return record;
 }
@@ -1816,7 +1816,7 @@ async function deleteSelectedRecord() {
     return;
   }
   const label = recordLabel(record);
-  const confirmed = window.confirm(`Vas a eliminar el expediente "${label}" de Google Sheet. Â¿Seguimos?`);
+  const confirmed = window.confirm(`Vas a eliminar el expediente "${label}" de Google Sheet. ¿Seguimos?`);
   if (!confirmed) return;
 
   try {
@@ -1931,17 +1931,17 @@ function parseTableDictation(source, normalized) {
   const tableParsers = [
     ['envolvente.cerramientos.items', /\b(cerramiento|muro|cubierta|suelo|medianera)\b/i, parseCerramientoRow],
     ['envolvente.huecos.items', /\b(hueco|ventana|puerta|lucernario)\b/i, parseHuecoRow],
-    ['envolvente.puentesTermicos.items', /\b(puente termico|puente tÃ©rmico|pilar en fachada|forjado|solera)\b/i, parsePuenteTermicoRow],
+    ['envolvente.puentesTermicos.items', /\b(puente termico|puente térmico|pilar en fachada|forjado|solera)\b/i, parsePuenteTermicoRow],
     ['instalaciones.acs.items', /\b(equipo acs|agua caliente|termo|caldera)\b/i, parseAcsRow],
-    ['instalaciones.calefaccion.items', /\b(calefaccion|calefacciÃ³n|radiador|bomba de calor)\b/i, parseCalefaccionRow],
-    ['instalaciones.refrigeracion.items', /\b(refrigeracion|refrigeraciÃ³n|aire acondicionado|frio|frÃ­o)\b/i, parseRefrigeracionRow],
-    ['instalaciones.contribuciones.items', /\b(contribucion|contribuciÃ³n|renovable|solar|fotovoltaica)\b/i, parseContribucionRow],
+    ['instalaciones.calefaccion.items', /\b(calefaccion|calefacción|radiador|bomba de calor)\b/i, parseCalefaccionRow],
+    ['instalaciones.refrigeracion.items', /\b(refrigeracion|refrigeración|aire acondicionado|frio|frío)\b/i, parseRefrigeracionRow],
+    ['instalaciones.contribuciones.items', /\b(contribucion|contribución|renovable|solar|fotovoltaica)\b/i, parseContribucionRow],
   ];
 
   tableParsers.forEach(([path, trigger, parser]) => {
     if (!trigger.test(source)) return;
     if (path === 'envolvente.cerramientos.items' && /\b(hueco|ventana|puerta|lucernario)\b/i.test(source)) return;
-    if ((path === 'instalaciones.calefaccion.items' || path === 'instalaciones.refrigeracion.items') && /\b(contribucion|contribuciÃ³n|renovable|solar|fotovoltaica)\b/i.test(source)) return;
+    if ((path === 'instalaciones.calefaccion.items' || path === 'instalaciones.refrigeracion.items') && /\b(contribucion|contribución|renovable|solar|fotovoltaica)\b/i.test(source)) return;
     const rowItem = parser(source);
     if (rowItem && Object.values(rowItem).some(Boolean)) patch[path] = [rowItem];
   });
@@ -1955,7 +1955,7 @@ function parseCerramientoRow(text) {
     ['Medianera', /\bmedianera\b/i],
     ['Fachada', /\b(fachada|muro)\b/i],
   ]);
-  const posicion = normalizeOrientation(extractAfter(text, ['orientacion', 'orientaciÃ³n', 'posicion', 'posiciÃ³n']) || firstOrientation(text));
+  const posicion = normalizeOrientation(extractAfter(text, ['orientacion', 'orientación', 'posicion', 'posición']) || firstOrientation(text));
   return compactObject({
     nombre: extractAfter(text, ['cerramiento', 'fachada', 'muro', 'cubierta', 'suelo']) || tipo || 'Cerramiento',
     tipoCerramiento: tipo,
@@ -1963,8 +1963,8 @@ function parseCerramientoRow(text) {
     u: extractNumberAfter(text, ['u', 'transmitancia']),
     peso: extractNumberAfter(text, ['peso']),
     posicion,
-    modoDefinicion: extractAfter(text, ['modo definicion', 'modo definiciÃ³n']) || 'Por defecto',
-    patronSombras: extractAfter(text, ['patron sombras', 'patrÃ³n sombras']) || 'Sin patrÃ³n',
+    modoDefinicion: extractAfter(text, ['modo definicion', 'modo definición']) || 'Por defecto',
+    patronSombras: extractAfter(text, ['patron sombras', 'patrón sombras']) || 'Sin patrón',
   });
 }
 
@@ -1981,18 +1981,18 @@ function parseHuecoRow(text) {
     uMarco: extractNumberAfter(text, ['u marco', 'transmitancia marco']),
     porcMarco: extractNumberAfter(text, ['porcentaje marco', 'porc marco', '% marco']),
     absortividadMarco: extractNumberAfter(text, ['absortividad marco', 'absortividad']),
-    modoDefinicion: extractAfter(text, ['modo definicion', 'modo definiciÃ³n']) || 'Estimadas',
+    modoDefinicion: extractAfter(text, ['modo definicion', 'modo definición']) || 'Estimadas',
     permeabilidad: extractNumberAfter(text, ['permeabilidad']),
-    orientacion: normalizeOrientation(extractAfter(text, ['orientacion', 'orientaciÃ³n']) || firstOrientation(text)),
-    patronSombras: extractAfter(text, ['patron sombras', 'patrÃ³n sombras']) || 'Sin patrÃ³n',
+    orientacion: normalizeOrientation(extractAfter(text, ['orientacion', 'orientación']) || firstOrientation(text)),
+    patronSombras: extractAfter(text, ['patron sombras', 'patrón sombras']) || 'Sin patrón',
   });
 }
 
 function parsePuenteTermicoRow(text) {
   return compactObject({
-    nombre: extractAfter(text, ['puente termico', 'puente tÃ©rmico']) || 'Puente tÃ©rmico',
+    nombre: extractAfter(text, ['puente termico', 'puente térmico']) || 'Puente térmico',
     cerramientoAsociado: extractAfter(text, ['cerramiento asociado', 'cerramiento', 'fachada']),
-    tipoPuenteTermico: extractAfter(text, ['tipo puente termico', 'tipo puente tÃ©rmico', 'tipo']),
+    tipoPuenteTermico: extractAfter(text, ['tipo puente termico', 'tipo puente térmico', 'tipo']),
     fi: extractNumberAfter(text, ['fi', 'psi']),
     longitud: extractNumberAfter(text, ['longitud']),
   });
@@ -2002,7 +2002,7 @@ function parseAcsRow(text) {
   return compactObject({
     nombre: extractAfter(text, ['acs', 'agua caliente', 'equipo']) || 'Equipo ACS',
     tipoEquipo: 'ACS',
-    modoDefinicion: extractAfter(text, ['modo definicion', 'modo definiciÃ³n']) || 'Estimado segÃºn InstalaciÃ³n',
+    modoDefinicion: extractAfter(text, ['modo definicion', 'modo definición']) || 'Estimado según Instalación',
     tipoGenerador: generatorFromText(text),
     combustible: fuelFromText(text),
     rendimientoEstacional: extractNumberAfter(text, ['rendimiento estacional', 'rendimiento']),
@@ -2010,17 +2010,17 @@ function parseAcsRow(text) {
     demandaCubierta: extractNumberAfter(text, ['demanda cubierta', 'porcentaje demanda', '% demanda']),
     zona: extractAfter(text, ['zona']) || 'Edificio Objeto',
     acumulacion: firstMatch(text, [
-      ['SÃ­', /\b(si|sÃ­|con acumulacion|con acumulaciÃ³n)\b/i],
-      ['No', /\b(no|sin acumulacion|sin acumulaciÃ³n)\b/i],
+      ['Sí', /\b(si|sí|con acumulacion|con acumulación)\b/i],
+      ['No', /\b(no|sin acumulacion|sin acumulación)\b/i],
     ]),
   });
 }
 
 function parseCalefaccionRow(text) {
   return compactObject({
-    nombre: extractAfter(text, ['calefaccion', 'calefacciÃ³n', 'equipo']) || 'Equipo calefacciÃ³n',
-    tipoEquipo: 'CalefacciÃ³n',
-    modoDefinicion: extractAfter(text, ['modo definicion', 'modo definiciÃ³n']) || 'Estimado segÃºn InstalaciÃ³n',
+    nombre: extractAfter(text, ['calefaccion', 'calefacción', 'equipo']) || 'Equipo calefacción',
+    tipoEquipo: 'Calefacción',
+    modoDefinicion: extractAfter(text, ['modo definicion', 'modo definición']) || 'Estimado según Instalación',
     tipoGenerador: generatorFromText(text),
     combustible: fuelFromText(text),
     rendimientoEstacional: extractNumberAfter(text, ['rendimiento estacional', 'rendimiento']),
@@ -2032,9 +2032,9 @@ function parseCalefaccionRow(text) {
 
 function parseRefrigeracionRow(text) {
   return compactObject({
-    nombre: extractAfter(text, ['refrigeracion', 'refrigeraciÃ³n', 'aire acondicionado', 'equipo']) || 'Equipo refrigeraciÃ³n',
-    tipoEquipo: 'RefrigeraciÃ³n',
-    modoDefinicion: extractAfter(text, ['modo definicion', 'modo definiciÃ³n']) || 'Estimado segÃºn InstalaciÃ³n',
+    nombre: extractAfter(text, ['refrigeracion', 'refrigeración', 'aire acondicionado', 'equipo']) || 'Equipo refrigeración',
+    tipoEquipo: 'Refrigeración',
+    modoDefinicion: extractAfter(text, ['modo definicion', 'modo definición']) || 'Estimado según Instalación',
     tipoGenerador: generatorFromText(text),
     combustible: fuelFromText(text),
     rendimientoEstacional: extractNumberAfter(text, ['rendimiento estacional', 'rendimiento']),
@@ -2046,15 +2046,15 @@ function parseRefrigeracionRow(text) {
 
 function parseContribucionRow(text) {
   return compactObject({
-    nombre: extractAfter(text, ['contribucion', 'contribuciÃ³n', 'renovable', 'solar']) || 'Contribuciones energÃ©ticas',
+    nombre: extractAfter(text, ['contribucion', 'contribución', 'renovable', 'solar']) || 'Contribuciones energéticas',
     zona: extractAfter(text, ['zona']) || 'Edificio Objeto',
     acsRenovable: extractNumberAfter(text, ['acs renovable', 'demanda acs', 'acs']),
-    calefaccionRenovable: extractNumberAfter(text, ['calefaccion renovable', 'calefacciÃ³n renovable', 'calefaccion']),
-    refrigeracionRenovable: extractNumberAfter(text, ['refrigeracion renovable', 'refrigeraciÃ³n renovable', 'refrigeracion']),
+    calefaccionRenovable: extractNumberAfter(text, ['calefaccion renovable', 'calefacción renovable', 'calefaccion']),
+    refrigeracionRenovable: extractNumberAfter(text, ['refrigeracion renovable', 'refrigeración renovable', 'refrigeracion']),
     calorRecuperadoAcs: extractNumberAfter(text, ['calor recuperado acs', 'calor recuperado para acs']),
-    calorRecuperadoCalefaccion: extractNumberAfter(text, ['calor recuperado calefaccion', 'calor recuperado calefacciÃ³n', 'calor recuperado para calefaccion', 'calor recuperado para calefacciÃ³n']),
-    frioRecuperado: extractNumberAfter(text, ['frio recuperado', 'frÃ­o recuperado']),
-    energiaConsumidaGeneracionElectricidad: extractNumberAfter(text, ['energia consumida generacion electricidad', 'energÃ­a consumida generaciÃ³n electricidad', 'energia consumida en generacion de electricidad', 'energÃ­a consumida en generaciÃ³n de electricidad']),
+    calorRecuperadoCalefaccion: extractNumberAfter(text, ['calor recuperado calefaccion', 'calor recuperado calefacción', 'calor recuperado para calefaccion', 'calor recuperado para calefacción']),
+    frioRecuperado: extractNumberAfter(text, ['frio recuperado', 'frío recuperado']),
+    energiaConsumidaGeneracionElectricidad: extractNumberAfter(text, ['energia consumida generacion electricidad', 'energía consumida generación electricidad', 'energia consumida en generacion de electricidad', 'energía consumida en generación de electricidad']),
     combustible: fuelFromText(text),
   });
 }
@@ -2091,7 +2091,7 @@ function resolvePendingSelection(text) {
 
 function buildMultipleMatchesMessage(matches) {
   const options = matches.map((record, index) => `${index + 1}. ${recordLabel(record)} - ${recordPlace(record)}`).join('\n');
-  return `Hay mÃ¡s de un expediente que encaja. Dime el nÃºmero:\n${options}`;
+  return `Hay más de un expediente que encaja. Dime el número:\n${options}`;
 }
 
 async function loadCatastroForSelected() {
@@ -2124,7 +2124,7 @@ async function loadCatastroForRecord(sourceRecord, options = {}) {
     const rawPatch = await fetchCatastroPatch(reference);
     const catastroPatch = emptyOnlyPatch(record, rawPatch);
     const patch = catastroPatch;
-    if (!Object.keys(patch).length) throw new Error('Catastro no devolviÃ³ datos Ãºtiles');
+    if (!Object.keys(patch).length) throw new Error('Catastro no devolvió datos útiles');
     const completedPatch = catastroAutocompletionPatch(record.data, catastroPatch);
     const data = Object.assign({}, record.data, completedPatch);
     const paths = [...new Set([
@@ -2376,7 +2376,7 @@ function catastroSituationPlanModel(source) {
   const locality = String(source?.['admin.localizacion.localidad'] || source?.locality || '').trim();
   const subtitle = [address, locality].filter(Boolean).join(', ');
   return {
-    title: 'Plano de situaciÃ³n',
+    title: 'Plano de situación',
     reference,
     subtitle,
     x: String(source?.['catastro.x'] || source?.x || '').trim(),
@@ -2597,7 +2597,7 @@ function recordLabel(record) {
 function recordPlace(record) {
   return [valueAt(record, 'admin.localizacion.direccion'), valueAt(record, 'admin.localizacion.localidad')]
     .filter(Boolean)
-    .join(', ') || 'Pendiente de localizaciÃ³n';
+    .join(', ') || 'Pendiente de localización';
 }
 
 function valueAt(record, path) {
@@ -2613,7 +2613,7 @@ function sectionLabel(sectionId) {
 function cleanFieldValue(path, value) {
   let next = String(value || '')
     .replace(/^(?:del?|de la|cliente|del cliente|de cliente)\s+/i, '')
-    .replace(/\b(?:y|tambien|ademas|tambiÃ©n|ademÃ¡s)$/i, '')
+    .replace(/\b(?:y|tambien|ademas|también|además)$/i, '')
     .trim();
   if (path.endsWith('referenciaCatastral')) next = normalizeReference(next);
   if (path.endsWith('codigoPostal')) next = (next.match(/\d{5}/) || [next])[0];
@@ -2660,25 +2660,25 @@ function extractNumberAfter(text, labels) {
 function tableValueLabels() {
   return [
     'cerramiento', 'fachada', 'muro', 'cubierta', 'suelo', 'hueco', 'ventana', 'puerta',
-    'puente termico', 'puente tÃ©rmico', 'acs', 'agua caliente', 'calefaccion', 'calefacciÃ³n',
-    'refrigeracion', 'refrigeraciÃ³n', 'contribucion', 'contribuciÃ³n', 'renovable', 'solar',
+    'puente termico', 'puente térmico', 'acs', 'agua caliente', 'calefaccion', 'calefacción',
+    'refrigeracion', 'refrigeración', 'contribucion', 'contribución', 'renovable', 'solar',
     'nombre', 'tipo', 'tipo de equipo', 'tipo generador', 'combustible', 'superficie',
-    'metros cuadrados', 'm2', 'u', 'transmitancia', 'peso', 'orientacion', 'orientaciÃ³n',
-    'posicion', 'posiciÃ³n', 'modo definicion', 'modo definiciÃ³n', 'patron sombras',
-    'patrÃ³n sombras', 'cerramiento asociado', 'fachada asociada', 'longitud', 'ancho',
+    'metros cuadrados', 'm2', 'u', 'transmitancia', 'peso', 'orientacion', 'orientación',
+    'posicion', 'posición', 'modo definicion', 'modo definición', 'patron sombras',
+    'patrón sombras', 'cerramiento asociado', 'fachada asociada', 'longitud', 'ancho',
     'anchura', 'altura', 'alto', 'multiplicador', 'cantidad', 'unidades', 'u vidrio',
     'transmitancia vidrio', 'g vidrio', 'factor solar', 'u marco', 'transmitancia marco',
     'porcentaje marco', 'porc marco', 'marco', 'absortividad marco', 'absortividad',
-    'permeabilidad', 'tipo puente termico', 'tipo puente tÃ©rmico',
+    'permeabilidad', 'tipo puente termico', 'tipo puente térmico',
     'fi', 'psi', 'rendimiento estacional', 'rendimiento', 'm2 cubiertos', 'metros cubiertos',
-    'superficie cubierta', 'demanda cubierta', 'porcentaje demanda', 'acumulacion', 'acumulaciÃ³n',
+    'superficie cubierta', 'demanda cubierta', 'porcentaje demanda', 'acumulacion', 'acumulación',
     'zona', 'acs renovable', 'demanda acs', 'calefaccion renovable',
-    'calefacciÃ³n renovable', 'refrigeracion renovable', 'refrigeraciÃ³n renovable',
+    'calefacción renovable', 'refrigeracion renovable', 'refrigeración renovable',
     'calor recuperado acs', 'calor recuperado para acs', 'calor recuperado calefaccion',
-    'calor recuperado calefacciÃ³n', 'calor recuperado para calefaccion',
-    'calor recuperado para calefacciÃ³n', 'frio recuperado', 'frÃ­o recuperado',
-    'energia consumida generacion electricidad', 'energÃ­a consumida generaciÃ³n electricidad',
-    'energia consumida en generacion de electricidad', 'energÃ­a consumida en generaciÃ³n de electricidad',
+    'calor recuperado calefacción', 'calor recuperado para calefaccion',
+    'calor recuperado para calefacción', 'frio recuperado', 'frío recuperado',
+    'energia consumida generacion electricidad', 'energía consumida generación electricidad',
+    'energia consumida en generacion de electricidad', 'energía consumida en generación de electricidad',
   ];
 }
 
@@ -2714,19 +2714,19 @@ function normalizeOrientation(value) {
 function generatorFromText(text) {
   return firstMatch(text, [
     ['Bomba de Calor', /\bbomba de calor\b/i],
-    ['Caldera EstÃ¡ndar', /\bcaldera\b/i],
-    ['Efecto Joule', /\b(joule|electrico directo|elÃ©ctrico directo|termo electrico|termo elÃ©ctrico)\b/i],
-    ['Equipo autÃ³nomo', /\b(equipo autonomo|equipo autÃ³nomo|split|aire acondicionado)\b/i],
+    ['Caldera Estándar', /\bcaldera\b/i],
+    ['Efecto Joule', /\b(joule|electrico directo|eléctrico directo|termo electrico|termo eléctrico)\b/i],
+    ['Equipo autónomo', /\b(equipo autonomo|equipo autónomo|split|aire acondicionado)\b/i],
   ]);
 }
 
 function fuelFromText(text) {
   return firstMatch(text, [
     ['Gas Natural', /\bgas natural\b/i],
-    ['GasÃ³leo-C', /\b(gasoleo|gasÃ³leo)\b/i],
+    ['Gasóleo-C', /\b(gasoleo|gasóleo)\b/i],
     ['GLP', /\bglp\b/i],
     ['Biomasa', /\bbiomasa\b/i],
-    ['Electricidad', /\b(electricidad|electrico|elÃ©ctrico|bomba de calor|termo)\b/i],
+    ['Electricidad', /\b(electricidad|electrico|eléctrico|bomba de calor|termo)\b/i],
   ]);
 }
 
@@ -2776,7 +2776,7 @@ function startVoiceDictation() {
     chatInput.value = event.results[0][0].transcript;
     submitChatForm();
   };
-  recognition.onerror = () => addChatMessage('assistant', 'No he podido escuchar el dictado. EscrÃ­belo y tiramos millas.');
+  recognition.onerror = () => addChatMessage('assistant', 'No he podido escuchar el dictado. Escríbelo y tiramos millas.');
   recognition.onend = () => {
     voiceBtn.disabled = false;
     voiceBtn.textContent = 'Dictar';
@@ -2803,8 +2803,8 @@ async function downloadCex() {
   const record = selectedRecordWithCurrentFormData();
   if (!record) return;
   const criticalIssues = criticalCexIssues(record);
-  if (criticalIssues.length && !window.confirm('Faltan datos crÃ­ticos para CE3X:\n\n- ' + criticalIssues.join('\n- ') + '\n\nÂ¿Descargar .cex de todos modos?')) {
-    addChatMessage('assistant', 'Descarga cancelada. Revisa los datos crÃ­ticos antes de generar el .cex.');
+  if (criticalIssues.length && !window.confirm('Faltan datos críticos para CE3X:\n\n- ' + criticalIssues.join('\n- ') + '\n\n¿Descargar .cex de todos modos?')) {
+    addChatMessage('assistant', 'Descarga cancelada. Revisa los datos críticos antes de generar el .cex.');
     return;
   }
 
@@ -2823,7 +2823,7 @@ async function downloadCex() {
     const filename = fileSafe(recordLabel(record)) + '.cex';
     downloadBlob(new Blob([latin1Encode(text)], { type: 'application/octet-stream' }), filename);
   } catch (error) {
-    alert('GeneraciÃ³n .cex pendiente: ' + error.message);
+    alert('Generación .cex pendiente: ' + error.message);
   }
 }
 
@@ -2831,16 +2831,16 @@ function criticalCexIssues(record) {
   const data = record.data || {};
   const issues = [];
   if (!hasValue(data['generales.datos.tipoEdificio'])) issues.push('Tipo de edificio');
-  if (!hasValue(data['generales.definicion.superficieUtilHabitable'])) issues.push('Superficie Ãºtil habitable');
+  if (!hasValue(data['generales.definicion.superficieUtilHabitable'])) issues.push('Superficie útil habitable');
   if (!hasValue(data['generales.definicion.alturaLibrePlanta'])) issues.push('Altura libre de planta');
-  if (!hasValue(data['generales.definicion.numeroPlantasHabitables'])) issues.push('NÃºmero de plantas habitables');
+  if (!hasValue(data['generales.definicion.numeroPlantasHabitables'])) issues.push('Número de plantas habitables');
   if (!hasValue(data['generales.definicion.masaParticionesInternas'])) issues.push('Masa de las particiones internas');
   if (!tableHasRows(data['envolvente.cerramientos.items'])) issues.push('Envolvente: cerramientos');
   if (!tableHasRows(data['envolvente.huecos.items'])) issues.push('Envolvente: huecos');
-  if (!tableHasRows(data['envolvente.puentesTermicos.items'])) issues.push('Envolvente: puentes tÃ©rmicos');
+  if (!tableHasRows(data['envolvente.puentesTermicos.items'])) issues.push('Envolvente: puentes térmicos');
   if (!tableHasRows(data['instalaciones.acs.items'])) issues.push('Instalaciones: equipo ACS');
   if (!tableHasRows(data['instalaciones.calefaccion.items']) && !tableHasRows(data['instalaciones.refrigeracion.items'])) {
-    issues.push('Instalaciones: calefacciÃ³n o refrigeraciÃ³n');
+    issues.push('Instalaciones: calefacción o refrigeración');
   }
   return issues;
 }
@@ -3013,14 +3013,14 @@ function applyCexAdminLegacyReplacements(text, record) {
   const scalarReplacements = [
     ['VPL SEN-1 ENTRENUCLEOS 40(D) ', cexString(data['admin.localizacion.nombreEdificio'])],
     ['V0128501TG4302N0037ZI', cexString(data['admin.localizacion.referenciaCatastral'])],
-    ['VC/ JOSÃ‰ MEJIAS SALGUERO NÂº4, CASA 37', cexString(data['admin.localizacion.direccion'])],
+    ['VC/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37', cexString(data['admin.localizacion.direccion'])],
     ['VDos Hermanas', cexString(titleCase(data['admin.localizacion.localidad']))],
     ['VDOS HERMANAS', cexString(data['admin.localizacion.localidad']).toUpperCase()],
     ['VSevilla', cexString(titleCase(data['admin.localizacion.provincia']))],
     ['V41704', cexString(data['admin.localizacion.codigoPostal'])],
-    ['aVJUAN JOSÃ‰ MORENO FRESNO\np6', cexAppendString(data['admin.cliente.nombreRazonSocial']) + '\np6'],
+    ['aVJUAN JOSÉ MORENO FRESNO\np6', cexAppendString(data['admin.cliente.nombreRazonSocial']) + '\np6'],
     ['aV.\np9', cexAppendString(data['admin.cliente.email']) + '\np9'],
-    ['aVJUAN JOSÃ‰ MORENO FRESNO\np11', cexAppendString(data['admin.tecnico.nombre']) + '\np11'],
+    ['aVJUAN JOSÉ MORENO FRESNO\np11', cexAppendString(data['admin.tecnico.nombre']) + '\np11'],
     ['aV665379127\np8', cexAppendString(data['admin.cliente.telefono']) + '\np8'],
     ['aV665379127\np12', cexAppendString(data['admin.tecnico.telefono']) + '\np12'],
     ['aVjuanjmf8@gmail.com\np13', cexAppendString(data['admin.tecnico.email']) + '\np13'],
@@ -3208,7 +3208,7 @@ function applyCexCompactListReplacements(text, record) {
       '(lp0\n(lp1\n(lp2\nVEquipo ACS',
       '(lp0\n(iMedidasDeMejora.objetoGrupoMejoras',
       '(lp56',
-      'VContribuciones energÃ©ticas',
+      'VContribuciones energéticas',
       '(lp69\na',
       serializeCexContribucionesInput(contribuciones),
     );
@@ -3440,7 +3440,7 @@ function replaceCerramientoObjects(text, rows) {
       ['masaM2', cexFloat(rowItem.peso)],
       ['orientacion', cexString(cexWallOrientation(rowItem.posicion))],
       ['modoObtencion', cexString(rowItem.modoDefinicion || 'Conocidas')],
-      ['patronSombras', cexString(rowItem.patronSombras || 'Sin patrÃ³n')],
+      ['patronSombras', cexString(rowItem.patronSombras || 'Sin patrón')],
       ['enContactoCon', cexAsciiString(rowItem.tipoCerramiento === 'Suelo' ? 'terreno' : 'aire')],
     ].forEach(([key, value]) => {
       updated = replacePickleValueAfterKey(updated, key, value);
@@ -3487,7 +3487,7 @@ function replaceHuecoObjectBlock(block, rowItem) {
     ['permeabilidadValor', cexString(cexDecimal(rowItem.permeabilidad))],
     ['orientacion', cexString(orientation)],
     ['correctorSolar', cexString(orientation)],
-    ['patronSombras', cexString(rowItem.patronSombras || 'Sin patrÃ³n')],
+    ['patronSombras', cexString(rowItem.patronSombras || 'Sin patrón')],
   ].forEach(([key, value]) => {
     updated = replacePickleValueAfterKey(updated, key, value);
   });
@@ -3665,7 +3665,7 @@ function serializeCexCerramientoInput(rowItem) {
     cexPickleFloat(rowItem.peso),
     cexPickleString(orientation),
     cexPickleString(''),
-    cexPickleString(rowItem.patronSombras || 'Sin patrÃ³n'),
+    cexPickleString(rowItem.patronSombras || 'Sin patrón'),
     cexPickleString(rowItem.modoDefinicion || 'Por defecto'),
   ];
   if (type === 'Suelo') {
@@ -3774,12 +3774,12 @@ function serializeCexHuecoEstimadasObject(rowItem) {
     ['correctorFSInvierno', cexFloat('0.71')],
     ['permeabilidadChoice', cexPickleString('Estanco')],
     ['orientacion', cexPickleString(orientation)],
-    ['tipoMarco', cexPickleString('MetÃ¡lico con RPT')],
+    ['tipoMarco', cexPickleString('Metálico con RPT')],
     ['absortividadPosiciones', serializeCexList([cexPickleInteger('7'), cexPickleInteger('1')])],
     ['dobleVentana', cexPickleBool(false)],
     ['longitud', cexPickleString(cexDecimal(rowItem.longitud))],
     ['Uvidrio', cexFloat(rowItem.uVidrio)],
-    ['patronSombras', cexPickleString(rowItem.patronSombras || 'Sin patrÃ³n')],
+    ['patronSombras', cexPickleString(rowItem.patronSombras || 'Sin patrón')],
     ['Gvidrio', cexFloat(rowItem.gVidrio)],
     ['correctorFSVerano', cexFloat('0.66')],
     ['tipoVidrio', cexPickleString('Doble')],
@@ -3848,13 +3848,13 @@ function serializeCexSystemsStream(acsRows, calefaccionRows, refrigeracionRows, 
     '(lp5\n',
     cexPickleFloat(acs.rendimientoEstacional), 'a',
     "S''\np6\n", 'ag6\n', 'aa',
-    cexPickleString(acs.tipoGenerador || 'Caldera EstÃ¡ndar'), 'p7\n', 'a',
+    cexPickleString(acs.tipoGenerador || 'Caldera Estándar'), 'p7\n', 'a',
     cexPickleString(acs.combustible || 'Electricidad'), 'p8\n', 'a',
     '(lp9\n',
     '(lp10\n', cexPickleAscii(cexDecimal(acs.m2Cubiertos)), 'p11\n', 'a', cexPickleString(cexDecimal(acs.demandaCubierta)), 'p12\n', 'aa',
     '(lp13\n', 'g6\n', 'ag6\n', 'aa',
     '(lp14\n', 'g6\n', 'ag6\n', 'aaa',
-    cexPickleString(acs.modoDefinicion || 'Estimado segÃºn InstalaciÃ³n'), 'p15\n', 'a',
+    cexPickleString(acs.modoDefinicion || 'Estimado según Instalación'), 'p15\n', 'a',
     '(lp16\n',
     '(lp17\n', cexPickleString(cexDecimal(acs.rendimientoEstacional)), 'p18\n', 'ag6\n', 'ag6\n', 'aa',
     '(lp19\n', cexPickleBool(false), 'a', cexPickleBool(false), 'a', cexPickleBool(true), 'aa',
@@ -3874,7 +3874,7 @@ function serializeCexSystemsStream(acsRows, calefaccionRows, refrigeracionRows, 
     '(lp32\n', 'a',
     '(lp33\n',
     '(lp34\n',
-    cexPickleString(climateBase.nombre || 'CalefacciÃ³n y refrigeraciÃ³n'), 'p35\n', 'a',
+    cexPickleString(climateBase.nombre || 'Calefacción y refrigeración'), 'p35\n', 'a',
     cexPickleAscii('climatizacion'), 'p36\n', 'a',
     '(lp37\n',
     'g6\n', 'a', cexPickleFloat(heat.rendimientoEstacional), 'a', cexPickleFloat(cool.rendimientoEstacional), 'aa',
@@ -3885,7 +3885,7 @@ function serializeCexSystemsStream(acsRows, calefaccionRows, refrigeracionRows, 
     '(lp41\n', 'g6\n', 'ag6\n', 'aa',
     '(lp42\n', cexPickleAscii(cexDecimal(heat.m2Cubiertos)), 'p43\n', 'a', cexPickleString(cexDecimal(heat.demandaCubierta)), 'p44\n', 'aa',
     '(lp45\n', cexPickleAscii(cexDecimal(cool.m2Cubiertos)), 'p46\n', 'a', cexPickleString(cexDecimal(cool.demandaCubierta)), 'p47\n', 'aaa',
-    cexPickleString(climateBase.modoDefinicion || 'Estimado segÃºn InstalaciÃ³n'), 'p48\n', 'a',
+    cexPickleString(climateBase.modoDefinicion || 'Estimado según Instalación'), 'p48\n', 'a',
     '(lp49\n',
     '(lp50\n', 'g6\n', 'a', cexPickleString('270.0'), 'p51\n', 'a', cexPickleString('250.0'), 'p52\n', 'aa',
     '(lp53\n', cexPickleBool(true), 'a', cexPickleBool(false), 'a', cexPickleBool(false), 'aa',
@@ -3896,7 +3896,7 @@ function serializeCexSystemsStream(acsRows, calefaccionRows, refrigeracionRows, 
     '(lp57\n', 'a',
     '(lp58\n',
     '(lp59\n',
-    cexPickleString(contribution.nombre || 'Contribuciones energÃ©ticas'), 'p60\n', 'a',
+    cexPickleString(contribution.nombre || 'Contribuciones energéticas'), 'p60\n', 'a',
     cexPickleAscii('renovable'), 'p61\n', 'a',
     '(lp62\n',
     cexPickleString(cexDecimal(contribution.acsRenovable)), 'p63\n',
@@ -3939,7 +3939,7 @@ function serializeCexAcsInput(rows) {
       serializeCexList([cexPickleString(''), cexPickleString('')]),
       serializeCexList([cexPickleString(''), cexPickleString('')]),
     ]),
-    cexPickleString(cexOption(rowItem.modoDefinicion, 'modoDefinicion', 'Estimado segÃºn InstalaciÃ³n')),
+    cexPickleString(cexOption(rowItem.modoDefinicion, 'modoDefinicion', 'Estimado según Instalación')),
     serializeCexList([
       serializeCexList([cexPickleString(cexDecimal(rowItem.rendimientoEstacional)), cexPickleString(''), cexPickleString('')]),
       serializeCexList([cexPickleBool(false), cexPickleBool(false), cexPickleBool(true)]),
@@ -3967,7 +3967,7 @@ function serializeCexClimateInput(calefaccionRows, refrigeracionRows) {
     return { heat, cool, base };
   });
   return serializeCexList(rows.map(({ heat, cool, base }) => serializeCexList([
-    cexPickleString(base.nombre || 'CalefacciÃ³n y refrigeraciÃ³n'),
+    cexPickleString(base.nombre || 'Calefacción y refrigeración'),
     cexPickleAscii('climatizacion'),
     serializeCexList([
       cexPickleString(''),
@@ -3981,7 +3981,7 @@ function serializeCexClimateInput(calefaccionRows, refrigeracionRows) {
       serializeCexList([cexPickleString(cexDecimal(heat.m2Cubiertos)), cexPickleString(cexDecimal(heat.demandaCubierta))]),
       serializeCexList([cexPickleString(cexDecimal(cool.m2Cubiertos)), cexPickleString(cexDecimal(cool.demandaCubierta))]),
     ]),
-    cexPickleString(cexOption(base.modoDefinicion, 'modoDefinicion', 'Estimado segÃºn InstalaciÃ³n')),
+    cexPickleString(cexOption(base.modoDefinicion, 'modoDefinicion', 'Estimado según Instalación')),
     serializeCexList([
       serializeCexList([cexPickleString(''), cexPickleString('270.0'), cexPickleString('250.0')]),
       serializeCexList([cexPickleBool(true), cexPickleBool(false), cexPickleBool(false)]),
@@ -4034,7 +4034,7 @@ function cexOption(value, optionsKey, fallback) {
 
 function isTruthy(value) {
   const normalized = normalizeText(value);
-  return normalized === 'si' || normalized === 'sÃ­' || normalized === 'true' || normalized === '1';
+  return normalized === 'si' || normalized === 'sí' || normalized === 'true' || normalized === '1';
 }
 
 function serializeCexList(items) {
@@ -4102,7 +4102,7 @@ function replacePickleTokenOccurrences(text, token, replacement, maxCount = 1) {
 }
 
 function isSpecificCexToken(value) {
-  return value.length > 1 || /[.,]/.test(value) || /[A-Za-zÃÃ‰ÃÃ“ÃšÃœÃ‘Ã¡Ã©Ã­Ã³ÃºÃ¼Ã±]/.test(value);
+  return value.length > 1 || /[.,]/.test(value) || /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(value);
 }
 
 function replaceAll(text, from, to) {
@@ -4235,8 +4235,8 @@ async function proxyAppsScript(apiUrl, request) {
   try {
     data = JSON.parse(text);
   } catch (error) {
-    const preview = text.trim().slice(0, 500) || 'respuesta vacÃ­a';
-    throw new Error(`El proxy local no devolviÃ³ JSON vÃ¡lido: ${preview}`);
+    const preview = text.trim().slice(0, 500) || 'respuesta vacía';
+    throw new Error(`El proxy local no devolvió JSON válido: ${preview}`);
   }
   if (!response.ok || !data.ok) throw new Error(data.error || 'Error proxy Apps Script');
   return data;
@@ -4267,7 +4267,7 @@ function jsonpAppsScript(apiUrl, request) {
     };
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error('Apps Script no respondiÃ³ por JSONP'));
+      reject(new Error('Apps Script no respondió por JSONP'));
     }, 15000);
 
     window[callbackName] = data => {
@@ -4307,7 +4307,7 @@ function formMessageAppsScript(apiUrl, request, timeoutMs = 20000) {
     };
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error('Apps Script no confirmÃ³ el guardado por formulario'));
+      reject(new Error('Apps Script no confirmó el guardado por formulario'));
     }, timeoutMs);
     const onMessage = event => {
       const data = event.data || {};
@@ -4376,7 +4376,7 @@ async function testConfigConnection() {
   }
   try {
     const response = await apiWithConfig(config, { action: 'list' });
-    alert(`ConexiÃ³n OK. Google Sheet devuelve ${response.items?.length || 0} expediente(s).`);
+    alert(`Conexión OK. Google Sheet devuelve ${response.items?.length || 0} expediente(s).`);
   } catch (error) {
     alert(sheetErrorHelp(error));
   }
@@ -4419,10 +4419,10 @@ async function copyConfigLink() {
   url.searchParams.set('configSecret', config.secret);
   if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
     await navigator.clipboard.writeText(url.toString());
-    alert('Enlace de configuraciÃ³n copiado. Ãbrelo una vez en el mÃ³vil y quedarÃ¡ guardado allÃ­.');
+    alert('Enlace de configuración copiado. Ábrelo una vez en el móvil y quedará guardado allí.');
     return;
   }
-  window.prompt('Copia este enlace y Ã¡brelo una vez en el mÃ³vil:', url.toString());
+  window.prompt('Copia este enlace y ábrelo una vez en el móvil:', url.toString());
 }
 
 function downloadBlob(blob, filename) {
