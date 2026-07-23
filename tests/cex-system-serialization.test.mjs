@@ -71,6 +71,7 @@ globalThis.__cexHelpers = {
   storedValueForPatchPath,
   applyCexEmbeddedImageReplacements,
   catastroSituationPlanModel,
+  catastroWmsMapUrl,
   hasUsefulCatastroData,
   estimatedEnvelopePatch,
   catastroAutocompletionPatch,
@@ -1005,6 +1006,21 @@ test('uses a close Catastro WMS plan around the parcel', () => {
 
   assert.equal(url.searchParams.get('WIDTH'), '1000');
   assert.equal(url.searchParams.get('HEIGHT'), '760');
+  assert.equal(Number((bbox[2] - bbox[0]).toFixed(5)), 0.00052);
+  assert.equal(Number((bbox[3] - bbox[1]).toFixed(5)), 0.00038);
+});
+
+test('builds the same close official Catastro WMS map in the app', () => {
+  const { catastroWmsMapUrl } = loadCexHelpers();
+  const url = new URL(catastroWmsMapUrl({
+    x: '-6.19412529860578',
+    y: '37.3503373192513',
+    srs: 'EPSG:4326',
+  }));
+  const bbox = url.searchParams.get('BBOX').split(',').map(Number);
+
+  assert.match(url.toString(), /ovc\.catastro\.meh\.es\/Cartografia\/WMS/);
+  assert.equal(url.searchParams.get('LAYERS'), 'Catastro');
   assert.equal(Number((bbox[2] - bbox[0]).toFixed(5)), 0.00052);
   assert.equal(Number((bbox[3] - bbox[1]).toFixed(5)), 0.00038);
 });

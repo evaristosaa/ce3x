@@ -2419,11 +2419,9 @@ function catastroLocationParams(record) {
 }
 
 async function addGeneratedSituationPlan(patch) {
-  const currentPlan = String(patch?.['generales.definicion.planoSituacion'] || '').trim();
-  if (currentPlan.startsWith('data:image/')) return patch;
   const model = catastroSituationPlanModel(patch);
   if (!model.x || !model.y) return patch;
-  const image = catastroSituationPlanPng(model);
+  const image = await catastroWmsPlanDataUrl(model);
   if (image) patch['generales.definicion.planoSituacion'] = image;
   return patch;
 }
@@ -2443,107 +2441,52 @@ function catastroSituationPlanModel(source) {
   };
 }
 
-function catastroSituationPlanPng(model) {
-  if (typeof document === 'undefined') return '';
-  const canvas = document.createElement('canvas');
-  if (!canvas || !canvas.getContext) return '';
-  canvas.width = 900;
-  canvas.height = 620;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return '';
+function catastroWmsMapUrl({ x, y, srs }) {
+  const longitude = Number(String(x || '').replace(',', '.'));
+  const latitude = Number(String(y || '').replace(',', '.'));
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return '';
 
-  ctx.fillStyle = '#fffdf8';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = '#d7cfc2';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(28, 28, canvas.width - 56, canvas.height - 56);
-
-  ctx.fillStyle = '#111827';
-  ctx.font = 'bold 34px Arial, sans-serif';
-  ctx.fillText(model.title, 52, 82);
-  ctx.font = '20px Arial, sans-serif';
-  wrapCanvasText(ctx, model.subtitle || model.reference, 52, 118, 760, 26);
-
-  // Fallback when the official Catastro WMS image is unavailable. It keeps
-  // the same close scale as the WMS map: target plot plus direct neighbours.
-  const plots = [
-    [[120, 200], [290, 185], [310, 300], [135, 320]],
-    [[305, 185], [485, 170], [500, 286], [320, 302]],
-    [[500, 170], [690, 190], [680, 300], [515, 286]],
-    [[705, 192], [800, 210], [790, 325], [695, 302]],
-    [[110, 335], [285, 332], [300, 465], [115, 480]],
-    [[300, 320], [505, 305], [520, 465], [310, 480]],
-    [[525, 305], [700, 320], [690, 470], [535, 465]],
-    [[705, 325], [800, 340], [790, 480], [705, 470]],
-  ];
-  ctx.fillStyle = '#f5e9d5';
-  ctx.strokeStyle = '#bb9580';
-  ctx.lineWidth = 3;
-  plots.forEach(points => {
-    ctx.beginPath();
-    points.forEach(([x, y], index) => {
-      if (index) ctx.lineTo(x, y);
-      else ctx.moveTo(x, y);
-    });
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+  // Approx. 45 x 40 m in mainland Spain: the plot and direct neighbours.
+  const longitudeSpan = 0.00052;
+  const latitudeSpan = 0.00038;
+  const bbox = [
+    longitude - longitudeSpan / 2,
+    latitude - latitudeSpan / 2,
+    longitude + longitudeSpan / 2,
+    latitude + latitudeSpan / 2,
+  ].join(',');
+  const params = new URLSearchParams({
+    SERVICE: 'WMS',
+    VERSION: '1.1.1',
+    REQUEST: 'GetMap',
+    SRS: srs || 'EPSG:4326',
+    BBOX: bbox,
+    WIDTH: '1000',
+    HEIGHT: '760',
+    LAYERS: 'Catastro',
+    STYLES: '',
+    FORMAT: 'image/png',
   });
-
-  ctx.fillStyle = 'rgba(45, 107, 83, 0.30)';
-  ctx.strokeStyle = '#0f6b4d';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  [[300, 320], [505, 305], [520, 465], [310, 480]].forEach(([x, y], index) => {
-    if (index) ctx.lineTo(x, y);
-    else ctx.moveTo(x, y);
-  });
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = '#d81e1e';
-  ctx.beginPath();
-  ctx.arc(410, 388, 15, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 4;
-  ctx.stroke();
-
-  ctx.fillStyle = '#111827';
-  ctx.font = 'bold 18px Arial, sans-serif';
-  ctx.fillText('Parcela de referencia', 545, 375);
-  ctx.font = '16px Arial, sans-serif';
-  ctx.fillText(`Ref. ${model.reference}`, 545, 400);
-  ctx.fillText(`${model.srs}: ${model.x}, ${model.y}`, 52, 574);
-  ctx.fillText('Entorno inmediato y parcelas colindantes', 52, 548);
-
-  ctx.font = 'bold 20px Arial, sans-serif';
-  ctx.fillText('N', 810, 105);
-  ctx.beginPath();
-  ctx.moveTo(818, 116);
-  ctx.lineTo(802, 152);
-  ctx.lineTo(834, 152);
-  ctx.closePath();
-  ctx.fill();
-
-  return canvas.toDataURL('image/png');
+  return `https://ovc.catastro.meh.es/Cartografia/WMS/ServidorWMS.aspx?${params.toString()}`;
 }
 
-function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
-  const words = String(text || '').split(/\s+/).filter(Boolean);
-  let line = '';
-  words.forEach(word => {
-    const testLine = line ? `${line} ${word}` : word;
-    if (ctx.measureText(testLine).width > maxWidth && line) {
-      ctx.fillText(line, x, y);
-      y += lineHeight;
-      line = word;
-    } else {
-      line = testLine;
-    }
-  });
-  if (line) ctx.fillText(line, x, y);
+async function catastroWmsPlanDataUrl(model) {
+  const url = catastroWmsMapUrl(model);
+  if (!url || typeof fetch !== 'function' || typeof FileReader === 'undefined') return '';
+  try {
+    const response = await fetch(url);
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok || !contentType.startsWith('image/')) return '';
+    const blob = await response.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    return '';
+  }
 }
 
 function emptyOnlyPatch(record, patch) {
