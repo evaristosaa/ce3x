@@ -2902,14 +2902,11 @@ function stripCexImprovements(text) {
   // can be qualified before the user creates improvement packages in CE3X.
   const stream10Start = text.lastIndexOf(`.(lp0${lineEnding}VSin`);
   if (stream10Start < 0) return text;
-  const emptyList = serializeCexList([]);
-  const blankValues = serializeCexList(Array.from({ length: 10 }, () => cexPickleString('')));
-  const emptySummary = serializeCexList([
-    serializeCexList([]),
-    blankValues,
-    serializeCexList([]),
-    'N',
-  ]);
+  // Keep protocol-0 memo markers: CE3X expects the same pickle shape even
+  // when the improvement packages are empty.
+  const emptyList = `(lp0${lineEnding}.`;
+  const blankValues = `(lp2${lineEnding}${cexPickleString('')}p3${lineEnding}${'ag3'.repeat(9)}a`;
+  const emptySummary = `(lp0${lineEnding}(lp1${lineEnding}a${blankValues}a(lp4${lineEnding}aNa.`;
   const emptyStreams = [emptyList, emptySummary, emptyList, emptyList, emptyList]
     .map(value => `${value}.`)
     .join('');
