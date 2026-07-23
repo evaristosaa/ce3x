@@ -26,6 +26,7 @@ const DEFAULT_CLIENT = {
 };
 
 const DEFAULT_GENERAL = {
+  'generales.datos.zonaClimaticaHE4': 'V',
   'generales.definicion.alturaLibrePlanta': '2.70',
   'generales.definicion.masaParticionesInternas': 'Ligera',
 };
@@ -105,7 +106,7 @@ const SELECT_OPTIONS = {
   normativaVigente: ['Anterior', 'NBE-CT-79', 'CTE 2006', 'CTE 2013'],
   tipoEdificio: ['Unifamiliar', 'Bloque de viviendas', 'Vivienda individual', 'Terciario'],
   provincia: ['Sevilla', 'Huelva', 'Cádiz', 'Córdoba', 'Málaga'],
-  localidad: ['Dos Hermanas', 'DOS HERMANAS', 'Sevilla'],
+  localidad: ['Dos Hermanas', 'DOS HERMANAS', 'Benacazón', 'BENACAZÓN', 'Sevilla'],
   zonaClimaticaHE1: ['B4', 'A3', 'A4', 'B3', 'C3', 'C4', 'D3'],
   zonaClimaticaHE4: ['V', 'I', 'II', 'III', 'IV'],
   masaParticionesInternas: ['Ligera', 'Media', 'Pesada'],
@@ -617,6 +618,9 @@ function normalizeRecord(record) {
   }
   Object.keys(DEFAULT_GENERAL).forEach(path => {
     if (!hasValue(data[path])) data[path] = DEFAULT_GENERAL[path];
+  });
+  ['admin.localizacion.localidad', 'generales.datos.localidad'].forEach(path => {
+    if (hasValue(data[path])) data[path] = cexLocality(data[path]);
   });
   const normativa = normativaVigenteDesdeAnio(data['generales.datos.anioConstruccion']);
   if (normativa) data['generales.datos.normativaVigente'] = normativa;
@@ -3002,6 +3006,7 @@ function cexPatchMode() {
 
 function applyCexAdminLegacyReplacements(text, record) {
   const data = record.data || {};
+  const locality = cexLocality(data['admin.localizacion.localidad']);
   let next = text;
   next = replaceFirstMemoValue(next, 'p6', cexAppendString(data['admin.cliente.nombreRazonSocial']));
   next = replaceFirstMemoValue(next, 'p8', cexAppendString(data['admin.cliente.telefono']));
@@ -3014,7 +3019,7 @@ function applyCexAdminLegacyReplacements(text, record) {
     ['VPL SEN-1 ENTRENUCLEOS 40(D) ', cexString(data['admin.localizacion.nombreEdificio'])],
     ['V0128501TG4302N0037ZI', cexString(data['admin.localizacion.referenciaCatastral'])],
     ['VC/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37', cexString(data['admin.localizacion.direccion'])],
-    ['VDos Hermanas', cexString(titleCase(data['admin.localizacion.localidad']))],
+    ['VDos Hermanas', cexString(locality)],
     ['VDOS HERMANAS', cexString(data['admin.localizacion.localidad']).toUpperCase()],
     ['VSevilla', cexString(titleCase(data['admin.localizacion.provincia']))],
     ['V41704', cexString(data['admin.localizacion.codigoPostal'])],
@@ -3032,10 +3037,11 @@ function applyCexAdminLegacyReplacements(text, record) {
 function applyCexAdminReplacements(text, record) {
   const data = record.data || {};
   const append = value => cexAppendString(value);
+  const locality = cexLocality(data['admin.localizacion.localidad']);
   const replacements = [
     ['p1', cexString(data['admin.localizacion.nombreEdificio'])],
     ['p2', append(data['admin.localizacion.direccion'])],
-    ['p3', append(titleCase(data['admin.localizacion.localidad']))],
+    ['p3', append(locality)],
     ['p4', append(titleCase(data['admin.localizacion.provincia']))],
     ['p6', append(data['admin.cliente.nombreRazonSocial'])],
     ['p7', append(data['admin.cliente.direccion'])],
@@ -3076,13 +3082,15 @@ function applyCexGeneralReplacements(text, record) {
   const data = record.data || {};
   let next = text;
   const buildingType = cexBuildingType(data['generales.datos.tipoEdificio']);
+  const locality = cexLocality(data['generales.datos.localidad']);
+  const he4Zone = cexHe4Zone(data['generales.datos.zonaClimaticaHE4']);
   next = applyCexInputGeneralReplacements(next, record);
   const generalReplacements = [
     ['VCTE 2013', cexString(data['generales.datos.normativaVigente'])],
     ['VUnifamiliar', cexString(buildingType)],
     ['VB4', cexString(data['generales.datos.zonaClimaticaHE1'])],
-    ['aVV\np6', cexAppendString(data['generales.datos.zonaClimaticaHE4']) + '\np6'],
-    ['VDos Hermanas', cexString(titleCase(data['generales.datos.localidad']))],
+    ['aVV\np6', cexAppendString(he4Zone) + '\np6'],
+    ['VDos Hermanas', cexString(locality)],
     ['V2021', cexString(data['generales.datos.anioConstruccion'])],
     ['V149.40', cexString(cexDecimal(data['generales.definicion.superficieUtilHabitable']))],
     ['V2.60', cexString(cexDecimal(data['generales.definicion.alturaLibrePlanta']))],
@@ -4478,6 +4486,19 @@ function cexBuildingType(value) {
   if (normalized.includes('bloque')) return 'Bloque de Viviendas';
   if (normalized.includes('vivienda individual') || normalized.includes('unifamiliar')) return 'Unifamiliar';
   return cexValue(value) || 'Unifamiliar';
+}
+
+function cexLocality(value) {
+  const locality = titleCase(value);
+  const overrides = {
+    benacazon: 'Benacazón',
+  };
+  return overrides[normalizeText(locality)] || locality;
+}
+
+function cexHe4Zone(value) {
+  const zone = cexValue(value).toUpperCase();
+  return SELECT_OPTIONS.zonaClimaticaHE4.includes(zone) ? zone : 'V';
 }
 
 function fileSafe(value) {
