@@ -2178,7 +2178,17 @@ async function fetchCatastroPatch(reference) {
   if (!hasUsefulCatastroData(catastroItem)) {
     throw new Error(catastroItem.error || 'Catastro no ha devuelto datos del inmueble.');
   }
-  const rawPatch = catastroPatchFromData(catastroItem);
+  let rawPatch = catastroPatchFromData(catastroItem);
+  if (!hasValue(catastroItem.plantas) || !hasValue(catastroItem.superficieVivienda) || !Array.isArray(catastroItem.construcciones)) {
+    try {
+      const browserPatch = await browserCatastroPatch(reference);
+      Object.entries(browserPatch).forEach(([path, value]) => {
+        if (hasValue(value)) rawPatch[path] = value;
+      });
+    } catch (error) {
+      // Apps Script remains the normal path; direct Catastro is only a fallback.
+    }
+  }
   await addGeneratedSituationPlan(rawPatch);
   if (!Object.keys(rawPatch).length) throw new Error('Catastro no devolvio datos utiles');
   return rawPatch;
