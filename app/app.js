@@ -2179,11 +2179,6 @@ async function fetchCatastroPatch(reference) {
     throw new Error(catastroItem.error || 'Catastro no ha devuelto datos del inmueble.');
   }
   const rawPatch = catastroPatchFromData(catastroItem);
-  const floorPath = 'generales.definicion.numeroPlantasHabitables';
-  if (!hasValue(rawPatch[floorPath])) {
-    const version = catastroItem.catastroParserVersion || 'desconocida';
-    throw new Error('Apps Script ha respondido sin las plantas habitables (parser ' + version + '). Copia el Code.gs actualizado y publica una nueva versión del despliegue /exec.');
-  }
   await addGeneratedSituationPlan(rawPatch);
   if (!Object.keys(rawPatch).length) throw new Error('Catastro no devolvio datos utiles');
   return rawPatch;
@@ -2245,10 +2240,10 @@ function catastroPatchFromData(item) {
   const srs = String(item.srs || '').trim() || (x && y ? 'EPSG:4326' : '');
   const situationMapUrl = catastroMapUrlFromData({ reference, x, y, srs });
   const viviendaSurface = surfaceForUse(item.construcciones, 'VIVIENDA');
-  const viviendaFloors = item.plantas || item.numeroPlantas || floorsForUse(item.construcciones, 'VIVIENDA');
+  const residentialUse = String(item.uso || '').toLowerCase().includes('residencial');
+  const viviendaFloors = item.plantas || item.numeroPlantas || floorsForUse(item.construcciones, 'VIVIENDA') || (residentialUse ? '1' : '');
   const floorSurfaces = floorSurfaceSummary(item.construcciones, 'VIVIENDA');
   const builtSurface = item.superficieCatastral || viviendaSurface || '';
-  const residentialUse = String(item.uso || '').toLowerCase().includes('residencial');
   return compactPatch({
     'admin.localizacion.referenciaCatastral': reference,
     'admin.localizacion.nombreEdificio': address,
