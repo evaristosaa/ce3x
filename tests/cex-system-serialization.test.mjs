@@ -508,6 +508,8 @@ test('removes inherited improvement packages from a new CEX export', () => {
   assert.equal(cleaned.includes('iMedidasDeMejora.objetoGrupoMejoras'), false);
   assert.equal(cleaned.includes('CONJUNTO DE MEJORAS 1'), false);
   assert.equal(cleaned.includes('CONJUNTO DE MEJORAS 2'), false);
+  assert.match(cleaned, /\(lp0\r\n\./);
+  assert.match(cleaned, /\(lp0\r\n\(lp1\r\na\(lp2\r\n/);
   assert.match(cleaned, /^S'CEXv2\.3 Residencial'/);
 });
 
