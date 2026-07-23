@@ -36,7 +36,7 @@
         </label>
       </div>
       <form id="chatForm" class="chat-form">
-        <textarea id="chatInput" rows="4" placeholder="Ej: superficie Ãºtil habitable 149.40, ventilaciÃ³n del inmueble 0.63, demanda diaria ACS 120, cliente Juan PÃ©rez"></textarea>
+        <textarea id="chatInput" rows="4" placeholder="Ej: superficie útil habitable 149.40, ventilación del inmueble 0.63, demanda diaria ACS 120, cliente Juan Pérez"></textarea>
         <div class="chat-actions">
           <button type="submit">Enviar</button>
           <button id="voiceBtn" type="button" class="secondary">Dictar</button>
@@ -71,7 +71,7 @@
           <div class="detail-actions">
             <button id="saveDetailBtn" type="submit" form="detailForm">Guardar detalle</button>
             <button id="catastroBtn" type="button" class="secondary">Traer Catastro</button>
-            <button id="catastroMapBtn" type="button" class="secondary" title="Abrir la cartografÃ­a del Catastro">CartografÃ­a Catastro</button>
+            <button id="catastroMapBtn" type="button" class="secondary" title="Abrir la cartografía del Catastro">Cartografía Catastro</button>
             <button id="catastro3dBtn" type="button" class="secondary" title="Abrir el Visor 3D del Catastro">Visor3D Catastro</button>
             <button id="autoEnvelopeBtn" type="button" class="secondary">Autocompletar envolvente</button>
             <button id="autoSystemsBtn" type="button" class="secondary">Autocompletar instalaciones</button>
@@ -106,7 +106,7 @@
       <p>La app trabaja solo con Google Sheets. Sin URL no se cargan ni se guardan expedientes.</p>
       <div class="form-actions">
         <button type="submit">Guardar config</button>
-        <button type="button" class="secondary" id="testConfigBtn">Probar conexiÃ³n</button>
+        <button type="button" class="secondary" id="testConfigBtn">Probar conexión</button>
         <button type="button" class="secondary" id="copyConfigLinkBtn">Copiar enlace config</button>
         <button type="button" class="secondary" id="closeConfigBtn">Cerrar</button>
       </div>
@@ -117,7 +117,7 @@
     <form method="dialog" id="copyDataForm">
       <h2>Copiar datos</h2>
       <label>Expediente origen<select name="sourceId" id="copySourceSelect"></select></label>
-      <p>Se copiarÃ¡n Envolvente tÃ©rmica e Instalaciones al expediente abierto.</p>
+      <p>Se copiarán Envolvente térmica e Instalaciones al expediente abierto.</p>
       <div class="form-actions">
         <button type="submit">Guardar copia</button>
         <button type="button" class="secondary" id="closeCopyDataBtn">Cancelar</button>
@@ -129,7 +129,7 @@
     <form method="dialog" id="newRecordForm">
       <h2>Nuevo expediente</h2>
       <fieldset class="new-record-options">
-        <legend>Elige una Ãºnica forma de cargarlo</legend>
+        <legend>Elige una única forma de cargarlo</legend>
         <label class="new-record-option">
           <input type="radio" name="newRecordMode" value="catastro" checked>
           <span>
@@ -149,7 +149,7 @@
       <label id="newRecordFileField" hidden>Archivo .cex
         <input name="cexFile" type="file" accept=".cex,application/octet-stream">
       </label>
-      <p id="newRecordHelp" class="dialog-help">Se crearÃ¡ el expediente y se consultarÃ¡ Catastro automÃ¡ticamente.</p>
+      <p id="newRecordHelp" class="dialog-help">Se creará el expediente y se consultará Catastro automáticamente.</p>
       <p id="newRecordStatus" class="dialog-status" role="status" aria-live="polite" hidden></p>
       <div class="form-actions">
         <button type="submit" id="createNewRecordBtn"><span class="button-spinner" aria-hidden="true"></span><span id="createNewRecordBtnLabel">Crear expediente</span></button>
@@ -159,6 +159,6 @@
   </dialog>
 
     <script src="cex-import.js?v=20260722-large-patch-form"></script>
-  <script src="app.js?v=20260723-cex-pickle-legacy-3"></script>
+  <script src="app.js?v=20260723-utf8-cex-4"></script>
 </body>
 </html>
