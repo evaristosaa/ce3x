@@ -360,6 +360,7 @@ test('reads the real Consulta_DNPRC construction list nested inside bico.bi', ()
   }));
 
   assert.equal(result.plantas, '2');
+  assert.equal(result.superficieVivienda, '88');
   assert.equal(result.construcciones.map(row => row.planta).join(','), '00,00,01');
 });
 
