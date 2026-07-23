@@ -2904,9 +2904,9 @@ function stripCexImprovements(text) {
   if (stream10Start < 0) return text;
   // Keep protocol-0 memo markers: CE3X expects the same pickle shape even
   // when the improvement packages are empty.
-  const emptyList = `(lp0${lineEnding}.`;
+  const emptyList = `(lp0${lineEnding}`;
   const blankValues = `(lp2${lineEnding}${cexPickleString('')}p3${lineEnding}${'ag3'.repeat(9)}a`;
-  const emptySummary = `(lp0${lineEnding}(lp1${lineEnding}a${blankValues}a(lp4${lineEnding}aNa.`;
+  const emptySummary = `(lp0${lineEnding}(lp1${lineEnding}a${blankValues}a(lp4${lineEnding}aNa`;
   const emptyStreams = [emptyList, emptySummary, emptyList, emptyList, emptyList]
     .map(value => `${value}.`)
     .join('');
