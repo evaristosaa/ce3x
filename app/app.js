@@ -2335,6 +2335,7 @@ function catastroPatchFromData(item) {
     'generales.definicion.masaParticionesInternas': 'Ligera',
     'generales.definicion.imagenEdificio': item.imagenEdificio || item.streetViewImage || '',
     'generales.definicion.planoSituacion': item.planoSituacion || item.situationPlanImage || situationMapUrl || (reference ? `Catastro: ${reference}` : ''),
+    'catastro.planoSituacionVersion': '2',
     'catastro.x': x,
     'catastro.y': y,
     'catastro.srs': srs,
@@ -2556,6 +2557,7 @@ function emptyOnlyPatch(record, patch) {
       const compatibleCurrent = cexCompatibleLocality(currentValue, province);
       if (normalizeText(compatibleCurrent) !== normalizeText(currentValue)) return true;
     }
+    if (path === 'generales.definicion.planoSituacion' && patch?.['catastro.planoSituacionVersion'] === '2') return true;
     if (isImageFieldPath(path) && isDataImageValue(value) && !isDataImageValue(currentValue)) return true;
     if (path.includes('.')) return !hasValue(valueAt(current, path));
     return !hasValue(current[path]) && !hasValue(current.data?.[path]);

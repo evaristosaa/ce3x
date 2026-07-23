@@ -664,6 +664,7 @@ test('maps Catastro data and fills reviewable CE3X estimates', () => {
   assert.equal(patch['catastro.superficiePlantaInferior'], '17');
   assert.equal(patch['catastro.superficiePlantaMayor'], '75');
   assert.equal(patch['generales.definicion.planoSituacion'], 'data:image/png;base64,iVBORw0KGgoCATASTROMAP');
+  assert.equal(patch['catastro.planoSituacionVersion'], '2');
   assert.equal(patch['generales.datos.normativaVigente'], 'NBE-CT-79');
 });
 
@@ -844,6 +845,18 @@ test('allows Catastro image data to replace non-image placeholders', () => {
     filtered['generales.definicion.planoSituacion'],
     'data:image/png;base64,iVBORw0KGgoREALPLAN',
   );
+});
+
+test('refreshes the Catastro situation plan when its generated version changes', () => {
+  const { emptyOnlyPatch } = loadCexHelpers();
+  const filtered = emptyOnlyPatch(
+    { data: { 'generales.definicion.planoSituacion': 'data:image/png;base64,OLDPLAN' } },
+    {
+      'generales.definicion.planoSituacion': 'data:image/png;base64,CLOSEPLAN',
+      'catastro.planoSituacionVersion': '2',
+    },
+  );
+  assert.equal(filtered['generales.definicion.planoSituacion'], 'data:image/png;base64,CLOSEPLAN');
 });
 
 test('verifies flat Google Sheet fields outside nested CE3X data', () => {
