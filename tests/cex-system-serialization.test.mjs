@@ -308,12 +308,12 @@ test('exports current administrative fields and habitable floors from the full C
 
   const parsed = parseCexRecordData(output);
   assert.equal(parsed['admin.localizacion.referenciaCatastral'], '8676623QB4387N0001EU');
-  assert.equal(parsed['admin.localizacion.localidad'], 'Sevilla');
+  assert.equal(parsed['admin.localizacion.localidad'], 'Otro');
   assert.equal(parsed['admin.localizacion.codigoPostal'], '41805');
   assert.equal(parsed['generales.definicion.numeroPlantasHabitables'], '2');
   assert.equal(parsed['generales.datos.normativaVigente'], 'NBE-CT-79');
   assert.equal(parsed['generales.datos.anioConstruccion'], '2002');
-  assert.equal(parsed['generales.datos.localidad'], 'Sevilla');
+  assert.equal(parsed['generales.datos.localidad'], 'Otro');
   assert.equal(parsed['generales.datos.zonaClimaticaHE4'], 'V');
 });
 

@@ -4498,11 +4498,26 @@ function cexLocality(value) {
 
 function cexCompatibleLocality(value, province = '') {
   const locality = cexLocality(value);
-  const overrides = {
-    benacazon: 'Sevilla',
-  };
-  const compatible = overrides[normalizeText(locality)];
-  if (compatible) return compatible;
+  if (normalizeText(province) === 'sevilla') {
+    const sevillaLocalities = {
+      alcala_de_guadaira: 'Alcalá de Guadaira',
+      camas: 'Camas',
+      carmona: 'Carmona',
+      coria_del_rio: 'Coria del Río',
+      dos_hermanas: 'Dos Hermanas',
+      ecija: 'Écija',
+      lebrija: 'Lebrija',
+      mairena_del_aljarafe: 'Mairena del Aljarafe',
+      moron_de_la_frontera: 'Morón de la Frontera',
+      los_palacios_y_villafranca: 'Los Palacios y Villafranca',
+      la_rinconada: 'La Rinconada',
+      san_juan_de_aznalfarache: 'San Juan de Aznalfarache',
+      sevilla: 'Sevilla',
+      utrera: 'Utrera',
+      otro: 'Otro',
+    };
+    return sevillaLocalities[normalizeText(locality).trim().replace(/\s+/g, '_')] || 'Otro';
+  }
   return locality || titleCase(province);
 }
 
