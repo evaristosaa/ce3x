@@ -878,7 +878,13 @@ function selectedRecordWithCurrentReference() {
 function inputHtml(item, path, value) {
   if (item.type === 'table') return tableHtml(item, path, value);
   if (item.type === 'textarea') return `<textarea name="${escapeHtml(path)}" rows="5">${escapeHtml(value)}</textarea>`;
-  if (item.type === 'select') return selectHtml(path, value, selectOptionsForField(item, path));
+  if (item.type === 'select') {
+    const options = selectOptionsForField(item, path);
+    const selectedValue = item.optionsKey === 'localidad' && options.length
+      ? cexCompatibleLocality(value, provinceForLocalityPath(path))
+      : value;
+    return selectHtml(path, selectedValue, options);
+  }
   if (item.type === 'image') return imageInputHtml(path, value);
   const type = item.type === 'number' ? 'text' : item.type;
   const unit = item.unit ? `<small>${escapeHtml(item.unit)}</small>` : '';
@@ -887,10 +893,13 @@ function inputHtml(item, path, value) {
 
 function selectOptionsForField(item, path) {
   if (item.optionsKey !== 'localidad') return SELECT_OPTIONS[item.optionsKey] || [];
+  return ce3xLocalitiesForProvince(provinceForLocalityPath(path));
+}
+
+function provinceForLocalityPath(path) {
   const provincePath = path.replace(/\.localidad$/, '.provincia');
   const provinceInput = detailForm.elements.namedItem(provincePath);
-  const province = provinceInput?.value || valueAt(selectedRecord(), provincePath);
-  return ce3xLocalitiesForProvince(province);
+  return provinceInput?.value || valueAt(selectedRecord(), provincePath);
 }
 
 function ce3xCatalogProvince(value) {
@@ -2291,7 +2300,7 @@ function catastroPatchFromData(item) {
   const reference = normalizeReference(item.referenciaCatastral || '');
   const address = item.direccion || '';
   const provincia = titleCase(item.provincia || '');
-  const localidad = item.localidad || '';
+  const localidad = cexCompatibleLocality(item.localidad || '', provincia);
   const codigoPostal = item.codigoPostal || '';
   const x = String(item.x || '').trim();
   const y = String(item.y || '').trim();
@@ -2538,6 +2547,12 @@ function emptyOnlyPatch(record, patch) {
   return Object.fromEntries(Object.entries(patch || {}).filter(([path, value]) => {
     if (!hasValue(value)) return false;
     const currentValue = path.includes('.') ? valueAt(current, path) : (current[path] ?? current.data?.[path]);
+    if (path.endsWith('.localidad')) {
+      const provincePath = path.replace(/\.localidad$/, '.provincia');
+      const province = patch?.[provincePath] || valueAt(current, provincePath);
+      const compatibleCurrent = cexCompatibleLocality(currentValue, province);
+      if (normalizeText(compatibleCurrent) !== normalizeText(currentValue)) return true;
+    }
     if (isImageFieldPath(path) && isDataImageValue(value) && !isDataImageValue(currentValue)) return true;
     if (path.includes('.')) return !hasValue(valueAt(current, path));
     return !hasValue(current[path]) && !hasValue(current.data?.[path]);

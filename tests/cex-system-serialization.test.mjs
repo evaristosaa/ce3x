@@ -665,6 +665,37 @@ test('maps Catastro data and fills reviewable CE3X estimates', () => {
   assert.equal(patch['generales.datos.normativaVigente'], 'NBE-CT-79');
 });
 
+test('maps unsupported Catastro localities to CE3X Otro', () => {
+  const { catastroPatchFromData, emptyOnlyPatch } = loadCexHelpers();
+  const unsupported = catastroPatchFromData({
+    provincia: 'SEVILLA',
+    localidad: 'BENACAZON',
+  });
+  const supported = catastroPatchFromData({
+    provincia: 'SEVILLA',
+    localidad: 'DOS HERMANAS',
+  });
+
+  assert.equal(unsupported['admin.localizacion.localidad'], 'Otro');
+  assert.equal(unsupported['admin.cliente.localidad'], 'Otro');
+  assert.equal(unsupported['generales.datos.localidad'], 'Otro');
+  assert.equal(supported['admin.localizacion.localidad'], 'Dos Hermanas');
+
+  const corrected = emptyOnlyPatch(
+    {
+      data: {
+        'admin.localizacion.provincia': 'Sevilla',
+        'admin.localizacion.localidad': 'BENACAZON',
+      },
+    },
+    {
+      'admin.localizacion.provincia': 'Sevilla',
+      'admin.localizacion.localidad': 'Otro',
+    },
+  );
+  assert.equal(corrected['admin.localizacion.localidad'], 'Otro');
+});
+
 test('uses the lowest and largest Catastro floor surfaces for soil and roof', () => {
   const { estimatedEnvelopePatch } = loadCexHelpers();
   const patch = estimatedEnvelopePatch({
