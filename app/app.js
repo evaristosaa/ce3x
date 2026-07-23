@@ -3006,7 +3006,7 @@ function cexPatchMode() {
 
 function applyCexAdminLegacyReplacements(text, record) {
   const data = record.data || {};
-  const locality = cexLocality(data['admin.localizacion.localidad']);
+  const locality = cexCompatibleLocality(data['admin.localizacion.localidad'], data['admin.localizacion.provincia']);
   let next = text;
   next = replaceFirstMemoValue(next, 'p6', cexAppendString(data['admin.cliente.nombreRazonSocial']));
   next = replaceFirstMemoValue(next, 'p8', cexAppendString(data['admin.cliente.telefono']));
@@ -3037,7 +3037,7 @@ function applyCexAdminLegacyReplacements(text, record) {
 function applyCexAdminReplacements(text, record) {
   const data = record.data || {};
   const append = value => cexAppendString(value);
-  const locality = cexLocality(data['admin.localizacion.localidad']);
+  const locality = cexCompatibleLocality(data['admin.localizacion.localidad'], data['admin.localizacion.provincia']);
   const replacements = [
     ['p1', cexString(data['admin.localizacion.nombreEdificio'])],
     ['p2', append(data['admin.localizacion.direccion'])],
@@ -3082,7 +3082,7 @@ function applyCexGeneralReplacements(text, record) {
   const data = record.data || {};
   let next = text;
   const buildingType = cexBuildingType(data['generales.datos.tipoEdificio']);
-  const locality = cexLocality(data['generales.datos.localidad']);
+  const locality = cexCompatibleLocality(data['generales.datos.localidad'], data['generales.datos.provincia']);
   const he4Zone = cexHe4Zone(data['generales.datos.zonaClimaticaHE4']);
   next = applyCexInputGeneralReplacements(next, record);
   const generalReplacements = [
@@ -4494,6 +4494,16 @@ function cexLocality(value) {
     benacazon: 'Benacazón',
   };
   return overrides[normalizeText(locality)] || locality;
+}
+
+function cexCompatibleLocality(value, province = '') {
+  const locality = cexLocality(value);
+  const overrides = {
+    benacazon: 'Sevilla',
+  };
+  const compatible = overrides[normalizeText(locality)];
+  if (compatible) return compatible;
+  return locality || titleCase(province);
 }
 
 function cexHe4Zone(value) {

@@ -56,6 +56,11 @@ function loadCexHelpers() {
 globalThis.__cexHelpers = {
   alignCexEnvelopeReferences,
   applyCexReplacements,
+  applyCexAdminReplacements,
+  applyCexGeneralReplacements,
+  applyCexEnvelopeStreamReplacement,
+  applyCexSystemsStreamReplacement,
+  stripCexImprovements,
   catastroPatchFromData,
   catastroCartographyUrl,
   catastro3dUrl,
@@ -87,8 +92,8 @@ function loadCexImportHelpers() {
   const context = {};
   context.globalThis = context;
   vm.createContext(context);
-  vm.runInContext(`${source}
-globalThis.__cexImportHelpers = { parseCexRecordData };`, context);
+vm.runInContext(`${source}
+globalThis.__cexImportHelpers = { parseCexRecordData, parseCexPickleStreams };`, context);
   return context.__cexImportHelpers;
 }
 
@@ -263,7 +268,7 @@ test('exports CE3X-compatible building type values in all general fields', () =>
 
 test('exports current administrative fields and habitable floors from the full CEX template', () => {
   const { applyCexReplacements } = loadCexHelpers();
-  const { parseCexRecordData } = loadCexImportHelpers();
+  const { parseCexRecordData, parseCexPickleStreams } = loadCexImportHelpers();
   const source = readFileSync(new URL('../app/templates/base.cex', import.meta.url), 'latin1');
   const output = applyCexReplacements(source, {
     data: {
@@ -290,7 +295,7 @@ test('exports current administrative fields and habitable floors from the full C
       'generales.datos.provincia': 'Sevilla',
       'generales.datos.localidad': 'BENACAZON',
       'generales.datos.zonaClimaticaHE1': 'B4',
-      'generales.datos.zonaClimaticaHE4': 'V',
+      'generales.datos.zonaClimaticaHE4': '',
       'generales.datos.anioConstruccion': '2002',
       'generales.definicion.superficieUtilHabitable': '108',
       'generales.definicion.alturaLibrePlanta': '2.70',
@@ -303,12 +308,13 @@ test('exports current administrative fields and habitable floors from the full C
 
   const parsed = parseCexRecordData(output);
   assert.equal(parsed['admin.localizacion.referenciaCatastral'], '8676623QB4387N0001EU');
-  assert.equal(parsed['admin.localizacion.localidad'], 'Benacazon');
+  assert.equal(parsed['admin.localizacion.localidad'], 'Sevilla');
   assert.equal(parsed['admin.localizacion.codigoPostal'], '41805');
   assert.equal(parsed['generales.definicion.numeroPlantasHabitables'], '2');
   assert.equal(parsed['generales.datos.normativaVigente'], 'NBE-CT-79');
   assert.equal(parsed['generales.datos.anioConstruccion'], '2002');
-  assert.equal(parsed['generales.datos.localidad'], 'Benacazon');
+  assert.equal(parsed['generales.datos.localidad'], 'Sevilla');
+  assert.equal(parsed['generales.datos.zonaClimaticaHE4'], 'V');
 });
 
 test('returns an explicit residential floor count from Catastro constructions', () => {
@@ -508,10 +514,55 @@ test('removes inherited improvement packages from a new CEX export', () => {
   assert.equal(cleaned.includes('iMedidasDeMejora.objetoGrupoMejoras'), false);
   assert.equal(cleaned.includes('CONJUNTO DE MEJORAS 1'), false);
   assert.equal(cleaned.includes('CONJUNTO DE MEJORAS 2'), false);
-  assert.match(cleaned, /\(lp0\r\n\./);
-  assert.match(cleaned, /\(lp0\r\n\(lp1\r\na\(lp2\r\n/);
+  assert.match(cleaned, /\(l\./);
+  assert.match(cleaned, /\(l\(la\(lV\r?\n/);
   assert.equal(cleaned.includes('..(lp0\r\n'), false);
   assert.match(cleaned, /^S'CEXv2\.3 Residencial'/);
+});
+
+test('keeps the general image slots valid after a full CEX export', () => {
+  const { applyCexReplacements } = loadCexHelpers();
+  const { parseCexRecordData } = loadCexImportHelpers();
+  const source = readFileSync(new URL('../app/templates/base.cex', import.meta.url), 'latin1');
+  const original = parseCexRecordData(source);
+  const data = {
+    ...original,
+    'admin.localizacion.localidad': 'Benacazon',
+    'generales.datos.localidad': 'Benacazon',
+    'generales.datos.normativaVigente': 'NBE-CT-79',
+    'generales.definicion.superficieUtilHabitable': '88',
+    'generales.definicion.alturaLibrePlanta': '2.70',
+    'generales.definicion.numeroPlantasHabitables': '2',
+    'generales.datos.anioConstruccion': '2002',
+  };
+  const exported = applyCexReplacements(source, { data });
+  const imported = parseCexRecordData(exported);
+  assert.match(imported['generales.definicion.imagenEdificio'], /^(?:data:image\/(?:png|jpeg);base64,)?(?:iVBORw0KGgo|\/9j\/)/);
+  assert.match(imported['generales.definicion.planoSituacion'], /^(?:data:image\/(?:png|jpeg);base64,)?(?:iVBORw0KGgo|\/9j\/)/);
+  assert.equal(exported.includes('..(lp0\r\n'), false);
+  assert.equal(exported.includes('iMedidasDeMejora.objetoGrupoMejoras'), false);
+});
+
+
+test('keeps exported image slots valid after administrative replacements', () => {
+  const { applyCexReplacements } = loadCexHelpers();
+  const { parseCexRecordData } = loadCexImportHelpers();
+  const source = readFileSync(new URL('../app/templates/base.cex', import.meta.url), 'latin1');
+  const original = parseCexRecordData(source);
+  const data = {
+    ...original,
+    'admin.localizacion.localidad': 'Benacazon',
+    'generales.datos.localidad': 'Benacazon',
+    'generales.datos.normativaVigente': 'NBE-CT-79',
+    'generales.definicion.superficieUtilHabitable': '88',
+    'generales.definicion.alturaLibrePlanta': '2.70',
+    'generales.definicion.numeroPlantasHabitables': '2',
+    'generales.datos.anioConstruccion': '2002',
+  };
+  const imported = parseCexRecordData(applyCexReplacements(source, { data }));
+
+  assert.match(imported['generales.definicion.imagenEdificio'], /^(?:data:image\/(?:png|jpeg);base64,)?(?:iVBORw0KGgo|\/9j\/)/);
+  assert.match(imported['generales.definicion.planoSituacion'], /^(?:data:image\/(?:png|jpeg);base64,)?(?:iVBORw0KGgo|\/9j\/)/);
 });
 
 test('keeps estimated envelope compatible with the CE3X reference shape', () => {
