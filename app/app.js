@@ -2463,45 +2463,47 @@ function catastroSituationPlanPng(model) {
   ctx.font = '20px Arial, sans-serif';
   wrapCanvasText(ctx, model.subtitle || model.reference, 52, 118, 760, 26);
 
-  ctx.strokeStyle = '#e8d8bf';
-  ctx.lineWidth = 1;
-  for (let x = 80; x < 840; x += 76) {
+  // Fallback when the official Catastro WMS image is unavailable. It keeps
+  // the same close scale as the WMS map: target plot plus direct neighbours.
+  const plots = [
+    [[120, 200], [290, 185], [310, 300], [135, 320]],
+    [[305, 185], [485, 170], [500, 286], [320, 302]],
+    [[500, 170], [690, 190], [680, 300], [515, 286]],
+    [[705, 192], [800, 210], [790, 325], [695, 302]],
+    [[110, 335], [285, 332], [300, 465], [115, 480]],
+    [[300, 320], [505, 305], [520, 465], [310, 480]],
+    [[525, 305], [700, 320], [690, 470], [535, 465]],
+    [[705, 325], [800, 340], [790, 480], [705, 470]],
+  ];
+  ctx.fillStyle = '#f5e9d5';
+  ctx.strokeStyle = '#bb9580';
+  ctx.lineWidth = 3;
+  plots.forEach(points => {
     ctx.beginPath();
-    ctx.moveTo(x, 170);
-    ctx.lineTo(x + 90, 540);
-    ctx.stroke();
-  }
-  for (let y = 190; y < 540; y += 58) {
-    ctx.beginPath();
-    ctx.moveTo(70, y);
-    ctx.lineTo(830, y - 28);
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = '#b9a889';
-  ctx.lineWidth = 9;
-  [[80, 450, 810, 220], [120, 245, 780, 420], [420, 175, 390, 540]].forEach(([x1, y1, x2, y2]) => {
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
+    points.forEach(([x, y], index) => {
+      if (index) ctx.lineTo(x, y);
+      else ctx.moveTo(x, y);
+    });
+    ctx.closePath();
+    ctx.fill();
     ctx.stroke();
   });
 
-  ctx.fillStyle = 'rgba(45, 107, 83, 0.16)';
+  ctx.fillStyle = 'rgba(45, 107, 83, 0.30)';
   ctx.strokeStyle = '#0f6b4d';
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 6;
   ctx.beginPath();
-  ctx.moveTo(412, 294);
-  ctx.lineTo(510, 278);
-  ctx.lineTo(545, 364);
-  ctx.lineTo(440, 386);
+  [[300, 320], [505, 305], [520, 465], [310, 480]].forEach(([x, y], index) => {
+    if (index) ctx.lineTo(x, y);
+    else ctx.moveTo(x, y);
+  });
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
   ctx.fillStyle = '#d81e1e';
   ctx.beginPath();
-  ctx.arc(480, 332, 13, 0, Math.PI * 2);
+  ctx.arc(410, 388, 15, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 4;
@@ -2509,10 +2511,11 @@ function catastroSituationPlanPng(model) {
 
   ctx.fillStyle = '#111827';
   ctx.font = 'bold 18px Arial, sans-serif';
-  ctx.fillText('Parcela catastral', 516, 326);
+  ctx.fillText('Parcela de referencia', 545, 375);
   ctx.font = '16px Arial, sans-serif';
-  ctx.fillText(`Ref. ${model.reference}`, 516, 351);
+  ctx.fillText(`Ref. ${model.reference}`, 545, 400);
   ctx.fillText(`${model.srs}: ${model.x}, ${model.y}`, 52, 574);
+  ctx.fillText('Entorno inmediato y parcelas colindantes', 52, 548);
 
   ctx.font = 'bold 20px Arial, sans-serif';
   ctx.fillText('N', 810, 105);

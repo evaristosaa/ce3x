@@ -649,8 +649,10 @@ function catastroWmsMapUrl_(coordinates) {
   const x = Number(String(coordinates.x || '').replace(',', '.'));
   const y = Number(String(coordinates.y || '').replace(',', '.'));
   if (!isFinite(x) || !isFinite(y)) return '';
-  const longitudeSpan = 0.0011;
-  const latitudeSpan = 0.00085;
+  // About 45 x 40 m in mainland Spain: the parcel fills the image while
+  // retaining its immediate neighbouring plots.
+  const longitudeSpan = 0.00052;
+  const latitudeSpan = 0.00038;
   const bbox = [
     x - longitudeSpan / 2,
     y - latitudeSpan / 2,
@@ -665,8 +667,8 @@ function catastroWmsMapUrl_(coordinates) {
     + '&REQUEST=GetMap'
     + '&SRS=' + encodeURIComponent(coordinates.srs || 'EPSG:4326')
     + '&BBOX=' + encodeURIComponent(bbox)
-    + '&WIDTH=800'
-    + '&HEIGHT=600'
+    + '&WIDTH=1000'
+    + '&HEIGHT=760'
     + '&LAYERS=Catastro'
     + '&STYLES='
     + '&FORMAT=image/png';

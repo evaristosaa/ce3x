@@ -101,6 +101,7 @@ function loadAppsScriptHelpers() {
   const source = readFileSync(new URL('../google-apps-script/Code.gs', import.meta.url), 'utf8');
   const context = {
     console,
+    URL,
     Utilities: {
       formatDate() { return '20260622-000000'; },
       getUuid() { return 'test-uuid'; },
@@ -114,6 +115,7 @@ function loadAppsScriptHelpers() {
   vm.runInContext(`${source}
 globalThis.__appsScriptHelpers = {
   HEADERS,
+  catastroWmsMapUrl_,
   parseCatastroJson_,
   recordToRow_,
   rowToRecord_,
@@ -534,7 +536,7 @@ test('keeps the general image slots valid after a full CEX export', () => {
     'generales.definicion.alturaLibrePlanta': '2.70',
     'generales.definicion.numeroPlantasHabitables': '2',
     'generales.datos.anioConstruccion': '2002',
-  };
+};
   const exported = applyCexReplacements(source, { data });
   const imported = parseCexRecordData(exported);
   assert.match(imported['generales.definicion.imagenEdificio'], /^(?:data:image\/(?:png|jpeg);base64,)?(?:iVBORw0KGgo|\/9j\/)/);
@@ -977,6 +979,21 @@ test('builds situation plan model from Catastro patch data', () => {
   assert.equal(model.subtitle, 'PL SEN-1 ENTRENUCLEOS 40(D), Dos Hermanas');
   assert.equal(model.x, '-5.93289982319168');
   assert.equal(model.y, '37.3044423187296');
+});
+
+test('uses a close Catastro WMS plan around the parcel', () => {
+  const { catastroWmsMapUrl_ } = loadAppsScriptHelpers();
+  const url = new URL(catastroWmsMapUrl_({
+    x: '-5.93289982319168',
+    y: '37.3044423187296',
+    srs: 'EPSG:4326',
+  }));
+  const bbox = url.searchParams.get('BBOX').split(',').map(Number);
+
+  assert.equal(url.searchParams.get('WIDTH'), '1000');
+  assert.equal(url.searchParams.get('HEIGHT'), '760');
+  assert.equal(Number((bbox[2] - bbox[0]).toFixed(5)), 0.00052);
+  assert.equal(Number((bbox[3] - bbox[1]).toFixed(5)), 0.00038);
 });
 
 test('rejects Catastro responses without building data', () => {
