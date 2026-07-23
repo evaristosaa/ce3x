@@ -706,6 +706,17 @@ test('uses the explicit Catastro residential floor count when available', () => 
   assert.equal(patch['generales.definicion.numeroPlantasHabitables'], '2');
 });
 
+test('keeps Catastro residential imports usable when construction rows are missing', () => {
+  const { catastroPatchFromData } = loadCexHelpers();
+  const patch = catastroPatchFromData({
+    uso: 'Residencial',
+    superficieCatastral: '108',
+    anioConstruccion: '2002',
+  });
+
+  assert.equal(patch['generales.definicion.numeroPlantasHabitables'], '1');
+});
+
 test('keeps existing values when applying Catastro only to empty fields', () => {
   const { emptyOnlyPatch } = loadCexHelpers();
   const filtered = emptyOnlyPatch(
