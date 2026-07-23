@@ -102,11 +102,22 @@ const CEX37_DEFAULTS = {
   ],
 };
 
+const CE3X_LOCATION_CATALOG = Object.keys(window.CE3X_LOCATION_CATALOG || {}).length
+  ? window.CE3X_LOCATION_CATALOG
+  : {
+      Sevilla: [
+        'Alcalá de Guadaira', 'Camas', 'Carmona', 'Coria del Río', 'Dos Hermanas',
+        'Écija', 'Lebrija', 'Mairena del Aljarafe', 'Morón de la Frontera',
+        'Los Palacios y Villafranca', 'La Rinconada', 'San Juan de Aznalfarache',
+        'Sevilla ', 'Utrera', 'Otro',
+      ],
+    };
+
 const SELECT_OPTIONS = {
   normativaVigente: ['Anterior', 'NBE-CT-79', 'CTE 2006', 'CTE 2013'],
   tipoEdificio: ['Unifamiliar', 'Bloque de viviendas', 'Vivienda individual', 'Terciario'],
-  provincia: ['Sevilla', 'Huelva', 'Cádiz', 'Córdoba', 'Málaga'],
-  localidad: ['Dos Hermanas', 'DOS HERMANAS', 'Benacazón', 'BENACAZÓN', 'Sevilla'],
+  provincia: Object.keys(CE3X_LOCATION_CATALOG),
+  localidad: CE3X_LOCATION_CATALOG.Sevilla || [],
   zonaClimaticaHE1: ['B4', 'A3', 'A4', 'B3', 'C3', 'C4', 'D3'],
   zonaClimaticaHE4: ['V', 'I', 'II', 'III', 'IV'],
   masaParticionesInternas: ['Ligera', 'Media', 'Pesada'],
@@ -136,7 +147,7 @@ const SECTIONS = [
       field('nombreRazonSocial', 'Nombre o razón social'),
       field('direccion', 'Dirección'),
       field('provincia', 'Provincia/Ciudad autónoma', 'select', { optionsKey: 'provincia' }),
-      field('localidad', 'Localidad'),
+      field('localidad', 'Localidad', 'select', { optionsKey: 'localidad' }),
       field('codigoPostal', 'Código Postal'),
       field('telefono', 'Teléfono'),
       field('email', 'E-mail'),
@@ -148,7 +159,7 @@ const SECTIONS = [
       field('cif', 'CIF'),
       field('direccion', 'Dirección'),
       field('provincia', 'Provincia/Ciudad autónoma', 'select', { optionsKey: 'provincia' }),
-      field('localidad', 'Localidad'),
+      field('localidad', 'Localidad', 'select', { optionsKey: 'localidad' }),
       field('codigoPostal', 'Código Postal'),
       field('telefono', 'Teléfono'),
       field('email', 'E-mail'),
@@ -867,11 +878,41 @@ function selectedRecordWithCurrentReference() {
 function inputHtml(item, path, value) {
   if (item.type === 'table') return tableHtml(item, path, value);
   if (item.type === 'textarea') return `<textarea name="${escapeHtml(path)}" rows="5">${escapeHtml(value)}</textarea>`;
-  if (item.type === 'select') return selectHtml(path, value, SELECT_OPTIONS[item.optionsKey] || []);
+  if (item.type === 'select') return selectHtml(path, value, selectOptionsForField(item, path));
   if (item.type === 'image') return imageInputHtml(path, value);
   const type = item.type === 'number' ? 'text' : item.type;
   const unit = item.unit ? `<small>${escapeHtml(item.unit)}</small>` : '';
   return `<span class="input-with-unit"><input type="${type}" name="${escapeHtml(path)}" value="${escapeHtml(value)}" autocomplete="off">${unit}</span>`;
+}
+
+function selectOptionsForField(item, path) {
+  if (item.optionsKey !== 'localidad') return SELECT_OPTIONS[item.optionsKey] || [];
+  const provincePath = path.replace(/\.localidad$/, '.provincia');
+  const provinceInput = detailForm.elements.namedItem(provincePath);
+  const province = provinceInput?.value || valueAt(selectedRecord(), provincePath);
+  return ce3xLocalitiesForProvince(province);
+}
+
+function ce3xCatalogProvince(value) {
+  const normalized = normalizeText(value);
+  return Object.keys(CE3X_LOCATION_CATALOG)
+    .find(province => normalizeText(province) === normalized) || '';
+}
+
+function ce3xLocalitiesForProvince(province) {
+  const catalogProvince = ce3xCatalogProvince(province);
+  return catalogProvince ? CE3X_LOCATION_CATALOG[catalogProvince] : [];
+}
+
+function updateLocalitySelectForProvince(provinceSelect) {
+  const localityPath = provinceSelect.name.replace(/\.provincia$/, '.localidad');
+  const localitySelect = detailForm.elements.namedItem(localityPath);
+  if (!(localitySelect instanceof HTMLSelectElement)) return;
+
+  const options = ce3xLocalitiesForProvince(provinceSelect.value);
+  const current = options.find(option => normalizeText(option) === normalizeText(localitySelect.value)) || '';
+  localitySelect.innerHTML = selectHtml(localityPath, current, options)
+    .replace(/^<select[^>]*>|<\/select>$/g, '');
 }
 
 function imageInputHtml(path, value) {
@@ -979,6 +1020,9 @@ sectionFields.addEventListener('click', event => {
 });
 
 sectionFields.addEventListener('change', event => {
+  const provinceSelect = event.target.closest('select[name$=".provincia"]');
+  if (provinceSelect) updateLocalitySelectForProvince(provinceSelect);
+
   const imageUpload = event.target.closest('[data-image-upload]');
   if (imageUpload) {
     handleImageUpload(imageUpload);
@@ -4498,27 +4542,11 @@ function cexLocality(value) {
 
 function cexCompatibleLocality(value, province = '') {
   const locality = cexLocality(value);
-  if (normalizeText(province) === 'sevilla') {
-    const sevillaLocalities = {
-      alcala_de_guadaira: 'Alcalá de Guadaira',
-      camas: 'Camas',
-      carmona: 'Carmona',
-      coria_del_rio: 'Coria del Río',
-      dos_hermanas: 'Dos Hermanas',
-      ecija: 'Écija',
-      lebrija: 'Lebrija',
-      mairena_del_aljarafe: 'Mairena del Aljarafe',
-      moron_de_la_frontera: 'Morón de la Frontera',
-      los_palacios_y_villafranca: 'Los Palacios y Villafranca',
-      la_rinconada: 'La Rinconada',
-      san_juan_de_aznalfarache: 'San Juan de Aznalfarache',
-      sevilla: 'Sevilla',
-      utrera: 'Utrera',
-      otro: 'Otro',
-    };
-    return sevillaLocalities[normalizeText(locality).trim().replace(/\s+/g, '_')] || 'Otro';
-  }
-  return locality || titleCase(province);
+  const localities = ce3xLocalitiesForProvince(province);
+  if (!localities.length) return locality || titleCase(province);
+  return localities.find(option => normalizeText(option) === normalizeText(locality))
+    || localities.find(option => normalizeText(option) === 'otro')
+    || localities[0];
 }
 
 function cexHe4Zone(value) {
