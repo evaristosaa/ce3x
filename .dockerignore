@@ -1,0 +1,5 @@
+**
+!app/
+!app/report_service.py
+!render-pdf/
+!render-pdf/**

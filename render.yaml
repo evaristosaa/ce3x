@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ce3x-pdf-prueba
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./render-pdf/Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeployTrigger: off
+    envVars:
+      - key: PDF_ACCESS_TOKEN
+        generateValue: true
