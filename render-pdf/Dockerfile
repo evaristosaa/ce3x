@@ -3,7 +3,7 @@ FROM debian:trixie-slim
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-gunicorn wine wine64 xvfb xauth ca-certificates \
-    fonts-dejavu-core fonts-liberation \
+    fonts-dejavu-core fonts-liberation poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv/pdf
@@ -24,6 +24,8 @@ COPY render-pdf/start.sh ./start.sh
 RUN chmod +x start.sh
 USER app
 # Fail the build if the official sample cannot produce a PDF with Wine/Java.
-RUN xvfb-run -a sh -c 'wineboot -u >/dev/null 2>&1 && python3 smoke.py'
+RUN mkdir -p "$WINEPREFIX/drive_c/windows/Fonts" \
+    && find /usr/share/fonts -type f -name '*.ttf' -exec cp {} "$WINEPREFIX/drive_c/windows/Fonts/" \; \
+    && xvfb-run -a sh -c 'wineboot -u >/dev/null 2>&1 && python3 smoke.py'
 EXPOSE 10000
 CMD ["./start.sh"]
