@@ -1,9 +1,11 @@
 FROM debian:trixie-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sed -i 's/Components: main/Components: main contrib/' /etc/apt/sources.list.d/debian.sources \
+    && echo 'ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true' | debconf-set-selections \
+    && apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-gunicorn wine wine64 xvfb xauth ca-certificates \
-    fonts-dejavu-core fonts-liberation poppler-utils \
+    fonts-dejavu-core fonts-liberation ttf-mscorefonts-installer poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv/pdf
