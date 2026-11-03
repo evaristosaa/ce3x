@@ -7,20 +7,27 @@ datos del técnico, configuración de Google Sheets ni claves de la app.
 
 - El XML real de Joaquín Sorolla ya produjo un PDF de 16 páginas en Windows.
 - Este contenedor Linux prueba los ejecutables oficiales Windows con Wine.
-- No se ha validado todavía en Docker/Render: el equipo local no tiene Docker
-  ni WSL instalado. La prueba de compilación genera el ejemplo público del
-  fabricante y aborta si no funciona. No se usan datos de clientes para ello.
+- Validado en Render Free el 3 de noviembre de 2026 con el ejemplo público
+  del fabricante: HTTP 200, 299515 bytes, 15 páginas, 18 segundos. Se revisaron
+  textos y escalas energéticas. Las peticiones sin clave reciben HTTP 401.
+- Wine requiere fuentes en su carpeta Windows, incluidas las fuentes estándar
+  de Microsoft para las escalas SVG. La construcción comprueba también sus cifras.
+- No se han enviado XML de clientes. Falta validar cada expediente real y la
+  integración con la app principal; esta web acepta XML, no calcula desde CEX.
 - El paquete oficial solo publica binarios Windows; el repositorio de fuentes
   enlazado desde el IETcc pide iniciar sesión. Una compilación Linux nativa
   sería preferible cuando se consiga acceso a las fuentes.
 
 ## Creación en Render
 
-Conectar Render y autorizar el repositorio privado que contenga este paquete.
+Servicio de prueba: https://ce3x-pdf-prueba.onrender.com
+Rama aislada: `codex/render-pdf-free-20261103` del repositorio `evaristosaa/ce3x`.
+La rama principal y la app publicada no se han sustituido.
 Usar `render.yaml`, que fija `plan: free`, región Frankfurt y autodespliegue
 desactivado. No pasar a un plan de pago sin autorización de la usuaria.
 
-Render genera `PDF_ACCESS_TOKEN`; los usuarios autorizados lo introducen en
+La clave aleatoria `PDF_ACCESS_TOKEN` está en Environment del servicio en Render;
+los usuarios autorizados la introducen en
 el formulario. No se incluye en la URL, el código, localStorage ni los logs.
 
 Probar primero el ejemplo oficial incluido en `/opt/xmlcert/examples/`.
@@ -30,8 +37,8 @@ de páginas y renderizado antes de utilizar XML de expedientes reales.
 ## Recursos y límites
 
 Un trabajador y dos hilos HTTP; solo una conversión simultánea. Heap de Java
-limitado a 128 MB. Render Free tiene 512 MB de RAM y 0.1 CPU; todavía no se
-ha confirmado que el proceso completo (Wine, Java, XmlCert) se ajuste a ellos.
+limitado a 128 MB. Render Free tiene 512 MB de RAM y 0.1 CPU. El ejemplo
+se ha convertido dentro de ese plan; esto no garantiza todos los expedientes.
 Si se queda sin memoria o no funciona con Wine, la prueba habrá fallado y no
 se activará ningún recurso de pago automáticamente.
 

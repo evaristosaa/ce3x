@@ -21,5 +21,7 @@ if not pdf.startswith(b'%PDF-') or len(pdf) < 10000:
 text = subprocess.run(['pdftotext', '-', '-'], input=pdf, capture_output=True, check=True).stdout.decode('utf-8')
 if len(text.strip()) < 1000 or 'CERTIFICADO' not in text.upper():
     raise RuntimeError('Official example PDF has missing text/fonts')
+if '51.5' not in text or '187.5' not in text:
+    raise RuntimeError('Official example PDF has missing energy scale labels')
 print('SMOKE_OK: XmlCert 0.7.0 + Temurin 17 + Wine generated the official example with readable text.')
 
