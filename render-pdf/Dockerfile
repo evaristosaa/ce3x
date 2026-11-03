@@ -1,9 +1,9 @@
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-gunicorn wine wine64 xvfb xauth ca-certificates \
-    fonts-dejavu-core fonts-liberation libgnutls30 \
+    fonts-dejavu-core fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv/pdf

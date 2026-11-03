@@ -96,13 +96,13 @@ def generate_report(xml_bytes):
                 raise ReportError('No se ha podido iniciar el generador oficial en este servidor.', 503)
             pdf = output / 'certificado.pdf'
             if result.returncode or not pdf.is_file():
-                details = result.stderr.decode('utf-8', errors='replace')[-6000:]
+                details = (result.stderr or result.stdout).decode('utf-8', errors='replace')[-6000:]
                 log = output / 'certificado.log'
                 if log.is_file():
                     details = log.read_text(encoding='utf-8', errors='replace')[-6000:] or details
                 # Do not disclose server directories in browser errors.
                 details = details.replace(str(work), '[temporal]').replace(str(renderer_path().parent), '[generador]')
-                raise ReportError('El módulo oficial no ha podido generar el PDF. ' + details)
+                raise ReportError(f'El módulo oficial no ha podido generar el PDF (salida {result.returncode}). ' + details)
             content = pdf.read_bytes()
             if not content.startswith(b'%PDF-'):
                 raise ReportError('El generador no ha devuelto un PDF válido.')
