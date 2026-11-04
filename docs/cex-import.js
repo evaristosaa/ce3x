@@ -1,8 +1,9 @@
-/* Minimal protocol-0 pickle reader for the text streams used by CE3X 2.3. */
+/* Minimal protocol-0 pickle reader for the text streams used by CE3X 2.3 and 3.2. */
 function parseCexRecordData(text) {
   const source = String(text || '').replace(/\r\n/g, '\n');
-  if (!/CEXv2\.3\s+Residencial/i.test(source)) {
-    throw new Error('El archivo no parece un CEX residencial de CE3X 2.3.');
+  const version = source.match(/^S'(?:CEXv(2\.3)|CE3Xv(3\.2)) Residencial'\n/);
+  if (!version) {
+    throw new Error('Solo se admiten archivos residenciales de CE3X 2.3 o 3.2. No se ha importado el archivo.');
   }
   const streams = parseCexPickleStreams(source, 5);
   const admin = Array.isArray(streams[1]) ? streams[1] : [];
@@ -14,6 +15,7 @@ function parseCexRecordData(text) {
   }
 
   const data = {};
+  data['cex.sourceVersion'] = version[1] || version[2];
   const set = (path, value) => {
     if (value !== undefined && value !== null) data[path] = String(value);
   };
@@ -22,11 +24,12 @@ function parseCexRecordData(text) {
 
   set('admin.localizacion.nombreEdificio', admin[0]);
   set('admin.localizacion.direccion', admin[1]);
-  set('admin.localizacion.localidad', admin[2]);
+  set('admin.localizacion.localidad', admin[2] === 'Otro' ? (admin[4] || admin[2]) : admin[2]);
   set('admin.localizacion.provincia', admin[3]);
   set('admin.localizacion.codigoPostal', admin[14]);
   set('admin.localizacion.referenciaCatastral', first(admin[15]));
   set('admin.cliente.nombreRazonSocial', admin[5]);
+  set('admin.cliente.nif', admin[6]);
   set('admin.cliente.direccion', admin[7]);
   set('admin.cliente.telefono', admin[8]);
   set('admin.cliente.email', admin[9]);
@@ -48,7 +51,7 @@ function parseCexRecordData(text) {
   set('generales.datos.normativaVigente', general[0]);
   set('generales.datos.tipoEdificio', importedBuildingType(general[1]));
   set('generales.datos.provincia', general[2]);
-  set('generales.datos.localidad', general[3]);
+  set('generales.datos.localidad', general[3] === 'Otro' ? (general[12] || general[3]) : general[3]);
   set('generales.datos.zonaClimaticaHE1', general[4]);
   set('generales.datos.zonaClimaticaHE4', general[5]);
   set('generales.definicion.superficieUtilHabitable', general[6]);
@@ -70,6 +73,11 @@ function parseCexRecordData(text) {
   data['instalaciones.calefaccion.items'] = importedSystems.calefaccion;
   data['instalaciones.refrigeracion.items'] = importedSystems.refrigeracion;
   data['instalaciones.contribuciones.items'] = importedSystems.contribuciones;
+  if (version[2]) {
+    set('admin.localizacion.gradoProteccion', admin[26]);
+    set('admin.localizacion.usoEdificio', admin[28]);
+  }
+  if (typeof cex32Snapshot === 'function') data['cex.nativeInputs'] = cex32Snapshot(source, version[1] || version[2]);
   return data;
 }
 
@@ -94,7 +102,7 @@ class CexPickleParser {
     this.source = source;
     this.index = offset;
     this.stack = [];
-    this.memo = {};
+    this.memo = Object.create(null);
   }
 
   parse() {
@@ -133,13 +141,13 @@ class CexPickleParser {
           if (mark < 0) throw new Error('marca de diccionario no encontrada');
           const values = this.stack.splice(mark + 1);
           this.stack.pop();
-          const object = {};
+          const object = Object.create(null);
           for (let index = 0; index < values.length; index += 2) object[String(values[index])] = values[index + 1];
           this.stack.push(object);
           break;
         }
         case '}':
-          this.stack.push({});
+          this.stack.push(Object.create(null));
           break;
         case ']':
           this.stack.push([]);
@@ -149,6 +157,7 @@ class CexPickleParser {
           const key = this.stack.pop();
           const object = this.stack[this.stack.length - 1];
           if (!object || typeof object !== 'object') throw new Error('diccionario SETITEM no encontrado');
+          if (['__proto__','constructor','prototype'].includes(String(key))) throw new Error('clave de diccionario no permitida');
           object[String(key)] = value;
           break;
         }
@@ -178,9 +187,9 @@ class CexPickleParser {
         case 'F': this.stack.push(Number(this.readLine())); break;
         case 'L': this.stack.push(Number(this.readLine().replace(/L$/, ''))); break;
         case 'S': this.stack.push(decodeCexPickleString(this.readLine())); break;
-        case 'V': this.stack.push(this.readLine()); break;
+        case 'V': this.stack.push(this.readLine().replace(/\\u([0-9a-fA-F]{4})|\\U([0-9a-fA-F]{8})/g, (_, u, U) => String.fromCodePoint(parseInt(u || U, 16)))); break;
         case 'p': this.memo[this.readLine()] = this.stack[this.stack.length - 1]; break;
-        case 'g': this.stack.push(this.memo[this.readLine()]); break;
+        case 'g': { const key = this.readLine(); if (!(key in this.memo)) throw new Error('referencia de memoria no encontrada'); this.stack.push(this.memo[key]); break; }
         case 'q': this.memo[this.source[this.index++]] = this.stack[this.stack.length - 1]; break;
         case 'c': {
           const module = this.readLine();
@@ -304,7 +313,7 @@ function systemAcsRow(item) {
     tipoGenerador: cexImportValue(item?.[3]), combustible: cexImportValue(item?.[4]),
     rendimientoEstacional: cexImportValue(item?.[2]?.[0]), m2Cubiertos: cexImportValue(item?.[5]?.[0]?.[0]),
     demandaCubierta: cexImportValue(item?.[5]?.[0]?.[1]), zona: cexImportValue(item?.[9]),
-    acumulacion: item?.[7]?.[0]?.[0] ? 'Si' : 'No',
+    acumulacion: item?.[8]?.[0] ? 'Sí' : 'No',
   };
 }
 
@@ -313,7 +322,7 @@ function systemClimateRow(item, index, type) {
     nombre: cexImportValue(item?.[0]), tipoEquipo: type, modoDefinicion: cexImportValue(item?.[6]),
     tipoGenerador: cexImportValue(item?.[3]), combustible: cexImportValue(item?.[4]),
     rendimientoEstacional: cexImportValue(item?.[2]?.[index]), m2Cubiertos: cexImportValue(item?.[5]?.[index]?.[0]),
-    demandaCubierta: cexImportValue(item?.[5]?.[index]?.[1]), zona: cexImportValue(item?.[8]),
+    demandaCubierta: cexImportValue(item?.[5]?.[index]?.[1]), zona: cexImportValue(item?.[item.length - 1]),
   };
 }
 

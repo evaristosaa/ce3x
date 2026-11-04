@@ -2,6 +2,17 @@
 
 Hoja principal: `referencias`
 
+Actualización 3.2 (4 noviembre 2026): 103 columnas. Las 91 históricas conservan
+sus posiciones. CN:CY añade versión de origen, entradas nativas, protección,
+uso, NIF/NIE del cliente y siete continuaciones de las entradas nativas.
+La migración `migrateSchema32()` añade columnas sin reescribir expedientes y
+crea un respaldo. `verifySchema32()` comprueba el esquema y la fragmentación.
+Apps Script publicado: versión 25, misma URL de conexión.
+
+Validación de integración: CEX sintético importado por la app; NIF cambiado y
+guardado; recarga recuperada desde Google y comprobación de las columnas nuevas.
+Esto valida captura y persistencia; no sustituye el cálculo energético.
+
 | Columna | Descripcion |
 | --- | --- |
 | id | Identificador interno UUID |

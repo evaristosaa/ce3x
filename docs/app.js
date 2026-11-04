@@ -3,22 +3,11 @@ const LOCAL_KEY = 'ce3x-captura-local-records';
 const LOCAL_BACKUP_KEY = 'ce3x-captura-local-backups';
 const LOCAL_DATA_KEYS = [LOCAL_KEY, LOCAL_BACKUP_KEY];
 const WRITE_ACTIONS = ['save', 'patch', 'delete', 'markGenerated'];
-const CASA37_REFERENCE = '0128501TG4302N0037ZI';
+const CASA37_REFERENCE = '__sin_expediente_de_ejemplo__';
 const TECHNICIAN_PATH_PREFIX = 'admin.tecnico.';
 
-const DEFAULT_TECHNICIAN = {
-  'admin.tecnico.nombre': 'JUAN JOSÉ MORENO FRESNO',
-  'admin.tecnico.razonSocial': '.',
-  'admin.tecnico.nif': '28629645G',
-  'admin.tecnico.cif': '.',
-  'admin.tecnico.direccion': 'C/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37',
-  'admin.tecnico.provincia': 'Sevilla',
-  'admin.tecnico.localidad': 'DOS HERMANAS',
-  'admin.tecnico.codigoPostal': '41704',
-  'admin.tecnico.telefono': '665379127',
-  'admin.tecnico.email': 'juanjmf8@gmail.com',
-  'admin.tecnico.titulacion': 'INGENIERO TÉCNICO DE MINAS',
-};
+// Personal technician details are loaded from private expedientes, never shipped in this bundle.
+const DEFAULT_TECHNICIAN = {};
 
 const DEFAULT_CLIENT = {
   'admin.cliente.telefono': '.',
@@ -31,34 +20,7 @@ const DEFAULT_GENERAL = {
   'generales.definicion.masaParticionesInternas': 'Ligera',
 };
 
-const CEX37_DEFAULTS = {
-  'admin.localizacion.nombreEdificio': 'PL SEN-1 ENTRENUCLEOS 40(D)',
-  'admin.localizacion.direccion': 'C/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37',
-  'admin.localizacion.provincia': 'Sevilla',
-  'admin.localizacion.localidad': 'Dos Hermanas',
-  'admin.localizacion.codigoPostal': '41704',
-  'admin.localizacion.referenciaCatastral': CASA37_REFERENCE,
-  'admin.cliente.nombreRazonSocial': 'JUAN JOSÉ MORENO FRESNO',
-  'admin.cliente.direccion': 'C/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37',
-  'admin.cliente.provincia': 'Sevilla',
-  'admin.cliente.localidad': 'DOS HERMANAS',
-  'admin.cliente.codigoPostal': '41704',
-  'admin.cliente.telefono': '665379127',
-  'admin.cliente.email': '.',
-  'generales.datos.normativaVigente': 'CTE 2013',
-  'generales.datos.anioConstruccion': '2021',
-  'generales.datos.tipoEdificio': 'Unifamiliar',
-  'generales.datos.provincia': 'Sevilla',
-  'generales.datos.localidad': 'Dos Hermanas',
-  'generales.datos.zonaClimaticaHE1': 'B4',
-  'generales.datos.zonaClimaticaHE4': 'V',
-  'generales.definicion.superficieUtilHabitable': '149.40',
-  'generales.definicion.alturaLibrePlanta': '2.60',
-  'generales.definicion.numeroPlantasHabitables': '3',
-  'generales.definicion.ventilacionInmueble': '0.63',
-  'generales.definicion.demandaDiariaACS': '120',
-  'generales.definicion.masaParticionesInternas': 'Media',
-  'generales.definicion.ensayoEstanqueidad': 'No',
+const ENVELOPE_REFERENCE_DEFAULTS = {
   'envolvente.cerramientos.items': [
     row(['Cubierta con aire', 'Cubierta', '76', '0.33', '344', 'Techo', 'Por defecto', 'Sin patrón']),
     row(['Suelo con terreno', 'Suelo', '18', '0.38', '750', 'Suelo', 'Por defecto', 'Sin patrón']),
@@ -88,18 +50,6 @@ const CEX37_DEFAULTS = {
     row(['Pilar en fachada-Muro de fachada NE', 'Muro de fachada so', 'Pilar integrado en fachada', '1.05', '13.0']),
     row(['Fachada con forjado-Muro de fachada NE', 'Muro de fachada so', 'Encuentro de fachada con forjado', '1.31', '3.9']),
   ],
-  'instalaciones.acs.items': [
-    row(['Equipo ACS', 'ACS', 'Estimado según Instalación', 'Caldera Estándar', 'Electricidad', '100.0', '149.4', '100', 'Edificio Objeto', 'Sí']),
-  ],
-  'instalaciones.calefaccion.items': [
-    row(['Calefacción y refrigeración', 'Calefacción y refrigeración', 'Estimado según Instalación', 'Bomba de Calor', 'Electricidad', '187.7', '121.7', '81.46', 'Edificio Objeto']),
-  ],
-  'instalaciones.refrigeracion.items': [
-    row(['Calefacción y refrigeración', 'Calefacción y refrigeración', 'Estimado según Instalación', 'Bomba de Calor', 'Electricidad', '142.4', '121.7', '81.46', 'Edificio Objeto']),
-  ],
-  'instalaciones.contribuciones.items': [
-    row(['Contribuciones energéticas', 'Edificio Objeto', '80', '', '', '', '', '', '10200', 'Electricidad']),
-  ],
 };
 
 const CE3X_LOCATION_CATALOG = Object.keys(window.CE3X_LOCATION_CATALOG || {}).length
@@ -114,7 +64,7 @@ const CE3X_LOCATION_CATALOG = Object.keys(window.CE3X_LOCATION_CATALOG || {}).le
     };
 
 const SELECT_OPTIONS = {
-  normativaVigente: ['Anterior', 'NBE-CT-79', 'CTE 2006', 'CTE 2013'],
+  normativaVigente: ['Anterior', 'NBE-CT-79', 'CTE 2006', 'CTE 2013', 'C.T.E.'],
   tipoEdificio: ['Unifamiliar', 'Bloque de viviendas', 'Vivienda individual', 'Terciario'],
   provincia: Object.keys(CE3X_LOCATION_CATALOG),
   localidad: CE3X_LOCATION_CATALOG.Sevilla || [],
@@ -137,14 +87,17 @@ const SECTIONS = [
   section('admin', 'Datos administrativos', [
     group('localizacion', 'Localización e identificación del edificio', ['nombreEdificio', 'direccion', 'provincia', 'localidad', 'codigoPostal', 'referenciaCatastral'], [
       field('nombreEdificio', 'Nombre del edificio'),
+      field('gradoProteccion', 'Grado de protección'),
+      field('usoEdificio', 'Uso del edificio (CE3X)', 'text'),
       field('direccion', 'Dirección'),
       field('provincia', 'Provincia/Ciudad autónoma', 'select', { optionsKey: 'provincia' }),
       field('localidad', 'Localidad', 'select', { optionsKey: 'localidad' }),
       field('codigoPostal', 'Código Postal'),
       field('referenciaCatastral', 'Referencia Catastral'),
     ]),
-    group('cliente', 'Datos del cliente', ['nombreRazonSocial', 'direccion', 'provincia', 'localidad', 'codigoPostal', 'telefono'], [
+    group('cliente', 'Datos del cliente', ['nombreRazonSocial', 'nif', 'direccion', 'provincia', 'localidad', 'codigoPostal', 'telefono', 'email'], [
       field('nombreRazonSocial', 'Nombre o razón social'),
+      field('nif', 'NIF / NIE del cliente'),
       field('direccion', 'Dirección'),
       field('provincia', 'Provincia/Ciudad autónoma', 'select', { optionsKey: 'provincia' }),
       field('localidad', 'Localidad', 'select', { optionsKey: 'localidad' }),
@@ -444,7 +397,7 @@ cleanupLocalDataStorage();
 renderTabs();
 renderStorageMode();
 loadRecords();
-addChatMessage('assistant', 'Selecciona arriba el expediente para el chat. Casa 37 queda cargado como primer expediente; todo lo que dictes irá al expediente seleccionado.');
+addChatMessage('assistant', 'Selecciona un expediente y escribe o dicta los datos de la visita. Revisa los cambios antes de exportar a CE3X 3.2.');
 
 function row(values) {
   return { values };
@@ -487,8 +440,8 @@ async function loadRecords() {
       const response = await api({ action: 'list' });
       state.records = (response.items || []).map(normalizeRecord);
     } else {
-      state.records = [];
-      showSyncAlert('Configura Google Sheet para cargar y guardar expedientes.');
+      state.records = loadLocalWorkspace();
+      showSyncAlert('Modo local: los expedientes se guardan solo en este navegador. Configura Google Sheets para trabajar entre dispositivos.');
     }
 
     ensureCasa37Record();
@@ -510,7 +463,7 @@ function ensureCasa37Record() {
   const index = state.records.findIndex(item => normalizeReference(valueAt(item, 'admin.localizacion.referenciaCatastral')) === CASA37_REFERENCE);
   if (state.config.apiUrl && index < 0 && state.records.length > 0) return;
   if (index >= 0) {
-    state.records[index] = normalizeRecord(mergeDefaults(state.records[index], CEX37_DEFAULTS));
+    state.records[index] = normalizeRecord(mergeDefaults(state.records[index], ENVELOPE_REFERENCE_DEFAULTS));
   }
 }
 
@@ -575,6 +528,10 @@ async function submitNewRecordForm(event) {
     const buffer = await file.arrayBuffer();
     const text = new TextDecoder('iso-8859-1').decode(buffer);
     const importedData = parseCexRecordData(text);
+    if (state.config.apiUrl) {
+      const schema = await api({action: 'schemaStatus'});
+      if (schema.result?.cexVersion !== '3.2' || schema.result?.missingHeaders?.length || !schema.result?.clean) throw new Error('Actualiza Apps Script con Code.gs de esta versión y ejecuta compactSchema() para migrar la hoja con copia de seguridad antes de importar. Faltan columnas o su orden no corresponde con esta app.');
+    }
     const record = await createNewRecord(true, importedData);
     newRecordDialog.close();
     addChatMessage('assistant', `Expediente creado desde ${file.name}: ${recordLabel(record)}.`);
@@ -591,9 +548,6 @@ async function submitNewRecordForm(event) {
 }
 
 async function createNewRecord(persist = true, initialData = {}) {
-  if (!state.config.apiUrl && persist) {
-    throw new Error('Configura Google Sheet antes de crear expedientes. Esta app ya no guarda expedientes en local.');
-  }
   const now = new Date().toISOString();
   const record = normalizeRecord({
     id: createId(),
@@ -606,7 +560,7 @@ async function createNewRecord(persist = true, initialData = {}) {
     const saved = await persistRecord(record);
     state.rightView = 'detail';
     selectRecord(saved, { openDetail: true });
-    addChatMessage('assistant', 'Nuevo expediente creado y guardado como borrador. Juan José queda cargado como técnico por defecto.');
+    addChatMessage('assistant', 'Nuevo expediente creado y guardado como borrador. Completa los datos del técnico certificador.');
     return saved;
   }
   selectRecord(record, { openDetail: true });
@@ -623,7 +577,7 @@ function normalizeRecord(record) {
     if (!hasValue(data[path])) data[path] = DEFAULT_CLIENT[path];
   });
   if (normalizeReference(data['admin.localizacion.referenciaCatastral']) === CASA37_REFERENCE) {
-    Object.entries(CEX37_DEFAULTS).forEach(([path, value]) => {
+    Object.entries(ENVELOPE_REFERENCE_DEFAULTS).forEach(([path, value]) => {
       if (!hasValue(data[path])) data[path] = clone(value);
     });
   }
@@ -685,11 +639,11 @@ function renderAll() {
 
 function renderStorageMode() {
   const usingSheet = Boolean(state.config.apiUrl);
-  storageMode.textContent = usingSheet ? 'Google Sheet' : 'Config pendiente';
+  storageMode.textContent = usingSheet ? 'Google Sheets' : 'Este navegador';
   storageMode.className = 'storage-mode ' + (usingSheet ? 'sheet' : 'local');
   storageMode.title = usingSheet
     ? 'Los expedientes se guardan en Google Sheets mediante Apps Script.'
-    : 'Configura Apps Script: la app no guarda expedientes en local.';
+    : 'Guardado local en este navegador. No se sincroniza con otros dispositivos.';
 }
 
 function showSyncAlert(text) {
@@ -753,13 +707,17 @@ function renderRecords() {
     ? `${records.length} expedientes`
     : `${records.length} de ${state.records.length} expedientes`;
   expedientList.innerHTML = '';
+  if (typeof updateWorkspaceSummary === 'function') updateWorkspaceSummary(state.records);
 
   if (!records.length) {
     const empty = document.createElement('div');
     empty.className = 'empty-list';
-    empty.textContent = state.records.length
-      ? 'No hay expedientes con este filtro. Prueba “Todos los estados”.'
-      : 'No hay expedientes guardados todavía.';
+    empty.innerHTML = state.records.length
+      ? '<strong>No hay coincidencias</strong><p>Prueba con otra búsqueda o cambia el estado.</p>'
+      : '<span class="empty-symbol" aria-hidden="true">⌂</span><strong>Tu próximo certificado empieza aquí</strong><p>Crea un expediente desde Catastro o importa un archivo CEX 2.3 o 3.2.</p>';
+    if (!state.records.length) {
+      const create = document.createElement('button'); create.type = 'button'; create.textContent = 'Crear mi primer expediente'; create.addEventListener('click', openNewRecordDialog); empty.appendChild(create);
+    }
     expedientList.appendChild(empty);
     return;
   }
@@ -1193,7 +1151,7 @@ async function saveDetail(event) {
     addChatMessage('assistant', `Guardado ${recordLabel(saved)}.`);
   } catch (error) {
     showSyncAlert(sheetErrorHelp(error));
-    addChatMessage('assistant', 'No he podido guardar en Google Sheet: ' + sheetErrorHelp(error));
+    addChatMessage('assistant', 'No he podido guardar: ' + sheetErrorHelp(error));
   }
 }
 
@@ -1424,12 +1382,12 @@ function estimatedEnvelopePatch(data) {
   const exposedPerimeter = perimeter * (facadeCount / 4);
   const facadeArea = exposedPerimeter * height;
   const openingArea = facadeArea * 0.22;
-  const baseSurface = Number(cexDecimal(CEX37_DEFAULTS['generales.definicion.superficieUtilHabitable'])) || 149.4;
+  const baseSurface = Number(cexDecimal(ENVELOPE_REFERENCE_DEFAULTS['generales.definicion.superficieUtilHabitable'])) || 149.4;
   const areaScale = Math.max(0.05, surface / baseSurface);
   const lengthScale = Math.sqrt(areaScale);
 
   const cerramientos = normalizeEstimatedFacadeTopology(
-    normalizeCexRows(CEX37_DEFAULTS['envolvente.cerramientos.items'], [
+    normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['envolvente.cerramientos.items'], [
       'nombre', 'tipoCerramiento', 'superficie', 'u', 'peso', 'posicion', 'modoDefinicion', 'patronSombras',
     ]),
     facadeCount,
@@ -1451,7 +1409,7 @@ function estimatedEnvelopePatch(data) {
     }
   });
 
-  let huecos = normalizeCexRows(CEX37_DEFAULTS['envolvente.huecos.items'], [
+  let huecos = normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['envolvente.huecos.items'], [
     'nombre', 'cerramientoAsociado', 'longitud', 'altura', 'multiplicador', 'superficie', 'uVidrio', 'gVidrio', 'uMarco', 'porcMarco', 'absortividadMarco', 'modoDefinicion', 'permeabilidad', 'orientacion', 'patronSombras',
   ]);
   if (hasCatastroFacadeEstimate || hasCatastroFloorEstimate) {
@@ -1472,7 +1430,7 @@ function estimatedEnvelopePatch(data) {
     });
   }
 
-  let puentes = normalizeCexRows(CEX37_DEFAULTS['envolvente.puentesTermicos.items'], [
+  let puentes = normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['envolvente.puentesTermicos.items'], [
     'nombre', 'cerramientoAsociado', 'tipoPuenteTermico', 'fi', 'longitud',
   ]);
   if (hasCatastroFacadeEstimate) {
@@ -1760,9 +1718,7 @@ async function persistRecord(record) {
   next.estado = inferStatus(next);
   addSummaryFields(next);
 
-  if (!state.config.apiUrl) {
-    throw new Error('Configura Google Sheet antes de guardar. Esta app ya no guarda expedientes en local.');
-  }
+  if (!state.config.apiUrl) return saveLocalWorkspace(next);
 
   const saved = (await api({ action: 'save', item: next })).item;
 
@@ -1784,9 +1740,7 @@ async function persistRecordPatch(record, changedPaths, options = {}) {
   next.estado = inferStatus(next);
   addSummaryFields(next);
 
-  if (!state.config.apiUrl) {
-    throw new Error('Configura Google Sheet antes de guardar. Esta app ya no guarda expedientes en local.');
-  }
+  if (!state.config.apiUrl) return saveLocalWorkspace(next);
 
   const dataPatch = {};
   changedPaths.forEach(path => {
@@ -1873,10 +1827,15 @@ async function deleteSelectedRecord() {
     return;
   }
   const label = recordLabel(record);
-  const confirmed = window.confirm(`Vas a eliminar el expediente "${label}" de Google Sheet. ¿Seguimos?`);
+  const confirmed = window.confirm(`Vas a eliminar el expediente "${label}" de ${state.config.apiUrl ? 'Google Sheets' : 'este navegador'}. ¿Seguimos?`);
   if (!confirmed) return;
 
   try {
+    if (!state.config.apiUrl) {
+      const remaining = state.records.filter(item => item.id !== record.id);
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(remaining));
+      state.records = remaining; state.selectedId = remaining[0]?.id || ''; state.rightView = 'list'; renderAll(); return;
+    }
     const deleteRequest = {
       action: 'delete',
       id: record.id,
@@ -1919,7 +1878,7 @@ async function recoverConfirmedDelete(request) {
 }
 
 function cleanupLocalDataStorage() {
-  LOCAL_DATA_KEYS.forEach(key => localStorage.removeItem(key));
+  // Preserve legacy records and backups. Switching storage must never delete user data.
 }
 
 function upsertRecord(record) {
@@ -2820,16 +2779,10 @@ async function downloadCex() {
   }
 
   try {
-    const response = await fetch('templates/base.cex');
-    if (!response.ok) throw new Error('No hay plantilla .cex publicada');
+    const response = await fetch('templates/base-3.2.cex');
+    if (!response.ok) throw new Error('No se ha podido cargar la plantilla CE3X 3.2');
     const buffer = await response.arrayBuffer();
-    if (isRawCexDiagnosticMode()) {
-      const filename = fileSafe(recordLabel(record)) + '-BASE-SIN-PARCHAR.cex';
-      downloadBlob(new Blob([buffer], { type: 'application/octet-stream' }), filename);
-      return;
-    }
-    let text = new TextDecoder('iso-8859-1').decode(buffer);
-    text = applyCexReplacements(text, record);
+    let text = buildCex32(new TextDecoder('iso-8859-1').decode(buffer), record);
     text = normalizeCexLineEndings(text);
     const filename = fileSafe(recordLabel(record)) + '.cex';
     downloadBlob(new Blob([latin1Encode(text)], { type: 'application/octet-stream' }), filename);
@@ -3012,33 +2965,8 @@ function cexPatchMode() {
 }
 
 function applyCexAdminLegacyReplacements(text, record) {
-  const data = record.data || {};
-  const locality = cexCompatibleLocality(data['admin.localizacion.localidad'], data['admin.localizacion.provincia']);
-  let next = text;
-  next = replaceFirstMemoValue(next, 'p6', cexAppendString(data['admin.cliente.nombreRazonSocial']));
-  next = replaceFirstMemoValue(next, 'p8', cexAppendString(data['admin.cliente.telefono']));
-  next = replaceFirstMemoValue(next, 'p9', cexAppendString(data['admin.cliente.email']));
-  next = replaceFirstMemoValue(next, 'p11', cexAppendString(data['admin.tecnico.nombre']));
-  next = replaceFirstMemoValue(next, 'p12', cexAppendString(data['admin.tecnico.telefono']));
-  next = replaceFirstMemoValue(next, 'p13', cexAppendString(data['admin.tecnico.email']));
-
-  const scalarReplacements = [
-    ['VPL SEN-1 ENTRENUCLEOS 40(D) ', cexString(data['admin.localizacion.nombreEdificio'])],
-    ['V0128501TG4302N0037ZI', cexString(data['admin.localizacion.referenciaCatastral'])],
-    ['VC/ JOSÉ MEJIAS SALGUERO Nº4, CASA 37', cexString(data['admin.localizacion.direccion'])],
-    ['VDos Hermanas', cexString(locality)],
-    ['VDOS HERMANAS', cexString(data['admin.localizacion.localidad']).toUpperCase()],
-    ['VSevilla', cexString(titleCase(data['admin.localizacion.provincia']))],
-    ['V41704', cexString(data['admin.localizacion.codigoPostal'])],
-    ['aVJUAN JOSÉ MORENO FRESNO\np6', cexAppendString(data['admin.cliente.nombreRazonSocial']) + '\np6'],
-    ['aV.\np9', cexAppendString(data['admin.cliente.email']) + '\np9'],
-    ['aVJUAN JOSÉ MORENO FRESNO\np11', cexAppendString(data['admin.tecnico.nombre']) + '\np11'],
-    ['aV665379127\np8', cexAppendString(data['admin.cliente.telefono']) + '\np8'],
-    ['aV665379127\np12', cexAppendString(data['admin.tecnico.telefono']) + '\np12'],
-    ['aVjuanjmf8@gmail.com\np13', cexAppendString(data['admin.tecnico.email']) + '\np13'],
-  ].filter(([, to]) => to !== 'V' && to !== 'aV' && to !== 'F0');
-
-  return scalarReplacements.reduce((current, [from, to]) => replaceCexTextPattern(current, from, to), next);
+  // Template-specific personal text replacements are obsolete; use native fields.
+  return text;
 }
 
 function applyCexAdminReplacements(text, record) {
@@ -3164,7 +3092,7 @@ function applyCexTableReplacements(text, record) {
   ];
 
   return tableSpecs.reduce((current, spec) => {
-    const defaults = normalizeCexRows(CEX37_DEFAULTS[spec.path], spec.columns);
+    const defaults = normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS[spec.path], spec.columns);
     const rows = normalizeCexRows(record.data?.[spec.path], spec.columns);
     let next = current;
     rows.forEach((rowItem, rowIndex) => {
@@ -3204,15 +3132,15 @@ function applyCexCompactListReplacements(text, record) {
   if (cerramientos.length || huecos.length || puentes.length) {
     next = replaceEnvelopeInputStream(
       next,
-      cerramientos.length ? cerramientos : normalizeCexRows(CEX37_DEFAULTS['envolvente.cerramientos.items'], [
+      cerramientos.length ? cerramientos : normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['envolvente.cerramientos.items'], [
         'nombre', 'tipoCerramiento', 'superficie', 'u', 'peso', 'posicion', 'modoDefinicion', 'patronSombras',
       ]),
-      huecos.length ? huecos : normalizeCexRows(CEX37_DEFAULTS['envolvente.huecos.items'], [
+      huecos.length ? huecos : normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['envolvente.huecos.items'], [
         'nombre', 'cerramientoAsociado', 'longitud', 'altura', 'multiplicador', 'superficie', 'uVidrio',
         'gVidrio', 'uMarco', 'porcMarco', 'absortividadMarco', 'modoDefinicion', 'permeabilidad',
         'orientacion', 'patronSombras',
       ]),
-      puentes.length ? puentes : normalizeCexRows(CEX37_DEFAULTS['envolvente.puentesTermicos.items'], [
+      puentes.length ? puentes : normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['envolvente.puentesTermicos.items'], [
         'nombre', 'cerramientoAsociado', 'tipoPuenteTermico', 'fi', 'longitud',
       ]),
     );
@@ -3248,15 +3176,15 @@ function applyCexEnvelopeStreamReplacement(text, record) {
 }
 
 function applyCexEnvelopeDiagnosticReplacement(text, record, mode) {
-  const defaultCerramientos = cexEnvelopeRows(CEX37_DEFAULTS, 'envolvente.cerramientos.items', [
+  const defaultCerramientos = cexEnvelopeRows(ENVELOPE_REFERENCE_DEFAULTS, 'envolvente.cerramientos.items', [
     'nombre', 'tipoCerramiento', 'superficie', 'u', 'peso', 'posicion', 'modoDefinicion', 'patronSombras',
   ]);
-  const defaultHuecos = cexEnvelopeRows(CEX37_DEFAULTS, 'envolvente.huecos.items', [
+  const defaultHuecos = cexEnvelopeRows(ENVELOPE_REFERENCE_DEFAULTS, 'envolvente.huecos.items', [
     'nombre', 'cerramientoAsociado', 'longitud', 'altura', 'multiplicador', 'superficie', 'uVidrio',
     'gVidrio', 'uMarco', 'porcMarco', 'absortividadMarco', 'modoDefinicion', 'permeabilidad',
     'orientacion', 'patronSombras',
   ]);
-  const defaultPuentes = cexEnvelopeRows(CEX37_DEFAULTS, 'envolvente.puentesTermicos.items', [
+  const defaultPuentes = cexEnvelopeRows(ENVELOPE_REFERENCE_DEFAULTS, 'envolvente.puentesTermicos.items', [
     'nombre', 'cerramientoAsociado', 'tipoPuenteTermico', 'fi', 'longitud',
   ]);
   const recordCerramientos = cexEnvelopeRows(record.data || {}, 'envolvente.cerramientos.items', [
@@ -3304,19 +3232,19 @@ function applyCexSystemsStreamReplacement(text, record) {
 }
 
 function applyCexSystemsDiagnosticReplacement(text, record, mode) {
-  const defaultAcs = cexEnvelopeRows(CEX37_DEFAULTS, 'instalaciones.acs.items', [
+  const defaultAcs = cexEnvelopeRows(ENVELOPE_REFERENCE_DEFAULTS, 'instalaciones.acs.items', [
     'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
     'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona', 'acumulacion',
   ]);
-  const defaultCalefaccion = cexEnvelopeRows(CEX37_DEFAULTS, 'instalaciones.calefaccion.items', [
+  const defaultCalefaccion = cexEnvelopeRows(ENVELOPE_REFERENCE_DEFAULTS, 'instalaciones.calefaccion.items', [
     'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
     'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona',
   ]);
-  const defaultRefrigeracion = cexEnvelopeRows(CEX37_DEFAULTS, 'instalaciones.refrigeracion.items', [
+  const defaultRefrigeracion = cexEnvelopeRows(ENVELOPE_REFERENCE_DEFAULTS, 'instalaciones.refrigeracion.items', [
     'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
     'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona',
   ]);
-  const defaultContribuciones = cexEnvelopeRows(CEX37_DEFAULTS, 'instalaciones.contribuciones.items', [
+  const defaultContribuciones = cexEnvelopeRows(ENVELOPE_REFERENCE_DEFAULTS, 'instalaciones.contribuciones.items', [
     'nombre', 'zona', 'acsRenovable', 'calefaccionRenovable', 'refrigeracionRenovable',
     'calorRecuperadoAcs', 'calorRecuperadoCalefaccion', 'frioRecuperado',
     'energiaConsumidaGeneracionElectricidad', 'combustible',
@@ -3804,15 +3732,15 @@ function serializeCexHuecoEstimadasObject(rowItem) {
 }
 
 function serializeCexSystemsStream(acsRows, calefaccionRows, refrigeracionRows, contribucionRows) {
-  const acsRowsForStream = acsRows.length ? acsRows : normalizeCexRows(CEX37_DEFAULTS['instalaciones.acs.items'], [
+  const acsRowsForStream = acsRows.length ? acsRows : normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['instalaciones.acs.items'], [
     'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
     'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona', 'acumulacion',
   ]);
-  const calefaccionRowsForStream = calefaccionRows.length ? calefaccionRows : normalizeCexRows(CEX37_DEFAULTS['instalaciones.calefaccion.items'], [
+  const calefaccionRowsForStream = calefaccionRows.length ? calefaccionRows : normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['instalaciones.calefaccion.items'], [
     'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
     'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona',
   ]);
-  const refrigeracionRowsForStream = refrigeracionRows.length ? refrigeracionRows : normalizeCexRows(CEX37_DEFAULTS['instalaciones.refrigeracion.items'], [
+  const refrigeracionRowsForStream = refrigeracionRows.length ? refrigeracionRows : normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['instalaciones.refrigeracion.items'], [
     'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
     'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona',
   ]);
@@ -3835,19 +3763,19 @@ function serializeCexSystemsStream(acsRows, calefaccionRows, refrigeracionRows, 
     serializeCexList([]),
   ]) + '.';
 
-  const acs = acsRows[0] || normalizeCexRows(CEX37_DEFAULTS['instalaciones.acs.items'], [
+  const acs = acsRows[0] || normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['instalaciones.acs.items'], [
     'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
     'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona', 'acumulacion',
   ])[0] || {};
-  const heat = calefaccionRows[0] || normalizeCexRows(CEX37_DEFAULTS['instalaciones.calefaccion.items'], [
+  const heat = calefaccionRows[0] || normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['instalaciones.calefaccion.items'], [
     'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
     'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona',
   ])[0] || {};
-  const cool = refrigeracionRows[0] || normalizeCexRows(CEX37_DEFAULTS['instalaciones.refrigeracion.items'], [
+  const cool = refrigeracionRows[0] || normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['instalaciones.refrigeracion.items'], [
     'nombre', 'tipoEquipo', 'modoDefinicion', 'tipoGenerador', 'combustible',
     'rendimientoEstacional', 'm2Cubiertos', 'demandaCubierta', 'zona',
   ])[0] || {};
-  const contribution = contribucionRows[0] || normalizeCexRows(CEX37_DEFAULTS['instalaciones.contribuciones.items'], [
+  const contribution = contribucionRows[0] || normalizeCexRows(ENVELOPE_REFERENCE_DEFAULTS['instalaciones.contribuciones.items'], [
     'nombre', 'zona', 'acsRenovable', 'calefaccionRenovable', 'refrigeracionRenovable',
     'calorRecuperadoAcs', 'calorRecuperadoCalefaccion', 'frioRecuperado',
     'energiaConsumidaGeneracionElectricidad', 'combustible',
