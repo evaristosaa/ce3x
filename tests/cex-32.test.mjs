@@ -102,6 +102,18 @@ test('new 3.2 exports never invent template installations or renewable contribut
   const blocks=h.cex32Blocks(h.buildCex32(template,{data}));assert.equal(blocks[0].value,'CE3Xv3.2 Residencial');
   assert.ok(blocks[4].value.every(row=>row.length===0));
 });
+
+test('single-service heating and cooling retain their performance and coverage after export/import',()=>{
+  const h=loadHelpers(), data={};
+  for(const [service,performance] of [['calefaccion','180'],['refrigeracion','240']]) {
+    data['instalaciones.'+service+'.items']=[{nombre:service,tipoGenerador:'Bomba de Calor',combustible:'Electricidad',rendimientoEstacional:performance,m2Cubiertos:'75',demandaCubierta:'100',zona:'Edificio Objeto'}];
+  }
+  const restored=h.parseCexRecordData(h.buildCex32(template,{data}));
+  assert.equal(restored['instalaciones.calefaccion.items'][0].rendimientoEstacional,'180');
+  assert.equal(restored['instalaciones.refrigeracion.items'][0].rendimientoEstacional,'240');
+  assert.equal(restored['instalaciones.calefaccion.items'][0].m2Cubiertos,'75');
+  assert.equal(restored['instalaciones.refrigeracion.items'][0].demandaCubierta,'100');
+});
 test('unsupported versions, non-residential CEX and truncated files are rejected',()=>{
   const h=loadHelpers();for(const version of ['CE3Xv3.1 Residencial','CE3Xv3.2 GranTerciario','CEXv2.4 Residencial']) {
     assert.throws(()=>h.parseCexRecordData(template.replace('CE3Xv3.2 Residencial',version)));

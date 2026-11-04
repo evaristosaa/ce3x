@@ -4373,8 +4373,11 @@ function downloadBlob(blob, filename) {
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  // Navigation to the Blob is asynchronous in Chrome; keep it alive until consumed.
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function readTableRows(value, columns) {

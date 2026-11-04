@@ -340,8 +340,12 @@ function systemRows(stream) {
   const result = { acs: [], calefaccion: [], refrigeracion: [], contribuciones: [] };
   if (!Array.isArray(stream)) return result;
   (stream[0] || []).forEach(item => result.acs.push(systemAcsRow(item)));
-  (stream[1] || []).forEach(item => result.calefaccion.push(systemClimateRow(item, 0, 'Calefacción')));
-  (stream[2] || []).forEach(item => result.refrigeracion.push(systemClimateRow(item, 0, 'Refrigeración')));
+  const singleClimate = (item, service, label) => {
+    const slot = cexImportValue(item?.[2]?.[service]) === '' ? 0 : service;
+    return systemClimateRow(item, slot, label);
+  };
+  (stream[1] || []).forEach(item => result.calefaccion.push(singleClimate(item, 1, 'Calefacción')));
+  (stream[2] || []).forEach(item => result.refrigeracion.push(singleClimate(item, 2, 'Refrigeración')));
   (stream[3] || []).forEach(item => {
     result.calefaccion.push(systemClimateRow(item, 1, 'Calefacción y refrigeración'));
     result.refrigeracion.push(systemClimateRow(item, 2, 'Calefacción y refrigeración'));
