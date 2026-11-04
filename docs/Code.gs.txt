@@ -25,6 +25,10 @@ const LEGACY_RAW_JSON_HEADERS = [
   'rawJson20',
 ];
 const SCALAR_DATA_PATHS = [
+  'cex.sourceVersion',
+  'cex.nativeInputs',
+  'admin.localizacion.gradoProteccion',
+  'admin.localizacion.usoEdificio',
   'admin.localizacion.nombreEdificio',
   'admin.localizacion.direccion',
   'admin.localizacion.provincia',
@@ -32,6 +36,7 @@ const SCALAR_DATA_PATHS = [
   'admin.localizacion.codigoPostal',
   'admin.localizacion.referenciaCatastral',
   'admin.cliente.nombreRazonSocial',
+  'admin.cliente.nif',
   'admin.cliente.direccion',
   'admin.cliente.provincia',
   'admin.cliente.localidad',
@@ -84,6 +89,7 @@ const JSON_DATA_PATHS = [
   'instalaciones.contribuciones.items',
 ];
 const LONG_TEXT_DATA_PATHS = [
+  'cex.nativeInputs',
   'generales.definicion.imagenEdificio',
   'generales.definicion.planoSituacion',
 ];
@@ -121,7 +127,16 @@ const BASE_HEADERS = [
   'updatedAt',
 ];
 
-const HEADERS = BASE_HEADERS.concat(SCALAR_DATA_PATHS, JSON_DATA_PATHS, LONG_TEXT_CHUNK_HEADERS);
+// Keep the 91 historical columns in place; append the 3.2 extension.
+const CEX32_DATA_PATHS = ['cex.sourceVersion', 'cex.nativeInputs',
+  'admin.localizacion.gradoProteccion', 'admin.localizacion.usoEdificio', 'admin.cliente.nif'];
+const HEADERS = BASE_HEADERS.concat(
+  SCALAR_DATA_PATHS.filter(path => CEX32_DATA_PATHS.indexOf(path) < 0),
+  JSON_DATA_PATHS,
+  LONG_TEXT_CHUNK_HEADERS.filter(path => path.indexOf('cex.nativeInputs#') !== 0),
+  CEX32_DATA_PATHS,
+  LONG_TEXT_CHUNK_HEADERS.filter(path => path.indexOf('cex.nativeInputs#') === 0)
+);
 
 function setup() {
   getSheet_();
@@ -132,6 +147,49 @@ function compactSchema() {
   let sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
   return compactSheetSchema_(sheet, { backup: true });
+}
+
+function migrateSchema32() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const sheet = getSheet_();
+    const headers = getHeaderRow_(sheet);
+    if (isCleanSchema_(headers)) return schemaStatus_();
+    if (!headers.every(function(header, index) { return HEADERS[index] === header; })) {
+      throw new Error('La hoja no tiene el esquema anterior esperado. No se ha modificado.');
+    }
+    const backup = backupSheet_(sheet);
+    if (sheet.getMaxColumns() < HEADERS.length) {
+      sheet.insertColumnsAfter(sheet.getMaxColumns(), HEADERS.length - sheet.getMaxColumns());
+    }
+    const missing = HEADERS.slice(headers.length);
+    if (missing.length) {
+      sheet.getRange(1, headers.length + 1, 1, missing.length)
+        .setNumberFormat('@').setValues([missing]);
+      sheet.getRange(2, headers.length + 1, sheet.getMaxRows() - 1, missing.length)
+        .setNumberFormat('@');
+    }
+    return Object.assign(schemaStatus_(), { backupSheet: backup });
+  } finally { lock.releaseLock(); }
+}
+
+// Checks serialization/storage without creating or editing an expediente.
+function verifySchema32() {
+  const status = schemaStatus_();
+  if (!status.clean) throw new Error('Esquema pendiente de migrar.');
+  const test = {id: 'prueba-en-memoria', data: {
+    'admin.cliente.nif': '00000000T',
+    'admin.localizacion.gradoProteccion': 'Ninguna',
+    'cex.sourceVersion': '3.2',
+    'cex.nativeInputs': 'x'.repeat(90001)
+  }};
+  const restored = rowToRecord_(recordToRow_(test), HEADERS);
+  Object.keys(test.data).forEach(function(path) {
+    if (restored.data[path] !== test.data[path]) throw new Error('Fallo de almacenamiento: ' + path);
+  });
+  console.log(JSON.stringify({schema: status, storageRoundTrip: true}));
+  return status;
 }
 
 function authorizeExternalRequest() {
@@ -239,7 +297,7 @@ function getSheet_() {
 function ensureHeaders_(sheet) {
   const headers = getHeaderRow_(sheet);
   if (!headers.length) writeCleanHeader_(sheet);
-  const width = Math.max(headers.length, HEADERS.length);
+  const width = Math.min(sheet.getMaxColumns(), Math.max(headers.length, HEADERS.length));
   sheet.getRange(1, 1, Math.max(sheet.getMaxRows(), 1), width).setNumberFormat('@');
 }
 
@@ -261,6 +319,9 @@ function isCleanSchema_(headers) {
 }
 
 function writeCleanHeader_(sheet) {
+  if (sheet.getMaxColumns() < HEADERS.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), HEADERS.length - sheet.getMaxColumns());
+  }
   sheet.getRange(1, 1, 1, HEADERS.length).setNumberFormat('@').setValues([HEADERS]);
   sheet.setFrozenRows(1);
 }
@@ -301,6 +362,7 @@ function schemaStatus_() {
     clean: isCleanSchema_(headers),
     columns: headers.length,
     expectedColumns: HEADERS.length,
+    cexVersion: '3.2',
     extraHeaders: headers.filter(function(header) {
       return HEADERS.indexOf(header) < 0;
     }),
@@ -355,6 +417,7 @@ function saveRecord_(item) {
   ));
 
   const next = Object.assign({}, existing || {}, item);
+  next.data = Object.assign({}, existing && existing.data || {}, item.data || {});
   next.id = next.id || Utilities.getUuid();
   next.estado = next.estado || inferEstado_(next);
   next.createdAt = next.createdAt || now;
@@ -428,7 +491,7 @@ function deleteRecord_(id, referenciaCatastral) {
 
 function ensureCleanSchemaForWrite_(sheet) {
   const headers = getHeaderRow_(sheet);
-  if (!isCleanSchema_(headers)) compactSheetSchema_(sheet, { backup: true });
+  if (!isCleanSchema_(headers)) throw new Error('La hoja necesita migracion. Ejecuta migrateSchema32() desde Apps Script antes de guardar.');
 }
 
 function getCatastro_(reference) {
@@ -733,6 +796,9 @@ function rowToRecord_(row, headers) {
 
 function recordToRow_(record) {
   const data = record.data || {};
+  LONG_TEXT_DATA_PATHS.forEach(function(path) {
+    if (String(data[path] || '').length > LONG_TEXT_CHUNK_SIZE * LONG_TEXT_CHUNK_COUNT) throw new Error('El campo ' + path + ' supera el tamaño admitido. No se ha guardado.');
+  });
   return HEADERS.map(function(header) {
     if (SCALAR_DATA_PATHS.indexOf(header) >= 0) {
       if (isLongTextPath_(header)) return longTextChunk_(data[header], 1);

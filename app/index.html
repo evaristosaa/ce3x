@@ -5,27 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store">
   <title>CE3X Captura</title>
-  <link rel="stylesheet" href="styles.css?v=20260720-new-record-loading">
+  <link rel="stylesheet" href="styles.css?v=20261103-ce3x32">
+  <link rel="stylesheet" href="workspace.css?v=20261103-ce3x32">
 </head>
 <body>
+  <aside class="workspace-nav" aria-label="Navegación principal">
+    <a class="workspace-logo" href="index.html"><span class="logo-mark" aria-hidden="true">C³</span><span>CE3X <b>Captura</b></span></a>
+    <span class="nav-caption">ESPACIO DE TRABAJO</span>
+    <button id="workspaceHome" class="nav-item current" type="button"><span aria-hidden="true">▦</span> Expedientes</button>
+    <button id="captureToggle" class="nav-item" type="button" aria-expanded="false" aria-controls="capturePanel"><span aria-hidden="true">◌</span> Captura de visita</button>
+    <button id="workspaceSettings" class="nav-item" type="button"><span aria-hidden="true">⚙</span> Configuración</button>
+    <button id="reportBtn" class="nav-item" type="button"><span aria-hidden="true">▤</span> Generar PDF</button>
+    <div class="nav-bottom"><span class="version-dot"></span> Preparado para CE³X 3.2<small>Del inmueble al certificado.</small></div>
+  </aside>
   <header class="topbar">
     <div>
-      <h1>CE3X Captura</h1>
-      <p>Chat de captura, expedientes y detalle editable para preparar CE3X.</p>
+      <p class="breadcrumb">GESTIÓN ENERGÉTICA <span>/</span> MI ESCRITORIO</p>
+      <h1>Expedientes</h1>
     </div>
     <div class="actions">
-      <span id="storageMode" class="storage-mode">Config pendiente</span>
-      <button id="newBtn" type="button">Nuevo expediente</button>
-      <button id="configBtn" type="button" class="secondary">Config</button>
+      <span id="storageMode" class="storage-mode">Este navegador</span>
+      <button id="newBtn" type="button"><span aria-hidden="true">＋</span> Nuevo expediente</button>
+      <button id="configBtn" type="button" class="secondary">Conexión</button>
     </div>
   </header>
   <div id="syncAlert" class="sync-alert" hidden></div>
 
   <main class="app-shell">
-    <section class="panel capture-panel" aria-label="Captura por chat">
+    <section id="capturePanel" class="panel capture-panel" aria-label="Captura por chat">
       <div class="panel-header">
         <div>
-          <h2>Chat</h2>
+          <span class="eyebrow">EN LA VISITA</span><h2>Captura de datos</h2>
           <p id="activeRecordText">Sin expediente abierto.</p>
         </div>
       </div>
@@ -47,9 +57,19 @@
 
     <section class="panel right-panel" aria-label="Expedientes y detalle editable">
       <div id="listView" class="list-view">
+        <section class="workspace-overview" aria-label="Resumen de actividad">
+          <div class="overview-copy"><span class="eyebrow">TU OFICINA TÉCNICA</span><h2>Todo el expediente.<br>Un solo lugar.</h2><p>Recoge los datos, completa cada bloque y prepara el archivo para CE³X 3.2.</p><div class="overview-tags"><span>Catastro integrado</span><span>Importación 2.3 y 3.2</span></div></div>
+          <svg class="building-drawing" viewBox="0 0 280 200" fill="none" aria-hidden="true"><path d="M20 153 143 199 268 152 145 105Z" stroke="currentColor" opacity=".25"/><path d="m39 141 105 39 105-39V65L144 26 39 65Z" stroke="currentColor"/><path d="m39 65 105 39 105-39M144 104v76M39 103l105 39 105-39M91 84v76M196 84v76M65 75v76M222 75v76M118 94v76M170 94v76" stroke="currentColor"/><path d="M39 65 144 26 249 65 144 104Z" fill="currentColor" opacity=".08"/><path d="M144 104v76l105-39V65Z" fill="currentColor" opacity=".05"/><path d="M19 56v97m-5-95 5-2 5 2m-10 93 5 2 5-2M257 57 151 17" stroke="currentColor" opacity=".4" stroke-dasharray="3 4"/><circle cx="144" cy="26" r="3" fill="currentColor"/></svg>
+        </section>
+        <div class="workspace-stats" aria-label="Estado de los expedientes">
+          <button type="button" class="stat-card" data-filter="all"><span>Total expedientes</span><strong id="totalCount">0</strong><small>Tu cartera de trabajo <span>↗</span></small></button>
+          <button type="button" class="stat-card" data-filter="BORRADOR"><span>Pendientes</span><strong id="draftCount">0</strong><small><i class="dot amber"></i> Por completar</small></button>
+          <button type="button" class="stat-card" data-filter="PENDIENTE_DATOS"><span>En curso</span><strong id="progressCount">0</strong><small><i class="dot blue"></i> Recogida de datos</small></button>
+          <button type="button" class="stat-card" data-filter="COMPLETA"><span>Completados</span><strong id="completeCount">0</strong><small><i class="dot green"></i> Datos completos</small></button>
+        </div>
         <div class="panel-header">
           <div>
-            <h2>Expedientes</h2>
+            <h2>Mis expedientes</h2>
             <p id="statusSummary">0 expedientes</p>
           </div>
           <div class="list-filters">
@@ -59,7 +79,7 @@
               <option value="PENDIENTE_DATOS">En curso</option>
               <option value="COMPLETA">Completados</option>
             </select>
-            <input id="searchInput" type="search" placeholder="Buscar">
+            <input id="searchInput" type="search" placeholder="Dirección, referencia o cliente…" aria-label="Buscar expedientes">
           </div>
         </div>
         <div id="expedientList" class="expedient-list"></div>
@@ -78,7 +98,7 @@
             <button id="copyDataBtn" type="button" class="secondary">Copiar datos</button>
             <button id="deleteRecordBtn" type="button" class="danger">Eliminar expediente</button>
             <button id="downloadJsonBtn" type="button" class="secondary" hidden>Descargar JSON</button>
-            <button id="downloadCexBtn" type="button" class="secondary">Descargar .cex</button>
+            <button id="downloadCexBtn" type="button" class="secondary">Exportar a CE³X 3.2</button>
           </div>
         </div>
 
@@ -90,6 +110,7 @@
           <span id="recordBadge" class="badge">BORRADOR</span>
         </div>
 
+        <p class="export-note">Exportación residencial · Revisa y recalcula el expediente en CE³X 3.2 antes de emitir el certificado.</p>
         <nav id="sectionTabs" class="tabs" aria-label="Secciones CE3X"></nav>
         <form id="detailForm">
           <div id="sectionFields" class="section-fields"></div>
@@ -103,7 +124,7 @@
       <h2>Configuracion</h2>
       <label>Apps Script URL<input name="apiUrl" placeholder="https://script.google.com/macros/s/.../exec"></label>
       <label>APP_SECRET<input name="secret" type="password"></label>
-      <p>La app trabaja solo con Google Sheets. Sin URL no se cargan ni se guardan expedientes.</p>
+      <p>Sin conexión configurada, los expedientes se guardan en este navegador. Con Google Sheets se usa el archivo compartido; los datos locales no se trasladan automáticamente.</p>
       <div class="form-actions">
         <button type="submit">Guardar config</button>
         <button type="button" class="secondary" id="testConfigBtn">Probar conexión</button>
@@ -158,8 +179,24 @@
     </form>
   </dialog>
 
-  <script src="cex-import.js?v=20260722-large-patch-form"></script>
-  <script src="ce3x-locations.js?v=20260723-full-location-catalog"></script>
-  <script src="app.js?v=20260723-official-catastro-wms-plan"></script>
+  <dialog id="reportDialog" aria-labelledby="reportTitle">
+    <form id="reportForm">
+      <span class="eyebrow">INFORME DE CERTIFICACIÓN</span>
+      <h2 id="reportTitle">Del XML al PDF</h2>
+      <p class="dialog-help">Selecciona el XML que has generado en CE³X 3.2. El generador oficial validará sus datos y creará el informe.</p>
+      <label>Certificado en XML<input name="xmlFile" type="file" accept=".xml,application/xml,text/xml" required></label>
+      <p class="dialog-help">¿Tienes un CEX? Ábrelo y calcula el expediente en CE³X 3.2; después genera su XML. El CEX por sí solo no sustituye ese cálculo.</p>
+      <p id="reportStatus" class="report-status" role="status" aria-live="polite"></p>
+      <p id="cloudReportHelp" hidden>El generador web procesa el XML en Render y requiere la clave de acceso de la prueba. Puede tardar en despertar.</p>
+      <a id="cloudReportLink" class="button-link" href="https://ce3x-pdf-prueba.onrender.com/" target="_blank" rel="noopener noreferrer" hidden>Abrir generador web de PDF</a>
+      <div class="form-actions"><button id="generateReportBtn" type="submit">Generar y descargar PDF</button><button id="closeReportBtn" type="button" class="secondary">Cerrar</button></div>
+    </form>
+  </dialog>
+  <script src="reports.js?v=20261104-pdf"></script>
+  <script src="cex-import.js?v=20261103-ce3x32"></script>
+  <script src="ce3x-locations.js?v=20261103-ce3x32"></script>
+  <script src="cex-32.js?v=20261103-ce3x32"></script>
+  <script src="workspace.js?v=20261103-ce3x32"></script>
+  <script src="app.js?v=20261103-ce3x32"></script>
 </body>
 </html>

@@ -13,3 +13,5 @@ app/test-results/
 .DS_Store
 .idea/
 .vscode/
+backups/
+diagnostics/

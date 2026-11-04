@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
+from report_service import generate_report, report_status, ReportError, MAX_XML_BYTES
 
 
 HOST = "0.0.0.0"
@@ -49,11 +50,20 @@ class CexUnpickler(pickle.Unpickler):
 
 
 class Ce3xHandler(SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path.split('?', 1)[0] == '/api/report/status':
+            self.write_json(200, report_status())
+            return
+        super().do_GET()
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
     def do_POST(self):
+        if self.path.split('?', 1)[0] == '/api/report':
+            self.handle_report_generation()
+            return
         if self.path.split("?", 1)[0] == "/api/apps-script":
             self.handle_apps_script_proxy()
             return
@@ -61,6 +71,31 @@ class Ce3xHandler(SimpleHTTPRequestHandler):
             self.send_error(404, "Generador .cex servidor desactivado temporalmente")
             return
         self.send_error(404, "Not found")
+
+    def handle_report_generation(self):
+        # Browser requests must come from this app, not an unrelated website.
+        origin = self.headers.get('Origin')
+        if origin and urlparse(origin).netloc != self.headers.get('Host'):
+            self.write_json(403, {'error': 'Origen no autorizado.'})
+            return
+        if self.headers.get('Content-Type', '').split(';')[0] not in ('application/xml', 'text/xml'):
+            self.write_json(415, {'error': 'Selecciona un archivo XML.'})
+            return
+        try:
+            length = int(self.headers.get('Content-Length', '0'))
+            if length <= 0 or length > MAX_XML_BYTES:
+                raise ReportError('Selecciona un XML de hasta 12 MB.', 413)
+            content = generate_report(self.rfile.read(length))
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/pdf')
+            self.send_header('Content-Disposition', 'attachment; filename="certificado.pdf"')
+            self.send_header('Content-Length', str(len(content)))
+            self.end_headers()
+            self.wfile.write(content)
+        except ReportError as error:
+            self.write_json(error.status, {'error': str(error)})
+        except ValueError:
+            self.write_json(400, {'error': 'La longitud del archivo no es válida.'})
 
     def handle_cex_generation(self):
         try:
