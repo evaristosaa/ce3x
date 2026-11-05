@@ -396,7 +396,8 @@ window.addEventListener('unhandledrejection', event => {
 cleanupLocalDataStorage();
 renderTabs();
 renderStorageMode();
-loadRecords();
+// Local storage resolves synchronously; initialize all catalogs before rendering it.
+Promise.resolve().then(() => { loadRecords(); });
 addChatMessage('assistant', 'Selecciona un expediente y escribe o dicta los datos de la visita. Revisa los cambios antes de exportar a CE3X 3.2.');
 
 function row(values) {
@@ -569,6 +570,7 @@ async function createNewRecord(persist = true, initialData = {}) {
 
 function normalizeRecord(record) {
   const data = Object.assign({}, record.data || {});
+  if (typeof cex32HydrateSources === 'function') cex32HydrateSources(data);
   Object.keys(DEFAULT_TECHNICIAN).forEach(path => {
     if (!hasValue(data[path])) data[path] = DEFAULT_TECHNICIAN[path];
   });
@@ -838,10 +840,8 @@ function inputHtml(item, path, value) {
   if (item.type === 'textarea') return `<textarea name="${escapeHtml(path)}" rows="5">${escapeHtml(value)}</textarea>`;
   if (item.type === 'select') {
     const options = selectOptionsForField(item, path);
-    const selectedValue = item.optionsKey === 'localidad' && options.length
-      ? cexCompatibleLocality(value, provinceForLocalityPath(path))
-      : value;
-    return selectHtml(path, selectedValue, options);
+    // CE3X's "Otro" conversion belongs to export, not the editable source value.
+    return selectHtml(path, value, options);
   }
   if (item.type === 'image') return imageInputHtml(path, value);
   const type = item.type === 'number' ? 'text' : item.type;
@@ -906,10 +906,10 @@ function imagePreviewHtml(value) {
 
 function selectHtml(path, value, options) {
   const current = String(value || '');
-  const allOptions = current && !options.includes(current) ? [current].concat(options) : options;
+  const allOptions = !current ? [''].concat(options.filter(Boolean)) : (!options.includes(current) ? [current].concat(options) : options);
   return `<select name="${escapeHtml(path)}">${allOptions.map(option => {
     const selected = option === current ? ' selected' : '';
-    return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
+    return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option || 'Selecciona…')}</option>`;
   }).join('')}</select>`;
 }
 
@@ -938,7 +938,7 @@ function tableHtml(item, path, value) {
 }
 
 function tableRowHtml(columns, rowItem, index) {
-  return `<tr>
+  return `<tr data-cex-source="${escapeHtml(rowItem.__cexSource || '')}">
     <td><input type="checkbox" data-row-select aria-label="Seleccionar fila ${index + 1}"></td>
     <td data-row-number>${index + 1}</td>
     ${columns.map((column, colIndex) => {
@@ -951,11 +951,11 @@ function tableRowHtml(columns, rowItem, index) {
 
 function selectCellHtml(attrs, value, options) {
   const current = String(value || '');
-  const selectedValue = options.includes(current) ? current : (options[0] || '');
-  const allOptions = options.length ? options : (current ? [current] : []);
+  const selectedValue = current;
+  const allOptions = !current ? [''].concat(options.filter(Boolean)) : (!options.includes(current) ? [current].concat(options) : options);
   return `<select ${attrs}>${allOptions.map(option => {
     const selected = option === selectedValue ? ' selected' : '';
-    return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
+    return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option || 'Selecciona…')}</option>`;
   }).join('')}</select>`;
 }
 
@@ -1237,6 +1237,7 @@ function collectTables(data) {
       columns.forEach(column => {
         item[column.id] = tr.querySelector(`[data-col="${column.id}"]`)?.value?.trim() || '';
       });
+      if (Object.values(item).some(Boolean) && tr.dataset.cexSource) item.__cexSource = tr.dataset.cexSource;
       return item;
     }).filter(item => Object.values(item).some(Boolean));
     data[path] = rows;

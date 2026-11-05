@@ -281,7 +281,8 @@ function cexImportValue(value) {
 }
 
 function envelopeRows(rows) {
-  return (Array.isArray(rows) ? rows : []).map(item => ({
+  return (Array.isArray(rows) ? rows : []).map((item, index) => ({
+    __cexSource: `e:0:${index}`,
     nombre: cexImportValue(item[0]), tipoCerramiento: cexImportValue(item[1]), superficie: cexImportValue(item[2]),
     u: cexImportValue(item[3]), peso: cexImportValue(item[4]), posicion: cexImportValue(item[5]),
     patronSombras: cexImportValue(item[7]), modoDefinicion: cexImportValue(item[8]),
@@ -289,19 +290,21 @@ function envelopeRows(rows) {
 }
 
 function envelopeHuecoRows(rows) {
-  return (Array.isArray(rows) ? rows : []).map(item => ({
+  return (Array.isArray(rows) ? rows : []).map((item, index) => ({
+    __cexSource: `e:1:${index}`,
     nombre: cexImportValue(item.descripcion), cerramientoAsociado: cexImportValue(item.cerramientoAsociado),
     longitud: cexImportValue(item.longitud), altura: cexImportValue(item.altura), multiplicador: cexImportValue(item.multiplicador),
     superficie: cexImportValue(item.superficie), uVidrio: cexImportValue(item.Uvidrio), gVidrio: cexImportValue(item.Gvidrio),
     uMarco: cexImportValue(item.Umarco), porcMarco: cexImportValue(item.porcMarco),
-    absortividadMarco: cexImportValue(item.absortividadValor), modoDefinicion: 'Estimadas',
+    absortividadMarco: cexImportValue(item.absortividadValor), modoDefinicion: /HuecoConocidas$/.test(item.__cexClass || '') ? 'Conocidas' : 'Estimadas',
     permeabilidad: cexImportValue(item.permeabilidadValor), orientacion: cexImportValue(item.orientacion),
     patronSombras: cexImportValue(item.patronSombras),
   })).filter(item => item.nombre || item.superficie);
 }
 
 function envelopePuenteRows(rows) {
-  return (Array.isArray(rows) ? rows : []).map(item => ({
+  return (Array.isArray(rows) ? rows : []).map((item, index) => ({
+    __cexSource: `e:2:${index}`,
     nombre: cexImportValue(item[0]), tipoPuenteTermico: cexImportValue(item[2]), fi: cexImportValue(item[3]),
     longitud: cexImportValue(item[4]), cerramientoAsociado: cexImportValue(item[7]),
   })).filter(item => item.nombre || item.tipoPuenteTermico);
@@ -339,26 +342,28 @@ function systemContributionRow(item) {
 function systemRows(stream) {
   const result = { acs: [], calefaccion: [], refrigeracion: [], contribuciones: [] };
   if (!Array.isArray(stream)) return result;
-  (stream[0] || []).forEach(item => result.acs.push(systemAcsRow(item)));
+  const push = (key, row, group, index, service) => result[key].push(
+    Object.assign(row, {__cexSource: `s:${group}:${index}:${service}`}));
+  (stream[0] || []).forEach((item,index) => push('acs',systemAcsRow(item),0,index,0));
   const singleClimate = (item, service, label) => {
     const slot = cexImportValue(item?.[2]?.[service]) === '' ? 0 : service;
     return systemClimateRow(item, slot, label);
   };
-  (stream[1] || []).forEach(item => result.calefaccion.push(singleClimate(item, 1, 'Calefacción')));
-  (stream[2] || []).forEach(item => result.refrigeracion.push(singleClimate(item, 2, 'Refrigeración')));
-  (stream[3] || []).forEach(item => {
-    result.calefaccion.push(systemClimateRow(item, 1, 'Calefacción y refrigeración'));
-    result.refrigeracion.push(systemClimateRow(item, 2, 'Calefacción y refrigeración'));
+  (stream[1] || []).forEach((item,index) => push('calefaccion',singleClimate(item,1,'Calefacción'),1,index,1));
+  (stream[2] || []).forEach((item,index) => push('refrigeracion',singleClimate(item,2,'Refrigeración'),2,index,2));
+  (stream[3] || []).forEach((item,index) => {
+    push('calefaccion',systemClimateRow(item,1,'Calefacción y refrigeración'),3,index,1);
+    push('refrigeracion',systemClimateRow(item,2,'Calefacción y refrigeración'),3,index,2);
   });
-  (stream[4] || []).forEach(item => {
-    result.acs.push(systemClimateRow(item, 0, 'ACS'));
-    result.calefaccion.push(systemClimateRow(item, 1, 'Calefacción'));
+  (stream[4] || []).forEach((item,index) => {
+    push('acs',systemClimateRow(item,0,'ACS'),4,index,0);
+    push('calefaccion',systemClimateRow(item,1,'Calefacción'),4,index,1);
   });
-  (stream[5] || []).forEach(item => {
-    result.acs.push(systemClimateRow(item, 0, 'ACS'));
-    result.calefaccion.push(systemClimateRow(item, 1, 'Calefacción'));
-    result.refrigeracion.push(systemClimateRow(item, 2, 'Refrigeración'));
+  (stream[5] || []).forEach((item,index) => {
+    push('acs',systemClimateRow(item,0,'ACS'),5,index,0);
+    push('calefaccion',systemClimateRow(item,1,'Calefacción'),5,index,1);
+    push('refrigeracion',systemClimateRow(item,2,'Refrigeración'),5,index,2);
   });
-  (stream[6] || []).forEach(item => result.contribuciones.push(systemContributionRow(item)));
+  (stream[6] || []).forEach((item,index) => push('contribuciones',systemContributionRow(item),6,index,0));
   return result;
 }
