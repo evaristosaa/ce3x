@@ -161,7 +161,7 @@ function cex32Inputs(template, record) {
     inputs[3][6] = new CexPickleParser(serializeCexContribucionesInput(contributions)+'.',0).parse();
   }
   while (inputs[3].length < 14) inputs[3].push([]);
-  if (native?.version === '2.3') {
+  if ((native?.sectionVersions?.systems || native?.version) === '2.3') {
       for (const index of [1,2,3,4,5]) inputs[3][index].forEach(row=> {
         if (row.length === 9) row.splice(8,0,['','','']);
       });
@@ -174,6 +174,39 @@ function cex32ImportedTables(inputs) {
   return {'envolvente.cerramientos.items':envelopeRows(inputs[2][0]),'envolvente.huecos.items':envelopeHuecoRows(inputs[2][1]),
     'envolvente.puentesTermicos.items':envelopePuenteRows(inputs[2][2]),'instalaciones.acs.items':s.acs,
     'instalaciones.calefaccion.items':s.calefaccion,'instalaciones.refrigeracion.items':s.refrigeracion,'instalaciones.contribuciones.items':s.contribuciones};
+}
+
+function cex32CopyNativeSections(source,targetData,baseTemplate='') {
+  const read=(value,label)=>{
+    if(!value)return null;
+    let snapshot;
+    try {snapshot=JSON.parse(value);} catch {throw new Error('No se pueden recuperar los datos nativos del expediente '+label+'.');}
+    if(!['2.3','3.2'].includes(snapshot.version) || !Array.isArray(snapshot.inputs) || snapshot.inputs.length!==4 || snapshot.inputs.some(part=>!Array.isArray(part))) throw new Error('Los datos nativos del expediente '+label+' no tienen el formato esperado.');
+    return snapshot;
+  };
+  const original=read(source.data?.[CEX32_INPUT_KEY],'origen');
+  let target=read(targetData[CEX32_INPUT_KEY],'destino');
+  if(!original&&!target)return '';
+  if(!target) {
+    if(!baseTemplate)throw new Error('Falta la plantilla limpia para copiar los datos nativos sin heredar datos personales del origen.');
+    const blocks=cex32Blocks(baseTemplate);
+    if(blocks.length!==15||blocks[0].value!=='CE3Xv3.2 Residencial')throw new Error('La plantilla de copia no es nativa de CE3X 3.2.');
+    target={version:'3.2',inputs:blocks.slice(1,5).map(block=>block.value),shadows:[]};
+  }
+  target=structuredClone(target);
+  target.inputs[2]=original?structuredClone(original.inputs[2]):Array.from({length:4},()=>[]);
+  target.inputs[3]=original?structuredClone(original.inputs[3]):Array.from({length:14},()=>[]);
+  target.shadows=original?structuredClone(original.shadows||[]):[];
+  target.sectionVersions={...(target.sectionVersions||{}),
+    envelope:original?(original.sectionVersions?.envelope||original.version):'3.2',
+    systems:original?(original.sectionVersions?.systems||original.version):'3.2'};
+  target.systemContext=original?structuredClone(original.systemContext||{
+    zone:String(original.inputs[1][4]),buildingType:cexBuildingType(original.inputs[1][1])
+  }):{zone:String(targetData['generales.datos.zonaClimaticaHE1']||''),buildingType:cexBuildingType(targetData['generales.datos.tipoEdificio'])};
+  target.copiedSections={recordId:String(source.id||''),at:new Date().toISOString(),sections:['envelope','systems']};
+  const encoded=JSON.stringify(target);
+  if(encoded.length>360000)throw new Error('Los datos nativos copiados superan el tamaño admitido. No se ha aplicado la copia.');
+  return encoded;
 }
 
 function cex32SameRows(rows, original) {

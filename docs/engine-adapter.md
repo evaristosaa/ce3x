@@ -11,6 +11,8 @@ Este adaptador ejecuta el módulo oficial de rendimientos estacionales que ya es
 
 El primer bloque permite revisar combustión, potencia, carga y aislamiento de calderas estándar importadas, y nominales de bombas de calor importadas con la configuración contrastada. Conserva características de caldera, acumulación, antigüedad, potencias y otros parámetros nativos. Las variantes todavía no contrastadas muestran una explicación y no habilitan la edición.
 
+Si las instalaciones se copian desde otro expediente, conservan su contexto climático de origen. Una zona o tipo de edificio diferente en el destino requiere recalcular las instalaciones estimadas antes de exportar, aunque los parámetros del equipo no se hayan editado.
+
 Los borradores y los datos que identifican el cálculo se almacenan dentro del JSON de las tablas de instalaciones existentes en Sheets. No requieren nuevas columnas. El guardado local, la transformación a las celdas de Apps Script y la exportación se verifican por separado.
 
 En GitHub Pages se pueden guardar borradores, pero el recálculo requiere el servidor local. El endpoint solo admite peticiones desde el equipo local y el mismo origen de la app; no publica el runtime de CE³X en la red.

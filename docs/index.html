@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store">
   <title>CE3X Captura</title>
-  <link rel="stylesheet" href="styles.css?v=20261105-engine-form">
+  <link rel="stylesheet" href="styles.css?v=20261105-copy-native">
   <link rel="stylesheet" href="workspace.css?v=20261103-ce3x32">
 </head>
 <body>
@@ -139,6 +139,7 @@
       <h2>Copiar datos</h2>
       <label>Expediente origen<select name="sourceId" id="copySourceSelect"></select></label>
       <p>Se copiarán Envolvente térmica e Instalaciones al expediente abierto.</p>
+      <p id="copyDataStatus" class="dialog-status" role="status" aria-live="polite"></p>
       <div class="form-actions">
         <button type="submit">Guardar copia</button>
         <button type="button" class="secondary" id="closeCopyDataBtn">Cancelar</button>
@@ -204,14 +205,15 @@
     </form>
   </dialog>
   <script src="reports.js?v=20261104-pdf"></script>
-  <script src="cex-import.js?v=20261105-engine-form"></script>
-  <script src="ce3x-locations.js?v=20261105-engine-form"></script>
-  <script src="cex-32.js?v=20261105-engine-form"></script>
-  <script src="estimation-model.js?v=20261105-engine-form"></script>
-  <script src="workspace.js?v=20261105-engine-form"></script>
-  <script src="app.js?v=20261105-engine-form"></script>
-  <script src="estimation-ui.js?v=20261105-engine-form"></script>
+  <script src="cex-import.js?v=20261105-copy-native"></script>
+  <script src="ce3x-locations.js?v=20261105-copy-native"></script>
+  <script src="cex-32.js?v=20261105-copy-native"></script>
+  <script src="estimation-model.js?v=20261105-copy-native"></script>
+  <script src="workspace.js?v=20261105-copy-native"></script>
+  <script src="app.js?v=20261105-copy-native"></script>
+  <script src="estimation-ui.js?v=20261105-copy-native"></script>
 </body>
 </html>
+
 
 

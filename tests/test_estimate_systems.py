@@ -15,6 +15,13 @@ ENGINE_ROOT=Path(os.environ.get('CE3X_ENGINE_ROOT',r'C:\Program Files (x86)\CE3X
 @unittest.skipUnless(os.name=='nt' and (ENGINE_ROOT/'ce3xv3.2.exe').is_file(),
                      'Requires the installed Windows CE3X 3.2 runtime')
 class OfficialEstimationTests(unittest.TestCase):
+    def test_native_and_form_block_building_labels_are_both_supported(self):
+        request=estimator.probe_request();request['context']['buildingType']='Bloque de Viviendas'
+        native=estimator.estimate(request,ENGINE_ROOT)['systems']
+        request['context']['buildingType']='Bloque de viviendas'
+        form=estimator.estimate(request,ENGINE_ROOT)['systems']
+        self.assertEqual(native,form)
+
     def test_full_runtime_probe_preserves_verification_and_does_not_claim_a_rating(self):
         result=estimator.check_building_runtime(ENGINE_ROOT)
         self.assertTrue(result['checks']['graphicsModuleImported'])
