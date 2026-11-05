@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import html
+import ipaddress
 import io
 import json
 import pickle
@@ -12,6 +13,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 from report_service import generate_report, report_status, ReportError, MAX_XML_BYTES
+from estimation_service import estimate_systems, estimation_status, EstimationError, MAX_ESTIMATION_BYTES
 
 
 HOST = "0.0.0.0"
@@ -51,6 +53,12 @@ class CexUnpickler(pickle.Unpickler):
 
 class Ce3xHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
+        if self.path.split('?',1)[0]=='/api/estimation/status':
+            if not ipaddress.ip_address(self.client_address[0]).is_loopback:
+                self.write_json(403,{'available':False,'message':'El módulo de instalaciones solo está disponible desde el equipo local.'})
+            else:
+                self.write_json(200,estimation_status())
+            return
         if self.path.split('?', 1)[0] == '/api/report/status':
             self.write_json(200, report_status())
             return
@@ -61,6 +69,9 @@ class Ce3xHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_POST(self):
+        if self.path.split('?',1)[0]=='/api/estimation':
+            self.handle_system_estimation()
+            return
         if self.path.split('?', 1)[0] == '/api/report':
             self.handle_report_generation()
             return
@@ -71,6 +82,26 @@ class Ce3xHandler(SimpleHTTPRequestHandler):
             self.send_error(404, "Generador .cex servidor desactivado temporalmente")
             return
         self.send_error(404, "Not found")
+
+    def handle_system_estimation(self):
+        origin=self.headers.get('Origin')
+        if not ipaddress.ip_address(self.client_address[0]).is_loopback or (origin and urlparse(origin).netloc!=self.headers.get('Host')):
+            self.write_json(403,{'error':'El módulo de instalaciones solo admite peticiones de esta app en el equipo local.'})
+            return
+        if self.headers.get('Content-Type','').split(';')[0]!='application/json':
+            self.write_json(415,{'error':'Los parámetros deben enviarse como JSON.'})
+            return
+        try:
+            length=int(self.headers.get('Content-Length','0'))
+            if length<=0 or length>MAX_ESTIMATION_BYTES:
+                raise EstimationError('La petición está vacía o supera 64 KiB.',413)
+            try: payload=json.loads(self.rfile.read(length).decode('utf-8'))
+            except (UnicodeError,json.JSONDecodeError): raise EstimationError('La petición no contiene JSON válido.',400)
+            self.write_json(200,estimate_systems(payload))
+        except EstimationError as error:
+            self.write_json(error.status,{'error':str(error)})
+        except ValueError:
+            self.write_json(400,{'error':'La longitud de la petición no es válida.'})
 
     def handle_report_generation(self):
         # Browser requests must come from this app, not an unrelated website.

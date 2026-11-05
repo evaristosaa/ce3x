@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store">
   <title>CE3X Captura</title>
-  <link rel="stylesheet" href="styles.css?v=20261103-ce3x32">
+  <link rel="stylesheet" href="styles.css?v=20261105-engine-form">
   <link rel="stylesheet" href="workspace.css?v=20261103-ce3x32">
 </head>
 <body>
@@ -192,11 +192,26 @@
       <div class="form-actions"><button id="generateReportBtn" type="submit">Generar y descargar PDF</button><button id="closeReportBtn" type="button" class="secondary">Cerrar</button></div>
     </form>
   </dialog>
+  <dialog id="estimationDialog" aria-labelledby="estimationTitle">
+    <form id="estimationForm">
+      <span class="eyebrow">INSTALACIONES · CE³X 3.2</span>
+      <h2 id="estimationTitle">Parámetros y rendimiento</h2>
+      <p class="dialog-help">Guarda los parámetros de los equipos importados y recalcula sus rendimientos. Esta función no calcula la calificación energética del edificio.</p>
+      <label>Equipo<select id="estimationEquipment"></select></label>
+      <fieldset id="estimationFields" class="estimation-fields"></fieldset>
+      <p id="estimationStatus" class="report-status" role="status" aria-live="polite"></p>
+      <div class="form-actions"><button id="calculateEstimationBtn" type="submit">Recalcular y guardar</button><button id="saveEstimationBtn" type="button" class="secondary">Guardar parámetros</button><button id="closeEstimationBtn" type="button" class="secondary">Cerrar</button></div>
+    </form>
+  </dialog>
   <script src="reports.js?v=20261104-pdf"></script>
-  <script src="cex-import.js?v=20261105-preservation"></script>
-  <script src="ce3x-locations.js?v=20261105-preservation"></script>
-  <script src="cex-32.js?v=20261105-preservation"></script>
-  <script src="workspace.js?v=20261105-preservation"></script>
-  <script src="app.js?v=20261105-preservation"></script>
+  <script src="cex-import.js?v=20261105-engine-form"></script>
+  <script src="ce3x-locations.js?v=20261105-engine-form"></script>
+  <script src="cex-32.js?v=20261105-engine-form"></script>
+  <script src="estimation-model.js?v=20261105-engine-form"></script>
+  <script src="workspace.js?v=20261105-engine-form"></script>
+  <script src="app.js?v=20261105-engine-form"></script>
+  <script src="estimation-ui.js?v=20261105-engine-form"></script>
 </body>
 </html>
+
+

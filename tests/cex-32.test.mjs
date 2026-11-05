@@ -12,8 +12,8 @@ export function loadHelpers() {
   context.globalThis=context; vm.createContext(context);
   let app=readFileSync(new URL('../app/app.js',import.meta.url),'utf8');
   for(const call of ['cleanupLocalDataStorage();','renderTabs();','renderStorageMode();','loadRecords();']) app=app.replace(call,'');
-  const source = ['cex-import.js','cex-32.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
-  vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml};',context);
+  const source = ['cex-import.js','cex-32.js','estimation-model.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
+  vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml,estimationGroups,estimationStore,estimationRequest,estimationSignature};',context);
   return context.h;
 }
 
@@ -26,7 +26,7 @@ export function nativeFixture(h) {
   Object.assign(values[2],{0:'C.T.E.',1:'Unifamiliar',2:'Sevilla',3:'Otro',4:'B4',5:'V',6:'114',7:'2.7',8:'2',9:'100',12:'BENACAZON',19:'2007',22:'104',23:'1',24:'0',25:'2'});
   values[3][0]=[['Cubierta','Cubierta','59',.45,344,'Techo','','Sin patrón','Por defecto',['Cubierta inclinada'],'','','1','Edificio Objeto','aire']];
   values[3][1]=[{__cexClass:'Envolvente.objetosEnvolvente.HuecoEstimadas',descripcion:'Ventana',cerramientoAsociado:'Cubierta',superficie:'2',longitud:'1',altura:'2',multiplicador:'1',Uvidrio:3.3,Gvidrio:.75,Umarco:4,porcMarco:'20',absortividadValor:'.3',permeabilidadValor:'50',orientacion:'SE',patronSombras:'Sin patrón',elementosProteccionSolar:['dato que debe conservarse'],tipoVidrio:'Doble',tipoMarco:'Metálico con RPT'}];
-  values[4][0]=[['ACS','ACS',[77.2,'',''],'Caldera Estándar','GLP',[['114','100'],['',''],['','']],'Estimado según Instalación',['Bien aislada y mantenida','90','0.2','24',[0,0,1]],[0],'Edificio Objeto']];
+  values[4][0]=[['ACS','ACS',[77.2,'',''],'Caldera Estándar','GLP',[['114','100'],['',''],['','']],'Estimado según Instalación',['Bien aislada y mantenida','90','0.2','24',[0,0,1,0,0,1,0]],[0],'Edificio Objeto']];
   values[4][3]=[['Clima','climatizacion',['',153,113.9],'Bomba de Calor','Electricidad',[['',''],['76.73','67.31'],['76.73','67.31']],'Estimado según Instalación',[['','220','200'],[0,1,0],[],0],['','3000','3000'],'Edificio Objeto']];
   return h.cex32Blocks(template)[0].text + values.slice(1).map(v=>h.cex32Serialize(v)+'.').join('');
 }
@@ -37,6 +37,100 @@ function alteredFixture(h, change) {
   change(values);
   return blocks[0].text+values.slice(1).map(value=>h.cex32Serialize(value)+'.').join('');
 }
+
+function estimationResult(id, values) {
+  return {ok:true,engine:'CE3X 3.2 installed seasonal-performance module',seasonalModuleSha256:'a'.repeat(64),runtimeExecutableSha256:'b'.repeat(64),systems:[{id,seasonalPerformancePercent:values}]};
+}
+
+test('installation drafts roundtrip in existing JSON cells and block export until recalculated',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h));
+  const group=h.estimationGroups(data).find(g=>g.id==='s:0:0');
+  assert.equal(group.parameters.potenciaCaldera,24);
+  let edited=h.estimationStore(data,group.id,{...group.parameters,rendCombCaldera:85});
+  edited['instalaciones.acs.items']=JSON.stringify(edited['instalaciones.acs.items']);
+  edited=h.normalizeRecord({data:edited}).data;
+  assert.equal(h.estimationGroups(edited)[0].draft.parameters.rendCombCaldera,85);
+  assert.throws(()=>h.buildCex32(template,{data:edited}),/pendientes de recalcular/);
+  assert.equal(JSON.parse(edited['cex.nativeInputs']).inputs[3][0][0][7][1],'90');
+});
+
+test('validated calculation receipts update native estimated boiler inputs without losing climate data',()=>{
+  const h=loadHelpers(),source=nativeFixture(h),data=h.parseCexRecordData(source);
+  const group=h.estimationGroups(data).find(g=>g.id==='s:0:0');
+  const edited=h.estimationStore(data,group.id,{...group.parameters,rendCombCaldera:85},estimationResult(group.id,{ACS:72.2}));
+  const result=h.cex32Blocks(h.buildCex32(template,{data:edited})),before=h.cex32Blocks(source);
+  assert.equal(result[4].value[0][0][2][0],72.2);
+  assert.equal(result[4].value[0][0][7][1],'85');
+  assert.equal(result[4].value[0][0][6],'Estimado según Instalación');
+  assert.deepEqual(plain(result[4].value[0][0][8]),plain(before[4].value[0][0][8]));
+  assert.deepEqual(plain(result[4].value[3]),plain(before[4].value[3]));
+});
+
+test('shared heat-pump calculations update both services and retain native powers and age flags',()=>{
+  const h=loadHelpers(),source=nativeFixture(h),data=h.parseCexRecordData(source);
+  const group=h.estimationGroups(data).find(g=>g.id==='s:3:0');
+  const edited=h.estimationStore(data,group.id,{...group.parameters,rendNominalCal:300},estimationResult(group.id,{calefaccion:210,refrigeracion:113.9}));
+  const output=h.cex32Blocks(h.buildCex32(template,{data:edited}))[4].value[3][0];
+  assert.equal(output[7][0][1],'300');assert.equal(output[2][1],210);assert.equal(output[2][2],113.9);
+  assert.deepEqual(plain(output[8]),['','3000','3000']);assert.deepEqual(plain(output[7][1]),[0,1,0]);
+  assert.equal(edited['instalaciones.calefaccion.items'][0].estimacion,edited['instalaciones.refrigeracion.items'][0].estimacion);
+});
+
+test('climate or building changes invalidate stored installation calculation receipts',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h));
+  const group=h.estimationGroups(data)[0];
+  const edited=h.estimationStore(data,group.id,group.parameters,estimationResult(group.id,{ACS:77.2}));
+  edited['generales.datos.zonaClimaticaHE1']='C3';
+  assert.throws(()=>h.buildCex32(template,{data:edited}),/desactualizado/);
+  const unchanged=h.parseCexRecordData(nativeFixture(h));unchanged['generales.datos.tipoEdificio']='Bloque de viviendas';
+  assert.throws(()=>h.buildCex32(template,{data:unchanged}),/zona climática o el tipo de edificio/);
+});
+
+test('changed drafts discard old receipts and manual estimated performance edits remain rejected',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),group=h.estimationGroups(data)[0];
+  let edited=h.estimationStore(data,group.id,group.parameters,estimationResult(group.id,{ACS:77.2}));
+  edited=h.estimationStore(edited,group.id,{...group.parameters,rendCombCaldera:80});
+  assert.equal(JSON.parse(edited['instalaciones.acs.items'][0].estimacion).receipt,null);
+  assert.throws(()=>h.buildCex32(template,{data:edited}),/pendientes de recalcular/);
+  edited=h.estimationStore(data,group.id,group.parameters,estimationResult(group.id,{ACS:77.2}));
+  edited['instalaciones.acs.items'][0].rendimientoEstacional='90';
+  assert.throws(()=>h.buildCex32(template,{data:edited}),/no coincide/);
+});
+
+test('incomplete or unidentified engine responses cannot create a valid receipt',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),group=h.estimationGroups(data).find(g=>g.id==='s:3:0');
+  assert.throws(()=>h.estimationStore(data,group.id,group.parameters,estimationResult(group.id,{calefaccion:153})),/todos los rendimientos/);
+  const response=estimationResult(group.id,{calefaccion:153,refrigeracion:113.9});response.seasonalModuleSha256='';
+  assert.throws(()=>h.estimationStore(data,group.id,group.parameters,response),/identificable/);
+  assert.throws(()=>h.estimationRequest(data,group,{...group.parameters,fraccionPotencia:0.5}),/escalonamiento/);
+});
+
+test('shared equipment cannot retain contradictory calculation drafts',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),group=h.estimationGroups(data).find(g=>g.id==='s:3:0');
+  const edited=h.estimationStore(data,group.id,group.parameters);
+  edited['instalaciones.refrigeracion.items'][0].estimacion=JSON.stringify({schema:1,parameters:{...group.parameters,rendNominalCal:400}});
+  assert.throws(()=>h.buildCex32(template,{data:edited}),/borradores de estimación contradictorios/);
+});
+
+test('Apps Script roundtrip retains installation drafts, receipts and stable source identifiers',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),group=h.estimationGroups(data)[0];
+  const edited=h.estimationStore(data,group.id,{...group.parameters,rendCombCaldera:85},estimationResult(group.id,{ACS:72.2}));
+  const context={};vm.createContext(context);
+  vm.runInContext(readFileSync(new URL('../google-apps-script/Code.gs',import.meta.url),'utf8')+';globalThis.sheet={recordToRow_,rowToRecord_,HEADERS};',context);
+  const restored=context.sheet.rowToRecord_(context.sheet.recordToRow_({id:'test-draft',data:edited}),context.sheet.HEADERS);
+  assert.equal(restored.data['instalaciones.acs.items'][0].estimacion,edited['instalaciones.acs.items'][0].estimacion);
+  assert.equal(restored.data['instalaciones.acs.items'][0].__cexSource,'s:0:0:0');
+  assert.equal(h.cex32Blocks(h.buildCex32(template,restored))[4].value[0][0][2][0],72.2);
+});
+
+test('damaged stored calculation identity and invalid numeric drafts cannot be exported',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),group=h.estimationGroups(data)[0];
+  const edited=h.estimationStore(data,group.id,group.parameters,estimationResult(group.id,{ACS:77.2}));
+  const draft=JSON.parse(edited['instalaciones.acs.items'][0].estimacion);delete draft.receipt.moduleSha256;
+  edited['instalaciones.acs.items'][0].estimacion=JSON.stringify(draft);
+  assert.throws(()=>h.buildCex32(template,{data:edited}),/identificar el módulo/);
+  assert.throws(()=>h.estimationStore(data,group.id,{...group.parameters,cargaMediaCaldera:2}),/Revisa el parámetro/);
+});
 
 test('native 3.2 template has 15 blocks and no inherited envelope, systems or improvements',()=>{
   const h=loadHelpers(), blocks=h.cex32Blocks(template);

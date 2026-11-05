@@ -40,3 +40,10 @@ Esto valida captura y persistencia; no sustituye el cálculo energético.
 | rawJson | JSON completo de la ficha para no perder campos futuros |
 
 El campo `rawJson` permite evolucionar el formulario sin rehacer el Sheet cada vez.
+# Parámetros y resultados de instalaciones
+
+Las filas de `instalaciones.acs.items`, `instalaciones.calefaccion.items` e `instalaciones.refrigeracion.items` pueden incluir `estimacion`, una cadena JSON con `schema`, `parameters` y `receipt`. Se almacena dentro de la columna JSON existente, sin añadir columnas.
+
+`receipt` identifica los valores y entradas usados, el módulo y runtime instalados y la fecha del cálculo. Un cambio de parámetros o contexto invalida ese resultado para exportación. Los servicios de un equipo compartido conservan el mismo borrador. El identificador `__cexSource` vincula cada fila con el elemento original del CEX.
+
+El tamaño práctico máximo de cada celda JSON sigue siendo 49.000 caracteres; si se supera, el backend rechaza el guardado. No se trunca el contenido.

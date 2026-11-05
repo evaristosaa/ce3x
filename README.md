@@ -16,7 +16,7 @@ Aplicación: https://evaristosaa.github.io/ce3x/
 
 La app todavía no calcula la calificación energética ni genera el XML de certificación desde los datos capturados o desde un CEX. Exportar CEX y convertir XML a PDF son funciones distintas del cálculo.
 
-Hay un [adaptador experimental de rendimientos de instalaciones](docs/engine-adapter.md) que ejecuta el módulo de una instalación Windows de CE³X 3.2. Se valida por separado y todavía no está conectado al formulario.
+El [adaptador experimental de rendimientos de instalaciones](docs/engine-adapter.md) ejecuta el módulo de una instalación Windows de CE³X 3.2 desde el formulario mediante el servidor local. Permite guardar parámetros y recalcular los equipos importados contrastados. En la web estática permite guardar borradores, con recálculo pendiente.
 
 ## Desarrollo local
 
