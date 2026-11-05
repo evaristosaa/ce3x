@@ -24,7 +24,10 @@ names = [prefix + name for prefix in ['app/', 'docs/'] for name in UI_FILES]
 names += ['app/server.py', 'app/report_service.py', 'google-apps-script/Code.gs',
           'docs/Code.gs.txt', 'docs/sheet-schema.md', '.gitignore',
           'tests/cex-32.test.mjs', 'README.md', 'docs/roadmap-3.2.md',
-          'scripts/prepare-release.py', 'scripts/create-cex32-test.mjs']
+          'scripts/prepare-release.py', 'scripts/create-cex32-test.mjs',
+          'scripts/estimate-systems.py', 'scripts/engine/NativePython27.cs',
+          'scripts/engine/estimate_worker.py', 'tests/test_estimate_systems.py',
+          'docs/engine-adapter.md']
 if '--meta' in sys.argv:
     print(json.dumps([{'path':name, 'size':(ROOT/name).stat().st_size,
                        'sha':hashlib.sha1(b'blob '+str((ROOT/name).stat().st_size).encode()+b'\0'+(ROOT/name).read_bytes()).hexdigest()}
