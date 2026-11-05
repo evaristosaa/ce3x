@@ -13,7 +13,7 @@ export function loadHelpers() {
   let app=readFileSync(new URL('../app/app.js',import.meta.url),'utf8');
   for(const call of ['cleanupLocalDataStorage();','renderTabs();','renderStorageMode();','loadRecords();']) app=app.replace(call,'');
   const source = ['cex-import.js','cex-32.js','estimation-model.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
-  vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml,estimationGroups,estimationStore,estimationRequest,estimationSignature};',context);
+  vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml,estimationGroups,estimationStore,estimationRequest,estimationSignature,copySectionsData,copySectionPaths};',context);
   return context.h;
 }
 
@@ -130,6 +130,68 @@ test('damaged stored calculation identity and invalid numeric drafts cannot be e
   edited['instalaciones.acs.items'][0].estimacion=JSON.stringify(draft);
   assert.throws(()=>h.buildCex32(template,{data:edited}),/identificar el módulo/);
   assert.throws(()=>h.estimationStore(data,group.id,{...group.parameters,cargaMediaCaldera:2}),/Revisa el parámetro/);
+});
+
+test('copying envelope and systems retains source native details and target identities',()=>{
+  const h=loadHelpers();
+  const source=h.parseCexRecordData(alteredFixture(h,values=>{values[1][6]='00000000T';values[4][12]=[['Auxiliar origen']];values[10]=[['Sombra origen']];}));
+  const target=h.parseCexRecordData(alteredFixture(h,values=>{values[1][0]='Destino';values[1][6]='X0000000T';values[2][22]='777';values[3][1][0].elementosProteccionSolar=['Protección destino'];}));
+  const originalSource=JSON.stringify(source);
+  h.copySectionsData({id:'source',data:source},target,template);
+  const result=h.cex32Blocks(h.buildCex32(template,{data:target}));
+  assert.equal(result[1].value[0],'Destino');assert.equal(result[1].value[6],'X0000000T');assert.equal(result[2].value[22],'777');
+  assert.deepEqual(plain(result[3].value[1][0].elementosProteccionSolar),['dato que debe conservarse']);
+  assert.deepEqual(plain(result[4].value[12]),[['Auxiliar origen']]);assert.deepEqual(plain(result[10].value),[['Sombra origen']]);
+  assert.equal(JSON.stringify(source),originalSource);assert.ok(h.copySectionPaths().includes('cex.nativeInputs'));
+});
+
+test('copying imported sections into a new record starts from blank administrative data',()=>{
+  const h=loadHelpers(),source=h.parseCexRecordData(nativeFixture(h));
+  const target={'admin.localizacion.nombreEdificio':'Destino nuevo','admin.cliente.nif':'X0000000T','generales.datos.tipoEdificio':'Unifamiliar','generales.datos.zonaClimaticaHE1':'B4'};
+  assert.throws(()=>h.copySectionsData({data:source},target),/plantilla limpia/);
+  assert.equal(target['envolvente.huecos.items'],undefined);
+  h.copySectionsData({id:'source',data:source},target,template);
+  const snapshot=JSON.parse(target['cex.nativeInputs']);
+  assert.equal(snapshot.inputs[0][0],'');assert.equal(snapshot.inputs[0][6],'');
+  assert.notEqual(snapshot.inputs[1][22],'104');
+  const result=h.cex32Blocks(h.buildCex32(template,{data:target}));assert.equal(result[1].value[6],'X0000000T');
+});
+
+test('manual source sections clear old native details and foreign calculation receipts',()=>{
+  const h=loadHelpers(),target=h.parseCexRecordData(nativeFixture(h));
+  const source={data:{'instalaciones.calefaccion.items':[{nombre:'Equipo manual',tipoEquipo:'Calefacción',modoDefinicion:'Conocido',tipoGenerador:'Efecto Joule',combustible:'Electricidad',rendimientoEstacional:'100',m2Cubiertos:'50',demandaCubierta:'100',__cexSource:'s:3:0:1',estimacion:'foreign'}]}};
+  h.copySectionsData(source,target);
+  assert.equal(target['instalaciones.calefaccion.items'][0].__cexSource,undefined);
+  assert.equal(target['instalaciones.calefaccion.items'][0].estimacion,undefined);
+  const snapshot=JSON.parse(target['cex.nativeInputs']);assert.ok(snapshot.inputs[2].every(group=>!group.length));assert.ok(snapshot.inputs[3].every(group=>!group.length));
+  const systems=h.cex32Blocks(h.buildCex32(template,{data:target}))[4].value;
+  assert.equal(systems[1][0][0],'Equipo manual');assert.equal(systems[3].length,0);assert.equal(systems[12].length,0);
+});
+
+test('copied estimated equipment retains its source climate context and requires recalculation',()=>{
+  const h=loadHelpers(),source=h.parseCexRecordData(nativeFixture(h));
+  const target=h.parseCexRecordData(alteredFixture(h,values=>{values[2][4]='C3';}));
+  h.copySectionsData({data:source},target,template);
+  assert.equal(JSON.parse(target['cex.nativeInputs']).inputs[1][4],'C3');
+  assert.equal(h.estimationGroups(target)[0].originalContext.zone,'B4');
+  assert.throws(()=>h.buildCex32(template,{data:target}),/zona climática o el tipo de edificio/);
+});
+
+test('section-specific versions migrate copied 2.3 systems inside a 3.2 target',()=>{
+  const h=loadHelpers(),source=h.parseCexRecordData(nativeFixture(h)),target=h.parseCexRecordData(nativeFixture(h));
+  const snapshot=JSON.parse(source['cex.nativeInputs']);snapshot.version='2.3';snapshot.inputs[3][3][0].splice(8,1);
+  source['cex.nativeInputs']=JSON.stringify(snapshot);
+  h.copySectionsData({data:source},target,template);
+  const copied=JSON.parse(target['cex.nativeInputs']);assert.equal(copied.version,'3.2');assert.equal(copied.sectionVersions.systems,'2.3');
+  const systems=h.cex32Blocks(h.buildCex32(template,{data:target}))[4].value;
+  assert.equal(systems[3][0].length,10);assert.deepEqual(plain(systems[3][0][8]),['','','']);
+  assert.equal(systems[3][0][9],'Edificio Objeto');
+});
+
+test('invalid source snapshots are rejected before changing target sections',()=>{
+  const h=loadHelpers(),target=h.parseCexRecordData(nativeFixture(h)),before=JSON.stringify(target);
+  assert.throws(()=>h.copySectionsData({data:{'cex.nativeInputs':'broken'}},target,template),/expediente origen/);
+  assert.equal(JSON.stringify(target),before);
 });
 
 test('native 3.2 template has 15 blocks and no inherited envelope, systems or improvements',()=>{

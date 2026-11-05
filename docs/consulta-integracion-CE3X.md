@@ -1,6 +1,6 @@
 # Consulta preparada sobre la integración de CE³X 3.2
 
-Destinatario propuesto: info@efinovatic.es. No se ha enviado; requiere autorización para contactar con un destinatario nuevo.
+Texto de referencia no enviado. Se conserva para documentar las cuestiones técnicas pendientes; no constituye una petición de contacto ni autoriza su envío.
 
 **Asunto:** Integración del motor CE³X 3.2: API y ejecución en servidor
 

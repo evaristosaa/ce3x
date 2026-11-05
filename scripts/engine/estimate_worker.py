@@ -32,8 +32,9 @@ def calculate(request):
         raise ValueError('Expected zone and buildingType')
     if context['zone'] not in ('alpha1','alpha2','alpha3','alpha4','A1','A2','A3','A4','B1','B2','B3','B4','C1','C2','C3','C4','D1','D2','D3','E1'):
         raise ValueError('Unsupported climate zone')
-    if context['buildingType'] not in ('Unifamiliar','Bloque de viviendas','Vivienda individual'):
+    if context['buildingType'] not in ('Unifamiliar','Bloque de viviendas','Bloque de Viviendas','Vivienda individual'):
         raise ValueError('Residential use only')
+    building_type='Bloque de Viviendas' if context['buildingType']=='Bloque de viviendas' else context['buildingType']
     systems=request['systems']
     if not isinstance(systems,list) or not 1 <= len(systems) <= 100:
         raise ValueError('Expected 1 to 100 systems')
@@ -88,7 +89,7 @@ def calculate(request):
                 raise ValueError('Incomplete electric heat-pump estimation')
         elif service not in ('ACS','calefaccion') or kwargs.get('rendNominal',0)<=0 or system['fuel']!='Electricidad':
             raise ValueError('Incomplete Joule estimation')
-        kwargs.update(zonaHE1=context['zone'],programa='Residencial',tipoEdificio=context['buildingType'],
+        kwargs.update(zonaHE1=context['zone'],programa='Residencial',tipoEdificio=building_type,
                       usoEdificio='Residencial',tipoInstalacion=service,
                       modoDefinicion='Estimado seg\u00fan Instalaci\u00f3n',tipoEquipo=generator,combustible=system['fuel'])
         value=calculoRendimientoMedioEstacional(**kwargs)

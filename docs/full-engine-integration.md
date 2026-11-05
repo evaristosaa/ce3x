@@ -20,7 +20,7 @@ El [IDAE](https://www.idae.es/faq) publica un canal de asistencia para incidenci
 
 ## Consulta técnica necesaria
 
-Se ha preparado un [texto de consulta](consulta-integracion-CE3X.md) para revisión. No se ha enviado a terceros.
+Se conserva un [texto de consulta](consulta-integracion-CE3X.md) como documentación de las cuestiones pendientes. No se ha enviado a Efinovatic.
 
 Antes de basar la emisión de certificados en una llamada independiente al módulo completo, debe aclararse:
 

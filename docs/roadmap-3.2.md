@@ -10,6 +10,7 @@ Estado del bloque de conservación: 5 de noviembre de 2026.
 - Identidad de filas conservada al renombrar o reordenar.
 - Edición por equipo y servicio, detección de cambios contradictorios y eliminación parcial de equipos compartidos.
 - Conservación de parámetros importados que el formulario todavía no expone.
+- Copia entre expedientes que incluye los parámetros nativos, sombras y auxiliares de las secciones copiadas, conserva la identidad del destino y detecta cambios de contexto de cálculo.
 - Selecciones vacías y localidades fuera del catálogo conservadas al guardar.
 - Conversión de XML calculado a PDF mediante la prueba en Render.
 - Adaptador experimental de rendimientos estacionales conectado al formulario mediante el servidor local Windows. Permite borradores de parámetros, recálculo, persistencia y exportación con resultados actualizados en los equipos importados contrastados. Ver [alcance y ejecución](engine-adapter.md). No calcula la calificación del edificio ni está conectado a Render.

@@ -1176,11 +1176,13 @@ function openCopyDataDialog() {
   copySourceSelect.innerHTML = sources.map(record => {
     return `<option value="${escapeHtml(record.id)}">${escapeHtml(recordLabel(record))} - ${escapeHtml(recordPlace(record))}</option>`;
   }).join('');
+  document.querySelector('#copyDataStatus').textContent='';
   copyDataDialog.showModal();
 }
 
 async function copyDataFromSelectedSource(event) {
   event.preventDefault();
+  if(copyDataDialog.dataset.busy)return;
   const target = selectedRecord();
   const source = state.records.find(record => record.id === copyDataForm.elements.sourceId.value);
   if (!target || !source || target.id === source.id) return;
@@ -1193,27 +1195,49 @@ async function copyDataFromSelectedSource(event) {
     collectTables(data);
   }
 
-  copySectionsData(source, data);
-  copyDataDialog.close();
-
+  copyDataDialog.dataset.busy='1';
+  const controls=Array.from(copyDataForm.querySelectorAll('button,select'));
+  controls.forEach(control=>{control.disabled=true;});
+  const copyStatus=document.querySelector('#copyDataStatus');
+  copyStatus.textContent='Preparando la copia de los datos completos…';
   try {
-    state.activeSection = 'envolvente';
-    const changedPaths = copySectionPaths();
+    const template=source.data?.['cex.nativeInputs']&&!data['cex.nativeInputs']?await loadCex32Template():'';
+    if(selectedRecord()?.id!==target.id)throw new Error('El expediente seleccionado ha cambiado. Vuelve a abrir la copia.');
+    copySectionsData(source,data,template);
+    const changedPaths = Array.from(new Set(copySectionPaths().concat(activeSectionPaths())));
     const saved = await persistRecordPatch(Object.assign({}, target, { data }), changedPaths);
+    state.activeSection = 'envolvente';
+    renderAll();
+    copyDataDialog.close();
     addChatMessage('assistant', `Copiados Envolvente térmica e Instalaciones desde ${recordLabel(source)} a ${recordLabel(saved)}.`);
   } catch (error) {
+    copyStatus.textContent='No se ha confirmado la copia: '+sheetErrorHelp(error);
     showSyncAlert(sheetErrorHelp(error));
     addChatMessage('assistant', 'No he copiado esos datos porque Google Sheet no ha confirmado el guardado: ' + sheetErrorHelp(error));
+  } finally {
+    delete copyDataDialog.dataset.busy;
+    controls.forEach(control=>{control.disabled=false;});
   }
 }
 
-function copySectionsData(source, targetData) {
+copyDataDialog.addEventListener('cancel',event=>{if(copyDataDialog.dataset.busy)event.preventDefault();});
+
+function copySectionsData(source, targetData, baseTemplate='') {
   const sourceData = source.data || {};
+  const native=cex32CopyNativeSections(source,targetData,baseTemplate);
   copySectionFields().forEach(item => {
     targetData[item.path] = Object.prototype.hasOwnProperty.call(sourceData, item.path)
       ? clone(sourceData[item.path])
       : emptyFieldValue(item);
+    if(item.type==='table' && !sourceData['cex.nativeInputs']) {
+      let rows=targetData[item.path];
+      if(typeof rows==='string') {try {rows=JSON.parse(rows);} catch {throw new Error('La tabla de origen no contiene JSON válido.');}}
+      if(Array.isArray(rows)) targetData[item.path]=rows.map(row=>{
+        const next=Array.isArray(row)?row.slice():Object.assign({},row);delete next.__cexSource;delete next.estimacion;return next;
+      });
+    }
   });
+  targetData['cex.nativeInputs']=native;
 }
 
 function copySectionFields() {
@@ -1221,7 +1245,7 @@ function copySectionFields() {
 }
 
 function copySectionPaths() {
-  return copySectionFields().map(item => item.path);
+  return copySectionFields().map(item => item.path).concat('cex.nativeInputs');
 }
 
 function activeSectionPaths() {
@@ -2787,16 +2811,19 @@ async function downloadCex() {
   }
 
   try {
-    const response = await fetch('templates/base-3.2.cex');
-    if (!response.ok) throw new Error('No se ha podido cargar la plantilla CE3X 3.2');
-    const buffer = await response.arrayBuffer();
-    let text = buildCex32(new TextDecoder('iso-8859-1').decode(buffer), record);
+    let text = buildCex32(await loadCex32Template(), record);
     text = normalizeCexLineEndings(text);
     const filename = fileSafe(recordLabel(record)) + '.cex';
     downloadBlob(new Blob([latin1Encode(text)], { type: 'application/octet-stream' }), filename);
   } catch (error) {
     alert('Generación .cex pendiente: ' + error.message);
   }
+}
+
+async function loadCex32Template() {
+  const response=await fetch('templates/base-3.2.cex');
+  if(!response.ok)throw new Error('No se ha podido cargar la plantilla CE3X 3.2');
+  return new TextDecoder('iso-8859-1').decode(await response.arrayBuffer());
 }
 
 function criticalCexIssues(record) {

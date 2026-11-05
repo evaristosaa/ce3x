@@ -47,3 +47,5 @@ Las filas de `instalaciones.acs.items`, `instalaciones.calefaccion.items` e `ins
 `receipt` identifica los valores y entradas usados, el módulo y runtime instalados y la fecha del cálculo. Un cambio de parámetros o contexto invalida ese resultado para exportación. Los servicios de un equipo compartido conservan el mismo borrador. El identificador `__cexSource` vincula cada fila con el elemento original del CEX.
 
 El tamaño práctico máximo de cada celda JSON sigue siendo 49.000 caracteres; si se supera, el backend rechaza el guardado. No se trunca el contenido.
+
+Al copiar envolvente e instalaciones, `cex.nativeInputs` conserva los bloques administrativos y generales del destino y sustituye los bloques nativos de las secciones copiadas, incluyendo sus sombras. `sectionVersions` identifica el formato de cada sección, `systemContext` conserva el contexto climático de origen de las instalaciones y `copiedSections` registra el expediente de procedencia. La copia guarda también este campo mediante su almacenamiento fragmentado existente.

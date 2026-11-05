@@ -22,6 +22,7 @@ function estimationRows(data) {
 function estimationGroups(data) {
   if (!data['cex.nativeInputs']) return [];
   const native=JSON.parse(data['cex.nativeInputs']);
+  const systemsVersion=native.sectionVersions?.systems||native.version;
   const rows=estimationRows(data);
   const result=[];
   for(let group=0;group<6;group++) for(const [index,raw] of (native.inputs?.[3]?.[group] || []).entries()) {
@@ -32,9 +33,9 @@ function estimationGroups(data) {
     const services=group===0?[0]:group===1?[1]:group===2?[2]:group===3?[1,2]:group===4?[0,1]:[0,1,2];
     let parameters=null, reason='La parametrización de este tipo de equipo aún necesita contraste con CE³X.';
     const p=raw[7];
-    if(native.version==='3.2' && [0,1].includes(group) && raw[3]==='Caldera Estándar' && Array.isArray(p) && p.length>=5 && p[4]?.length===7) {
+    if(systemsVersion==='3.2' && [0,1].includes(group) && raw[3]==='Caldera Estándar' && Array.isArray(p) && p.length>=5 && p[4]?.length===7) {
       parameters={aislanteCaldera:String(p[0]),rendCombCaldera:Number(p[1]),cargaMediaCaldera:Number(p[2]),potenciaCaldera:Number(p[3]),vectorTipoCaldera:structuredClone(p[4])};
-    } else if(native.version==='3.2' && group<=3 && raw[3]==='Bomba de Calor' && Array.isArray(p?.[0]) && p[0].length===3 && estimationCanonical(p[1])==='[0,1,0]' && Array.isArray(p[2]) && !p[2].length && !p[3]) {
+    } else if(systemsVersion==='3.2' && group<=3 && raw[3]==='Bomba de Calor' && Array.isArray(p?.[0]) && p[0].length===3 && estimationCanonical(p[1])==='[0,1,0]' && Array.isArray(p[2]) && !p[2].length && !p[3]) {
       parameters={variosGeneradoresCheck:false,fraccionPotencia:1,fraccionPotenciaEntrada:0};
       for(const service of services) parameters[['rendNominalACS','rendNominalCal','rendNominalRef'][service]]=Number(p[0][service]);
     }
@@ -44,7 +45,7 @@ function estimationGroups(data) {
     if(drafts.length) {try {draft=JSON.parse(drafts[0]);} catch {throw new Error('Los parámetros guardados del equipo no son válidos.');}}
     if(draft && (draft.schema!==1 || !draft.parameters || typeof draft.parameters!=='object')) throw new Error('Revisa el formato de los parámetros de estimación guardados.');
     result.push({id,group,index,raw,members,services,parameters,reason:parameters?'':reason,draft,
-      originalContext:{zone:String(native.inputs[1][4]),buildingType:cexBuildingType(native.inputs[1][1])}});
+      originalContext:native.systemContext||{zone:String(native.inputs[1][4]),buildingType:cexBuildingType(native.inputs[1][1])}});
   }
   return result;
 }
