@@ -25,9 +25,9 @@ if(process.argv.includes('--complete')) {
   for(const path of ['instalaciones.acs.items','instalaciones.calefaccion.items']) record.data[path].forEach(row=>{row.modoDefinicion='Conocido';});
 }
 let source=process.argv.includes('--native')?nativeFixture(h):h.buildCex32(template,record);
-if(process.argv.includes('--preservation')) {
+if(process.argv.includes('--preservation') || process.argv.includes('--estimation')) {
   const blocks=h.cex32Blocks(nativeFixture(h)), values=blocks.map(b=>b.value);
-  values[1][0]='PRUEBA CONSERVACION CE3X 3.2';
+  values[1][0]=process.argv.includes('--estimation')?'PRUEBA PARAMETROS CE3X 3.2':'PRUEBA CONSERVACION CE3X 3.2';
   values[1][15].push('11111111111111111111');
   values[4][12]=[['Auxiliar de prueba',['Parámetros que deben conservarse']]];
   source=blocks[0].text+values.slice(1).map(v=>h.cex32Serialize(v)+'.').join('');

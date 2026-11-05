@@ -9,6 +9,7 @@ import hashlib
 ROOT = Path(__file__).resolve().parents[1]
 UI_FILES = ['index.html', 'app.js', 'styles.css', 'workspace.js', 'workspace.css',
             'reports.js', 'cex-import.js', 'cex-32.js', 'ce3x-locations.js',
+            'estimation-model.js', 'estimation-ui.js',
             'templates/base-3.2.cex']
 for name in UI_FILES:
     target = ROOT / 'docs' / name
@@ -21,13 +22,13 @@ if "const GOOGLE_MAPS_API_KEY = '';" not in source:
     raise SystemExit('Refusing to publish configured Maps key')
 (ROOT / 'docs/Code.gs.txt').write_text(source, encoding='utf-8')
 names = [prefix + name for prefix in ['app/', 'docs/'] for name in UI_FILES]
-names += ['app/server.py', 'app/report_service.py', 'google-apps-script/Code.gs',
+names += ['app/server.py', 'app/report_service.py', 'app/estimation_service.py', 'google-apps-script/Code.gs',
           'docs/Code.gs.txt', 'docs/sheet-schema.md', '.gitignore',
           'tests/cex-32.test.mjs', 'README.md', 'docs/roadmap-3.2.md',
           'scripts/prepare-release.py', 'scripts/create-cex32-test.mjs',
           'scripts/estimate-systems.py', 'scripts/engine/NativePython27.cs',
           'scripts/engine/estimate_worker.py', 'tests/test_estimate_systems.py',
-          'docs/engine-adapter.md']
+          'docs/engine-adapter.md', 'tests/test_estimation_http.py']
 if '--meta' in sys.argv:
     print(json.dumps([{'path':name, 'size':(ROOT/name).stat().st_size,
                        'sha':hashlib.sha1(b'blob '+str((ROOT/name).stat().st_size).encode()+b'\0'+(ROOT/name).read_bytes()).hexdigest()}

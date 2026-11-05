@@ -790,6 +790,11 @@ function renderDetail() {
     : 'Falta una referencia catastral válida';
 
   sectionFields.innerHTML = '';
+  if(sectionItem.id==='instalaciones') {
+    const tools=document.createElement('div');tools.className='estimation-tools';
+    tools.innerHTML='<button type="button" class="secondary" data-open-estimation>Parámetros y rendimiento</button><p>Revisa los parámetros de los equipos importados y recalcula su rendimiento con el módulo local de CE³X 3.2.</p>';
+    sectionFields.appendChild(tools);
+  }
   sectionItem.groups.forEach(groupItem => {
     const fieldset = document.createElement('fieldset');
     if (groupItem.fields.some(item => item.type === 'table')) fieldset.classList.add('table-fieldset');
@@ -938,14 +943,15 @@ function tableHtml(item, path, value) {
 }
 
 function tableRowHtml(columns, rowItem, index) {
-  return `<tr data-cex-source="${escapeHtml(rowItem.__cexSource || '')}">
+  return `<tr data-cex-source="${escapeHtml(rowItem.__cexSource || '')}" data-estimation="${escapeHtml(rowItem.estimacion || '')}">
     <td><input type="checkbox" data-row-select aria-label="Seleccionar fila ${index + 1}"></td>
     <td data-row-number>${index + 1}</td>
     ${columns.map((column, colIndex) => {
     const value = rowItem[column.id] ?? rowItem.values?.[colIndex] ?? '';
     const name = `data-col="${escapeHtml(column.id)}"`;
     if (column.type === 'select') return `<td>${selectCellHtml(name, value, SELECT_OPTIONS[column.optionsKey] || [])}</td>`;
-    return `<td><input ${name} value="${escapeHtml(value)}" autocomplete="off"></td>`;
+    const computed = column.id==='rendimientoEstacional' && /^estimado/i.test(rowItem.modoDefinicion || '');
+    return `<td><input ${name} value="${escapeHtml(value)}" autocomplete="off"${computed?' readonly title="Se calcula desde Parámetros y rendimiento"':''}></td>`;
   }).join('')}</tr>`;
 }
 
@@ -1238,6 +1244,7 @@ function collectTables(data) {
         item[column.id] = tr.querySelector(`[data-col="${column.id}"]`)?.value?.trim() || '';
       });
       if (Object.values(item).some(Boolean) && tr.dataset.cexSource) item.__cexSource = tr.dataset.cexSource;
+      if (Object.values(item).some(Boolean) && tr.dataset.estimation) item.estimacion = tr.dataset.estimation;
       return item;
     }).filter(item => Object.values(item).some(Boolean));
     data[path] = rows;

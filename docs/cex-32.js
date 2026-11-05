@@ -145,8 +145,9 @@ function cex32Inputs(template, record) {
   if (!Array.isArray(inputs[2][3])) inputs[2][3] = [];
   const systemPaths = ['instalaciones.acs.items','instalaciones.calefaccion.items','instalaciones.refrigeracion.items','instalaciones.contribuciones.items'];
   const changed = systemPaths.some(path => !native || !cex32SameRows(cex32Table(record,path), sourceData[path]));
+  const approvedEstimated = estimationOverlay(data,inputs[3]);
   if (changed && native) {
-    cex32PatchNativeSystems(inputs[3], sourceData, systemPaths.map(path => cex32Table(record,path)));
+    cex32PatchNativeSystems(inputs[3], sourceData, systemPaths.map(path => cex32Table(record,path)),approvedEstimated);
   } else if (changed) {
     const [acs, heat, cool, contributions] = systemPaths.map(path => cex32Table(record,path));
     // Single-service systems stay independent: do not pair unrelated heating/cooling equipment.
@@ -197,6 +198,9 @@ function cex32HydrateSources(data) {
   try { source = cex32ImportedTables(JSON.parse(data[CEX32_INPUT_KEY]).inputs); }
   catch { return; } // Export reports malformed snapshots; loading must retain the record.
   for (const [path, originals] of Object.entries(source)) {
+    if(typeof data[path]==='string') {
+      try {const rows=JSON.parse(data[path]);if(Array.isArray(rows)) data[path]=rows;} catch {}
+    }
     if (!Array.isArray(data[path])) continue;
     data[path] = data[path].map(row => {
       if (row.__cexSource || row.values) return row;
@@ -206,7 +210,7 @@ function cex32HydrateSources(data) {
   }
 }
 
-function cex32PatchNativeSystems(systems, sourceData, currentTables) {
+function cex32PatchNativeSystems(systems, sourceData, currentTables, approvedEstimated = {}) {
   const paths = ['instalaciones.acs.items','instalaciones.calefaccion.items','instalaciones.refrigeracion.items','instalaciones.contribuciones.items'];
   const originals = paths.map(path => sourceData[path] || []);
   const retained = new Map(), edits = new Map(), additions = Array.from({length:7},()=>[]);
@@ -260,12 +264,14 @@ function cex32PatchNativeSystems(systems, sourceData, currentTables) {
       const legacy = group<3 && service>0 && String(raw[2]?.[service] ?? '')==='';
       const slot=legacy?0:service;
       if(changed(row,before,'rendimientoEstacional')) {
-        if(!originalKnown) throw new Error('El rendimiento estimado se calcula desde sus parámetros. Revísalos en CE3X antes de cambiarlo.');
+        if(!originalKnown && approvedEstimated[row.__cexSource]!==Number(row.rendimientoEstacional)) throw new Error('El rendimiento estimado se calcula desde sus parámetros. Revísalos en CE3X antes de cambiarlo.');
         const value=number(row.rendimientoEstacional,'rendimiento estacional');
         if(!Array.isArray(raw[7])) throw new Error('El equipo necesita revisar sus parámetros de rendimiento conocidos.');
         raw[2][slot]=value;
-        if(Array.isArray(raw[7][0])) raw[7][0][slot]=String(row.rendimientoEstacional);
-        else raw[7][slot]=String(row.rendimientoEstacional);
+        if(originalKnown) {
+          if(Array.isArray(raw[7][0])) raw[7][0][slot]=String(row.rendimientoEstacional);
+          else raw[7][slot]=String(row.rendimientoEstacional);
+        }
       }
       for(const [key,part] of [['m2Cubiertos',0],['demandaCubierta',1]]) if(changed(row,before,key)) {
         const n=number(row[key],key==='m2Cubiertos'?'superficie cubierta':'porcentaje de demanda');

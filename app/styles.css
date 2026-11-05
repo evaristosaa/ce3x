@@ -710,3 +710,11 @@ dialog::backdrop {
     grid-template-columns: 1fr;
   }
 }
+/* Advanced installation input stays separate from the wide inventory tables. */
+.estimation-tools { grid-column: 1 / -1; padding: 16px; border: 1px solid #d7e3e2; border-radius: 14px; background: #f4faf8; }
+.estimation-tools p { margin: 10px 0 0; color: #4d6561; font-size: .9rem; }
+#estimationDialog .estimation-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; margin: 16px 0; border: 0; padding: 0; min-width: 0; }
+#estimationDialog .estimation-fields > p { grid-column: 1 / -1; }
+#estimationDialog .estimation-fields label { display: flex; flex-direction: column; gap: 8px; justify-content: space-between; }
+@media (max-width: 540px) { #estimationDialog .estimation-fields { grid-template-columns: minmax(0,1fr); } }
+.estimation-result { margin: 0; padding: 12px; background: #e8f3ef; border-radius: 10px; font-size: .9rem; }

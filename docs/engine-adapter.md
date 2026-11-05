@@ -1,6 +1,19 @@
 # Adaptador experimental del módulo de instalaciones CE³X 3.2
 
-Este adaptador comprueba la ejecución del módulo oficial de rendimientos estacionales que ya está instalado en Windows. Es un paso para integrar parámetros avanzados. Todavía no está conectado al formulario ni al servicio de Render y no calcula demandas, consumos, emisiones, letras ni XML.
+Este adaptador ejecuta el módulo oficial de rendimientos estacionales que ya está instalado en Windows. Está conectado al formulario mediante el servidor local. No está conectado al servicio de Render y no calcula demandas, consumos, emisiones, letras ni XML.
+
+## Uso desde el expediente
+
+1. Abrir la app con su servidor local de Windows e importar un CEX residencial 3.2.
+2. En Instalaciones, pulsar **Parámetros y rendimiento** y seleccionar un equipo importado.
+3. Revisar los parámetros disponibles. **Guardar parámetros** conserva un borrador; **Recalcular y guardar** invoca el módulo instalado y actualiza los servicios correspondientes.
+4. Guardar o recargar el expediente y exportar el CEX. Los borradores modificados sin recálculo, resultados que no coinciden y cambios posteriores de zona climática o tipo de edificio bloquean la exportación hasta recalcular.
+
+El primer bloque permite revisar combustión, potencia, carga y aislamiento de calderas estándar importadas, y nominales de bombas de calor importadas con la configuración contrastada. Conserva características de caldera, acumulación, antigüedad, potencias y otros parámetros nativos. Las variantes todavía no contrastadas muestran una explicación y no habilitan la edición.
+
+Los borradores y los datos que identifican el cálculo se almacenan dentro del JSON de las tablas de instalaciones existentes en Sheets. No requieren nuevas columnas. El guardado local, la transformación a las celdas de Apps Script y la exportación se verifican por separado.
+
+En GitHub Pages se pueden guardar borradores, pero el recálculo requiere el servidor local. El endpoint solo admite peticiones desde el equipo local y el mismo origen de la app; no publica el runtime de CE³X en la red.
 
 ## Requisitos
 
