@@ -12,6 +12,7 @@ Estado del bloque de conservación: 5 de noviembre de 2026.
 - Conservación de parámetros importados que el formulario todavía no expone.
 - Selecciones vacías y localidades fuera del catálogo conservadas al guardar.
 - Conversión de XML calculado a PDF mediante la prueba en Render.
+- Adaptador experimental de rendimientos estacionales con la instalación Windows de CE³X 3.2: tres resultados de referencia comprobados. Ver [alcance y ejecución](engine-adapter.md). No está conectado al formulario ni calcula la calificación del edificio.
 
 ## Entrada energética completa
 
