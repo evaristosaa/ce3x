@@ -23,7 +23,9 @@ Estado del bloque de conservación: 5 de noviembre de 2026.
 
 ## Cálculo y salida XML
 
-1. Identificar un motor reconocido y verificar licencia y condiciones de integración en servidor. El conversor XML/PDF no realiza ese cálculo.
+La carga del runtime completo está corregida. La ejecución independiente no supera la verificación de contexto y no produce resultados del edificio; hace falta aclarar el protocolo de integración admitido. Ver [evidencia y consulta técnica](full-engine-integration.md). Esto no impide continuar con los campos y almacenamiento pendientes.
+
+1. Confirmar un contrato admitido de inicialización del motor completo y sus condiciones de integración en servidor. El conversor XML/PDF no realiza ese cálculo.
 2. Definir entradas, resultados, errores y trazabilidad del motor y versión empleados.
 3. Comparar demandas, consumos, emisiones y calificaciones con casos de CE³X 3.2 antes de activar la emisión de resultados.
 4. Construir el XML desde resultados verificados y validarlo contra el esquema oficial correspondiente.

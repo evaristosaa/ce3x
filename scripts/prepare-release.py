@@ -27,8 +27,9 @@ names += ['app/server.py', 'app/report_service.py', 'app/estimation_service.py',
           'tests/cex-32.test.mjs', 'README.md', 'docs/roadmap-3.2.md',
           'scripts/prepare-release.py', 'scripts/create-cex32-test.mjs',
           'scripts/estimate-systems.py', 'scripts/engine/NativePython27.cs',
-          'scripts/engine/estimate_worker.py', 'tests/test_estimate_systems.py',
-          'docs/engine-adapter.md', 'tests/test_estimation_http.py']
+          'scripts/engine/estimate_worker.py', 'scripts/engine/check_building_runtime.py', 'tests/test_estimate_systems.py',
+          'docs/engine-adapter.md', 'docs/full-engine-integration.md',
+          'docs/consulta-integracion-CE3X.md', 'tests/test_estimation_http.py']
 if '--meta' in sys.argv:
     print(json.dumps([{'path':name, 'size':(ROOT/name).stat().st_size,
                        'sha':hashlib.sha1(b'blob '+str((ROOT/name).stat().st_size).encode()+b'\0'+(ROOT/name).read_bytes()).hexdigest()}

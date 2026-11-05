@@ -27,6 +27,7 @@ La ruta por defecto es `C:\Program Files (x86)\CE3Xv3.2`. Se puede configurar `C
 
 ```powershell
 python scripts/estimate-systems.py --probe
+python scripts/estimate-systems.py --check-building-runtime
 python -m unittest discover -s tests -p test_estimate_systems.py -v
 ```
 
@@ -58,4 +59,8 @@ La potencia de caldera se expresa en kW, la combustión en porcentaje y la carga
 
 Los casos comprobados no cubren todas las instalaciones ni sustituyen la comparación con el programa completo. Antigüedad, degradación, escalonamiento y demás variantes necesitan casos adicionales antes de habilitar su edición general. Los valores por defecto del módulo tampoco sustituyen una comprobación técnica del equipo.
 
-La prueba de carga del motor completo fuera de la interfaz todavía falla en el runtime; no hay un cálculo completo de edificio validado. Para alojarlo en un servidor deben resolverse compatibilidad del runtime, condiciones de uso y redistribución, aislamiento de trabajos y equivalencia de resultados. Este adaptador no convierte el servicio Linux Free existente en un motor energético.
+La carga de la biblioteca gráfica y del módulo completo ya funciona con el contexto de dependencias de la instalación. El diagnóstico `--check-building-runtime` no carga expedientes ni produce calificaciones: comprueba esos requisitos y conserva la respuesta original de verificación del motor. En la prueba independiente, `contextVerified` es `false` y `buildingCalculationValidated` sigue siendo `false`.
+
+Falta un contrato admitido para inicializar el contexto completo de CE³X y validar sus resultados. No se sustituye la verificación por una respuesta positiva ni se presentan objetos vacíos como cálculos válidos. Ver [hallazgos y requisito pendiente](full-engine-integration.md).
+
+Para alojarlo en un servidor deben resolverse las condiciones de uso y redistribución, el contexto de ejecución admitido, el aislamiento de trabajos y la equivalencia de resultados. Este adaptador no convierte el servicio Linux Free existente en un motor energético.

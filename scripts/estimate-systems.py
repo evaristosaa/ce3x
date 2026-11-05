@@ -11,7 +11,9 @@ import tempfile
 ENGINE = Path(__file__).resolve().parent / 'engine'
 
 
-def estimate(payload, root=None):
+def run_worker(payload, root=None, worker='estimate_worker.py'):
+    if worker not in ('estimate_worker.py','check_building_runtime.py'):
+        raise ValueError('Unsupported worker')
     if os.name != 'nt':
         raise RuntimeError('This adapter requires Windows and an installed CE3X 3.2 runtime.')
     root = Path(root or os.environ.get('CE3X_ENGINE_ROOT', r'C:\Program Files (x86)\CE3Xv3.2'))
@@ -31,11 +33,11 @@ def estimate(payload, root=None):
         if built.returncode:
             raise RuntimeError('Could not compile the native Python host.')
         try:
-            run = subprocess.run([str(host), str(root), str(ENGINE / 'estimate_worker.py')],
+            run = subprocess.run([str(host), str(root), str(ENGINE / worker)],
                                  input=request, capture_output=True, timeout=30,
                                  creationflags=subprocess.CREATE_NO_WINDOW, cwd=root)
         except subprocess.TimeoutExpired as error:
-            raise RuntimeError('The official estimation module timed out after 30 seconds.') from error
+            raise RuntimeError('The official runtime timed out after 30 seconds.') from error
         try:
             result = json.loads(run.stdout.decode('utf-8'))
         except (UnicodeError, json.JSONDecodeError) as error:
@@ -46,6 +48,14 @@ def estimate(payload, root=None):
         module=root/'Instalaciones/funcionCalculoRendimientoEstacional.pyd'
         result['seasonalModuleSha256'] = hashlib.sha256(module.read_bytes()).hexdigest()
         return result
+
+
+def estimate(payload, root=None):
+    return run_worker(payload,root)
+
+
+def check_building_runtime(root=None):
+    return run_worker({},root,'check_building_runtime.py')
 
 
 def probe_request():
@@ -62,10 +72,12 @@ def probe_request():
 if __name__ == '__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root',type=Path)
-    parser.add_argument('--probe',action='store_true',help='Check three known reference performances.')
+    mode=parser.add_mutually_exclusive_group()
+    mode.add_argument('--probe',action='store_true',help='Check three known reference performances.')
+    mode.add_argument('--check-building-runtime',action='store_true',help='Inspect full-building prerequisites without loading a project or overriding checks.')
     args=parser.parse_args()
     try:
-        result=estimate(probe_request() if args.probe else json.load(sys.stdin),args.root)
+        result=check_building_runtime(args.root) if args.check_building_runtime else estimate(probe_request() if args.probe else json.load(sys.stdin),args.root)
         if args.probe:
             expected=[{'ACS':77.2},{'calefaccion':153.0,'refrigeracion':113.9}]
             if [item['seasonalPerformancePercent'] for item in result['systems']] != expected:
