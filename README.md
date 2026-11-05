@@ -12,6 +12,7 @@ Aplicación: https://evaristosaa.github.io/ce3x/
 - Importación de CEX sin ejecutar código Python del archivo.
 - Campos 3.2 de protección, uso y NIF del cliente y conservación de las entradas nativas originales.
 - Edición que conserva referencias catastrales adicionales, protecciones solares, potencias, acumulación, equipos compartidos y auxiliares importados. Los cambios incompatibles se rechazan con una explicación.
+- Gestión de la lista completa de referencias catastrales: añadir, ordenar, cambiar la principal o vaciarla; búsqueda también por referencias adicionales. El guardado identifica el expediente por su ID, aunque comparta referencia con otro.
 - Copia de envolvente e instalaciones con sus datos nativos y sombras, conservando los datos administrativos del destino. Los equipos estimados mantienen su contexto climático de origen para detectar cuándo hace falta recalcular.
 - Conversión de XML energético ya calculado a PDF mediante el servicio de prueba enlazado desde Generar PDF.
 

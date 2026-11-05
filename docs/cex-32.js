@@ -86,7 +86,7 @@ function cex32Inputs(template, record) {
   if (data['admin.localizacion.referenciaCatastral'] !== undefined) {
     const primary = String(data['admin.localizacion.referenciaCatastral'] || '').trim();
     if (!primary && references.length > 1) throw new Error('No puedes dejar vacía la referencia principal mientras haya referencias adicionales en el CEX.');
-    admin[15] = primary ? [primary, ...references.slice(1)] : [];
+    admin[15] = cex32ProjectReferences(primary,references);
   }
   const local = cexCompatibleLocality(admin[2], admin[3]);
   admin[4] = local === 'Otro' ? admin[2] : ''; admin[2] = local;
@@ -176,6 +176,53 @@ function cex32ImportedTables(inputs) {
     'instalaciones.calefaccion.items':s.calefaccion,'instalaciones.refrigeracion.items':s.refrigeracion,'instalaciones.contribuciones.items':s.contribuciones};
 }
 
+function cex32ProjectReferences(primary,original) {
+  const references=Array.isArray(original)?original.slice():[];
+  if(primary===undefined)return references;
+  const first=String(primary??'').trim();
+  if(!first)return references.length>1?['',...references.slice(1)]:[];
+  const index=references.findIndex(value=>String(value).trim().toUpperCase()===first.toUpperCase());
+  return index>0?[first,...references.filter((value,position)=>position!==index)]:[first,...references.slice(1)];
+}
+
+function cex32ReferenceList(data) {
+  let native=null;
+  if(data[CEX32_INPUT_KEY]) {
+    try{native=JSON.parse(data[CEX32_INPUT_KEY]);}catch{throw new Error('No se pueden recuperar las referencias del CEX original.');}
+    if(!Array.isArray(native.inputs?.[0]))throw new Error('El bloque administrativo nativo no tiene el formato esperado.');
+  }
+  return cex32ProjectReferences(data['admin.localizacion.referenciaCatastral'],native?.inputs?.[0]?.[15]).map(value=>String(value??''));
+}
+
+function cex32BlankSnapshot(template) {
+  const blocks=cex32Blocks(template);
+  if(blocks.length!==15||blocks[0].value!=='CE3Xv3.2 Residencial')throw new Error('La plantilla no es nativa de CE3X 3.2.');
+  return {version:'3.2',inputs:blocks.slice(1,5).map(block=>block.value),shadows:[]};
+}
+
+function cex32SetReferences(data,values,template='') {
+  if(!Array.isArray(values))throw new Error('Introduce una referencia por línea.');
+  const references=values.map(value=>String(value??'').trim().toUpperCase());
+  if(references.some(value=>!value))throw new Error('No dejes líneas vacías entre referencias. La primera línea debe ser la principal.');
+  if(references.some(value=>!/^[A-Z0-9]{20}$/.test(value)))throw new Error('Cada referencia debe contener 20 letras o números.');
+  if(new Set(references).size!==references.length)throw new Error('Hay referencias repetidas. Mantén una única línea para cada una.');
+  const next=structuredClone(data);
+  let native;
+  if(next[CEX32_INPUT_KEY]) {
+    try{native=JSON.parse(next[CEX32_INPUT_KEY]);}catch{throw new Error('No se pueden recuperar los datos nativos del expediente.');}
+    if(!['2.3','3.2'].includes(native.version)||!Array.isArray(native.inputs)||native.inputs.length!==4||native.inputs.some(part=>!Array.isArray(part)))throw new Error('Los datos nativos del expediente no tienen el formato esperado.');
+  } else {
+    if(!template)throw new Error('Falta la plantilla limpia para guardar las referencias.');
+    native=cex32BlankSnapshot(template);
+  }
+  native.inputs[0][15]=references;
+  const text=JSON.stringify(native);
+  if(text.length>360000)throw new Error('Los datos nativos superan el tamaño admitido. No se han guardado las referencias.');
+  next[CEX32_INPUT_KEY]=text;
+  next['admin.localizacion.referenciaCatastral']=references[0]||'';
+  return next;
+}
+
 function cex32CopyNativeSections(source,targetData,baseTemplate='') {
   const read=(value,label)=>{
     if(!value)return null;
@@ -189,9 +236,7 @@ function cex32CopyNativeSections(source,targetData,baseTemplate='') {
   if(!original&&!target)return '';
   if(!target) {
     if(!baseTemplate)throw new Error('Falta la plantilla limpia para copiar los datos nativos sin heredar datos personales del origen.');
-    const blocks=cex32Blocks(baseTemplate);
-    if(blocks.length!==15||blocks[0].value!=='CE3Xv3.2 Residencial')throw new Error('La plantilla de copia no es nativa de CE3X 3.2.');
-    target={version:'3.2',inputs:blocks.slice(1,5).map(block=>block.value),shadows:[]};
+    target=cex32BlankSnapshot(baseTemplate);
   }
   target=structuredClone(target);
   target.inputs[2]=original?structuredClone(original.inputs[2]):Array.from({length:4},()=>[]);

@@ -363,6 +363,7 @@ function schemaStatus_() {
     columns: headers.length,
     expectedColumns: HEADERS.length,
     cexVersion: '3.2',
+    referenceWriteVersion: 1,
     extraHeaders: headers.filter(function(header) {
       return HEADERS.indexOf(header) < 0;
     }),
@@ -412,16 +413,15 @@ function saveRecord_(item) {
   ensureCleanSchemaForWrite_(sheet);
   const now = new Date().toISOString();
   const records = listRecords_();
-  const existing = records.find(record => record.id === item.id || (
-    item.referenciaCatastral && record.referenciaCatastral === item.referenciaCatastral
-  ));
+  const existing = findRecordForWrite_(records,item.id,item.referenciaCatastral);
 
   const next = Object.assign({}, existing || {}, item);
   next.data = Object.assign({}, existing && existing.data || {}, item.data || {});
-  next.id = next.id || Utilities.getUuid();
+  next.id = existing?existing.id:(next.id || Utilities.getUuid());
   next.estado = next.estado || inferEstado_(next);
   next.createdAt = next.createdAt || now;
   next.updatedAt = now;
+  addSummaryFields_(next);
   const row = recordToRow_(next);
   if (existing) {
     const rowNumber = findRowById_(sheet, existing.id);
@@ -442,14 +442,10 @@ function patchRecord_(request) {
   const id = request.id || item.id;
   const referenciaCatastral = request.referenciaCatastral || item.referenciaCatastral;
   const records = listRecords_();
-  const existing = records.find(function(record) {
-    return (id && record.id === id) || (
-      referenciaCatastral && normalizeReference_(record.referenciaCatastral) === normalizeReference_(referenciaCatastral)
-    );
-  });
+  const existing = findRecordForWrite_(records,id,referenciaCatastral);
 
   const next = Object.assign({}, existing || {}, item);
-  next.id = next.id || id || Utilities.getUuid();
+  next.id = existing?existing.id:(next.id || id || Utilities.getUuid());
   next.data = Object.assign({}, existing && existing.data ? existing.data : {}, item.data || {}, dataPatch);
   next.createdAt = next.createdAt || now;
   next.updatedAt = now;
@@ -470,6 +466,19 @@ function writeRecordRow_(sheet, rowNumber, row) {
   const range = sheet.getRange(rowNumber, 1, 1, HEADERS.length);
   range.setNumberFormat('@');
   range.setValues([row.map(cellValue_)]);
+}
+
+function findRecordForWrite_(records,id,reference) {
+  if(id) {
+    const matches=records.filter(function(record){return String(record.id||'')===String(id);});
+    if(matches.length>1)throw new Error('El identificador del expediente está repetido. Revisa el histórico antes de guardar.');
+    return matches[0]||null;
+  }
+  const normalized=normalizeReference_(reference);
+  if(!normalized)return null;
+  const matches=records.filter(function(record){return normalizeReference_(record.referenciaCatastral)===normalized;});
+  if(matches.length>1)throw new Error('Hay varios expedientes con esa referencia. Indica el id del expediente.');
+  return matches[0]||null;
 }
 
 function markGenerated_(id, filename) {
@@ -750,11 +759,14 @@ function findRowByIdOrReference_(sheet, id, referenciaCatastral) {
   const idIndex = HEADERS.indexOf('id');
   const refIndex = HEADERS.indexOf('referenciaCatastral');
   const ref = String(referenciaCatastral || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const matches=[];
   for (let index = 0; index < values.length; index += 1) {
     const rowId = String(values[index][idIndex] || '');
     const rowRef = String(values[index][refIndex] || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if ((id && rowId === id) || (ref && rowRef === ref)) return index + 2;
+    if (id ? rowId===String(id) : (ref && rowRef===ref)) matches.push(index+2);
   }
+  if(matches.length>1)throw new Error('Hay varios expedientes con esa referencia. Indica el id del expediente.');
+  if(matches.length===1)return matches[0];
   throw new Error('Fila no encontrada para eliminar');
 }
 
@@ -865,7 +877,8 @@ function inferEstado_(item) {
 }
 
 function addSummaryFields_(record) {
-  record.referenciaCatastral = valueFromData_(record, 'admin.localizacion.referenciaCatastral') || record.referenciaCatastral || '';
+  record.referenciaCatastral = record.data&&Object.prototype.hasOwnProperty.call(record.data,'admin.localizacion.referenciaCatastral')
+    ?valueFromData_(record,'admin.localizacion.referenciaCatastral'):(record.referenciaCatastral||'');
   record.direccion = valueFromData_(record, 'admin.localizacion.direccion') || record.direccion || '';
   record.municipio = valueFromData_(record, 'admin.localizacion.localidad') || record.municipio || '';
   record.provincia = valueFromData_(record, 'admin.localizacion.provincia') || record.provincia || '';

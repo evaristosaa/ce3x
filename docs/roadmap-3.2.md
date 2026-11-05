@@ -12,13 +12,14 @@ Estado del bloque de conservación: 5 de noviembre de 2026.
 - Conservación de parámetros importados que el formulario todavía no expone.
 - Copia entre expedientes que incluye los parámetros nativos, sombras y auxiliares de las secciones copiadas, conserva la identidad del destino y detecta cambios de contexto de cálculo.
 - Selecciones vacías y localidades fuera del catálogo conservadas al guardar.
+- Edición de la lista completa de referencias catastrales, promoción de la principal y búsqueda por adicionales, con guardado por ID y rechazo de coincidencias ambiguas.
 - Conversión de XML calculado a PDF mediante la prueba en Render.
 - Adaptador experimental de rendimientos estacionales conectado al formulario mediante el servidor local Windows. Permite borradores de parámetros, recálculo, persistencia y exportación con resultados actualizados en los equipos importados contrastados. Ver [alcance y ejecución](engine-adapter.md). No calcula la calificación del edificio ni está conectado a Render.
 
 ## Entrada energética completa
 
 1. Modelar parámetros de estimación de instalaciones: potencia, antigüedad, aislamiento, rendimiento nominal, acumulación y equipos mixtos. Incorporarlos conjuntamente al formulario, JSON de Sheets y serialización.
-2. Añadir edición de todas las referencias catastrales y parámetros avanzados de envolvente, sombras y puentes térmicos.
+2. Añadir edición de parámetros avanzados de envolvente, sombras y puentes térmicos.
 3. Marcar el origen de los datos y cuáles requieren comprobación técnica.
 4. Validar apertura y recálculo de los CEX exportados en CE³X 3.2 con casos de referencia. Las pruebas de serialización no sustituyen esta validación.
 
