@@ -9,7 +9,7 @@ import hashlib
 ROOT = Path(__file__).resolve().parents[1]
 UI_FILES = ['index.html', 'app.js', 'styles.css', 'workspace.js', 'workspace.css',
             'reports.js', 'cex-import.js', 'cex-32.js', 'ce3x-locations.js',
-            'estimation-model.js', 'estimation-ui.js',
+            'estimation-model.js', 'estimation-ui.js', 'references-ui.js',
             'templates/base-3.2.cex']
 for name in UI_FILES:
     target = ROOT / 'docs' / name

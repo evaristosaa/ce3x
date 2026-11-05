@@ -13,7 +13,7 @@ export function loadHelpers() {
   let app=readFileSync(new URL('../app/app.js',import.meta.url),'utf8');
   for(const call of ['cleanupLocalDataStorage();','renderTabs();','renderStorageMode();','loadRecords();']) app=app.replace(call,'');
   const source = ['cex-import.js','cex-32.js','estimation-model.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
-  vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml,estimationGroups,estimationStore,estimationRequest,estimationSignature,copySectionsData,copySectionPaths};',context);
+  vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml,estimationGroups,estimationStore,estimationRequest,estimationSignature,copySectionsData,copySectionPaths,cex32ReferenceList,cex32SetReferences,recordReferences,recordsMatchingReference,recordSearchText};',context);
   return context.h;
 }
 
@@ -41,6 +41,111 @@ function alteredFixture(h, change) {
 function estimationResult(id, values) {
   return {ok:true,engine:'CE3X 3.2 installed seasonal-performance module',seasonalModuleSha256:'a'.repeat(64),runtimeExecutableSha256:'b'.repeat(64),systems:[{id,seasonalPerformancePercent:values}]};
 }
+
+function loadStorageWriteHelpers(records) {
+  const context={initialRecords:plain(records),Utilities:{getUuid:()=> 'generated-id'}};vm.createContext(context);
+  const gs=readFileSync(new URL('../google-apps-script/Code.gs',import.meta.url),'utf8');
+  vm.runInContext(gs+`\n
+    globalThis.writes=[];
+    getSheet_=()=>({getLastRow:()=>initialRecords.length+1,getRange:()=>({getValues:()=>initialRecords.map(recordToRow_)})});
+    ensureCleanSchemaForWrite_=()=>{};
+    listRecords_=()=>initialRecords;
+    findRowById_=(sheet,id)=>initialRecords.findIndex(record=>record.id===id)+2;
+    writeRecordRow_=(sheet,rowNumber,row)=>writes.push({rowNumber,record:rowToRecord_(row,HEADERS)});
+    globalThis.storage={saveRecord_,patchRecord_,findRecordForWrite_,findRowByIdOrReference_,getSheet_,addSummaryFields_,recordToRow_,rowToRecord_,HEADERS};
+  `,context);
+  return {storage:context.storage,writes:context.writes};
+}
+
+test('reference lists can be reordered, extended and reduced without changing thermal inputs',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),A='0'.repeat(20),B='1'.repeat(20),C='2'.repeat(20);
+  const before=h.cex32Blocks(nativeFixture(h));
+  let edited=h.cex32SetReferences(data,[B,A,C]);
+  assert.deepEqual(plain(h.cex32ReferenceList(edited)),[B,A,C]);
+  assert.equal(edited['admin.localizacion.referenciaCatastral'],B);
+  const result=h.cex32Blocks(h.buildCex32(template,{data:edited}));
+  assert.deepEqual(plain(result[1].value[15]),[B,A,C]);assert.deepEqual(plain(result[3].value),plain(before[3].value));assert.deepEqual(plain(result[4].value),plain(before[4].value));
+  edited=h.cex32SetReferences(edited,[C,B]);
+  assert.deepEqual(plain(h.cex32Blocks(h.buildCex32(template,{data:edited}))[1].value[15]),[C,B]);
+});
+
+test('promoting an existing additional reference retains the former primary exactly once',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),A='0'.repeat(20),B='1'.repeat(20);
+  let edited=h.cex32SetReferences(data,[A,B]);edited['admin.localizacion.referenciaCatastral']=B;
+  assert.deepEqual(plain(h.cex32ReferenceList(edited)),[B,A]);
+  assert.deepEqual(plain(h.cex32Blocks(h.buildCex32(template,{data:edited}))[1].value[15]),[B,A]);
+});
+
+test('explicitly clearing all references survives legacy normalization and Sheets serialization',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),A='0'.repeat(20),B='1'.repeat(20);
+  const empty=h.cex32SetReferences(h.cex32SetReferences(data,[A,B]),[]);
+  const normalized=h.normalizeRecord({id:'target',referenciaCatastral:A,data:empty});
+  assert.equal(normalized.data['admin.localizacion.referenciaCatastral'],'');
+  const {storage}=loadStorageWriteHelpers([]);storage.addSummaryFields_(normalized);
+  assert.equal(normalized.referenciaCatastral,'');
+  const restored=storage.rowToRecord_(storage.recordToRow_(normalized),storage.HEADERS);
+  assert.deepEqual(plain(h.cex32ReferenceList(restored.data)),[]);
+  assert.deepEqual(plain(h.cex32Blocks(h.buildCex32(template,restored))[1].value[15]),[]);
+});
+
+test('invalid or duplicate references are rejected atomically and valid text is normalized',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),before=JSON.stringify(data),A='a'.repeat(20);
+  assert.throws(()=>h.cex32SetReferences(data,['short']),/20 letras/);
+  assert.throws(()=>h.cex32SetReferences(data,[A,A.toUpperCase()]),/repetidas/);
+  assert.throws(()=>h.cex32SetReferences(data,['',A]),/líneas vacías/);
+  assert.equal(JSON.stringify(data),before);
+  assert.deepEqual(plain(h.cex32ReferenceList(h.cex32SetReferences(data,[' '+A+' ']))),[A.toUpperCase()]);
+});
+
+test('new-record references use a clean snapshot and retain explicitly entered known equipment',()=>{
+  const h=loadHelpers(),data={'admin.cliente.nif':'X0000000T','generales.datos.tipoEdificio':'Unifamiliar',
+    'instalaciones.acs.items':[{nombre:'ACS nueva',modoDefinicion:'Conocido',tipoGenerador:'Efecto Joule',combustible:'Electricidad',rendimientoEstacional:'100',m2Cubiertos:'50',demandaCubierta:'100'}]};
+  assert.throws(()=>h.cex32SetReferences(data,['0'.repeat(20)]),/plantilla limpia/);
+  const edited=h.cex32SetReferences(data,['0'.repeat(20),'1'.repeat(20)],template);
+  const result=h.cex32Blocks(h.buildCex32(template,{data:edited}));
+  assert.equal(result[1].value[6],'X0000000T');assert.equal(result[4].value[0][0][0],'ACS nueva');
+  assert.deepEqual(plain(result[1].value[15]),['0'.repeat(20),'1'.repeat(20)]);
+});
+
+test('lookup finds additional references and search excludes superseded native primary values',()=>{
+  const h=loadHelpers(),A='A'.repeat(20),B='B'.repeat(20),C='C'.repeat(20);
+  const data=h.cex32SetReferences(h.parseCexRecordData(nativeFixture(h)),[A,B]);
+  data['admin.localizacion.referenciaCatastral']=C;
+  const record={id:'target',referenciaCatastral:A,data};
+  assert.equal(h.recordsMatchingReference([record],B)[0].id,'target');assert.equal(h.recordsMatchingReference([record],A).length,0);
+  assert.equal(h.recordsMatchingReference([record],'').length,0);
+  const text=h.recordSearchText(record);assert.ok(text.includes(B)&&text.includes(C));assert.ok(!text.includes(A));
+});
+
+test('save and patch use the supplied ID when the new primary belongs to another record',()=>{
+  const A='A'.repeat(20),B='B'.repeat(20),records=[{id:'first',referenciaCatastral:B,data:{'admin.cliente.nombreRazonSocial':'Cliente primero'}},{id:'target',referenciaCatastral:A,data:{'admin.cliente.nombreRazonSocial':'Cliente destino'}}];
+  for(const action of ['save','patch']) {
+    const {storage,writes}=loadStorageWriteHelpers(records);
+    const item={id:'target',referenciaCatastral:B,data:{'admin.localizacion.referenciaCatastral':B}};
+    const result=action==='save'?storage.saveRecord_(item):storage.patchRecord_({id:'target',referenciaCatastral:B,item,dataPatch:item.data});
+    assert.equal(writes[0].rowNumber,3);assert.equal(result.id,'target');
+    assert.equal(result.data['admin.cliente.nombreRazonSocial'],'Cliente destino');
+  }
+});
+
+test('new IDs never overwrite a matching-reference record and legacy writes retain stable IDs',()=>{
+  const ref='A'.repeat(20),records=[{id:'existing',referenciaCatastral:ref,data:{'admin.localizacion.referenciaCatastral':ref}}];
+  const created=loadStorageWriteHelpers(records);created.storage.saveRecord_({id:'new',referenciaCatastral:ref,data:{'admin.localizacion.referenciaCatastral':ref}});
+  assert.equal(created.writes[0].rowNumber,3);assert.equal(created.writes[0].record.id,'new');
+  const legacy=loadStorageWriteHelpers(records);assert.equal(legacy.storage.saveRecord_({id:'',referenciaCatastral:ref,data:{}}).id,'existing');
+  assert.equal(legacy.writes[0].rowNumber,2);
+});
+
+test('ambiguous reference-only writes and mismatched deletion IDs never choose another record',()=>{
+  const A='A'.repeat(20),B='B'.repeat(20),records=[{id:'first',referenciaCatastral:B,data:{}},{id:'target',referenciaCatastral:A,data:{}}];
+  const {storage}=loadStorageWriteHelpers(records);
+  assert.equal(storage.findRowByIdOrReference_(storage.getSheet_(),'target',B),3);
+  assert.throws(()=>storage.findRowByIdOrReference_(storage.getSheet_(),'missing',B),/no encontrada/);
+  const duplicate=loadStorageWriteHelpers([{id:'first',referenciaCatastral:B,data:{}},{id:'second',referenciaCatastral:B,data:{}}]);
+  assert.throws(()=>duplicate.storage.saveRecord_({referenciaCatastral:B,data:{}}),/varios expedientes/);
+  assert.throws(()=>duplicate.storage.findRowByIdOrReference_(duplicate.storage.getSheet_(),'',B),/varios expedientes/);
+  assert.equal(duplicate.writes.length,0);
+});
 
 test('installation drafts roundtrip in existing JSON cells and block export until recalculated',()=>{
   const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h));

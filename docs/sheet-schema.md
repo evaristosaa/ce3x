@@ -7,7 +7,7 @@ sus posiciones. CN:CY añade versión de origen, entradas nativas, protección,
 uso, NIF/NIE del cliente y siete continuaciones de las entradas nativas.
 La migración `migrateSchema32()` añade columnas sin reescribir expedientes y
 crea un respaldo. `verifySchema32()` comprueba el esquema y la fragmentación.
-Apps Script publicado: versión 25, misma URL de conexión.
+Apps Script publicado: versión 26, misma URL de conexión. Incluye guardado por ID y la señal de compatibilidad `referenceWriteVersion: 1`.
 
 Validación de integración: CEX sintético importado por la app; NIF cambiado y
 guardado; recarga recuperada desde Google y comprobación de las columnas nuevas.
@@ -40,6 +40,8 @@ Esto valida captura y persistencia; no sustituye el cálculo energético.
 | rawJson | JSON completo de la ficha para no perder campos futuros |
 
 El campo `rawJson` permite evolucionar el formulario sin rehacer el Sheet cada vez.
+
+La lista completa de referencias catastrales se conserva en `cex.nativeInputs` y sus continuaciones existentes. La columna `referenciaCatastral` refleja la primera referencia; una lista vacía mantiene ese campo vacío. No se añaden columnas. El formulario de referencias exige un backend compatible antes de guardar en Sheets. Los cambios con ID nunca usan la referencia como alternativa para seleccionar otra fila; sin ID, una coincidencia ambigua se rechaza.
 # Parámetros y resultados de instalaciones
 
 Las filas de `instalaciones.acs.items`, `instalaciones.calefaccion.items` e `instalaciones.refrigeracion.items` pueden incluir `estimacion`, una cadena JSON con `schema`, `parameters` y `receipt`. Se almacena dentro de la columna JSON existente, sin añadir columnas.

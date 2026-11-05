@@ -626,7 +626,7 @@ function migrateLegacy(record, data) {
   };
 
   Object.entries(legacy).forEach(([oldKey, path]) => {
-    if (record[oldKey] && !hasValue(data[path])) data[path] = record[oldKey];
+    if (record[oldKey] && !Object.prototype.hasOwnProperty.call(data,path)) data[path] = record[oldKey];
   });
 }
 
@@ -808,6 +808,13 @@ function renderDetail() {
       fieldset.appendChild(wrapper);
     });
     sectionFields.appendChild(fieldset);
+    if(sectionItem.id==='admin'&&groupItem.id==='localizacion') {
+      const tools=document.createElement('div');tools.className='reference-tools';
+      let count=0;
+      try{count=cex32ReferenceList(data).filter(Boolean).length;}catch{}
+      tools.innerHTML='<button type="button" class="secondary" data-open-references>Gestionar referencias catastrales</button><p>'+count+' referencia'+(count===1?'':'s')+' en el expediente. La primera es la principal.</p>';
+      fieldset.appendChild(tools);
+    }
   });
 }
 
@@ -1090,7 +1097,7 @@ function getFilteredRecords() {
   const query = normalizeText(searchInput.value);
   const status = statusFilter.value;
   return state.records.filter(record => {
-    const matchesText = !query || normalizeText(JSON.stringify(record)).includes(query);
+    const matchesText = !query || normalizeText(recordSearchText(record)).includes(query);
     const matchesStatus = status === 'all' || inferStatus(record) === status;
     return matchesText && matchesStatus;
   });
@@ -2123,11 +2130,28 @@ function findChatTarget(text, patch) {
 }
 
 function findRecordsByReference(reference) {
+  return recordsMatchingReference(state.records,reference);
+}
+
+function recordReferences(record) {
+  const data={...(record.data||{})};
+  if(data['admin.localizacion.referenciaCatastral']===undefined)data['admin.localizacion.referenciaCatastral']=record.referenciaCatastral||'';
+  try{return cex32ReferenceList(data).filter(Boolean);}catch{return data['admin.localizacion.referenciaCatastral']?[String(data['admin.localizacion.referenciaCatastral'])]:[];}
+}
+
+function recordSearchText(record) {
+  const primary=record.data?.['admin.localizacion.referenciaCatastral']??record.referenciaCatastral??'';
+  return JSON.stringify([{...record,referenciaCatastral:primary,'admin.localizacion.referenciaCatastral':primary},recordReferences(record)],(key,value)=>
+    /^(?:cex\.nativeInputs(?:#\d+)?|rawJson\d*|generales\.definicion\.(?:imagenEdificio|planoSituacion)(?:#\d+)?)$/.test(key)?undefined:value);
+}
+
+function recordsMatchingReference(records,reference) {
   const needle = normalizeReference(reference);
-  return state.records.filter(record => {
-    const candidate = normalizeReference(valueAt(record, 'admin.localizacion.referenciaCatastral'));
-    return candidate && (candidate === needle || candidate.includes(needle) || needle.includes(candidate));
-  });
+  if(!needle)return [];
+  return records.filter(record=>recordReferences(record).some(value=>{
+    const candidate=normalizeReference(value);
+    return candidate&&(candidate===needle||candidate.includes(needle)||needle.includes(candidate));
+  }));
 }
 
 function resolvePendingSelection(text) {
