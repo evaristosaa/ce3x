@@ -13,14 +13,14 @@ export function loadHelpers() {
   let app=readFileSync(new URL('../app/app.js',import.meta.url),'utf8');
   for(const call of ['cleanupLocalDataStorage();','renderTabs();','renderStorageMode();','loadRecords();']) app=app.replace(call,'');
   const source = ['cex-import.js','cex-32.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
-  vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot};',context);
+  vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml};',context);
   return context.h;
 }
 
 const template=readFileSync(new URL('../app/templates/base-3.2.cex',import.meta.url),'latin1');
 const plain=value=>JSON.parse(JSON.stringify(value));
 
-function nativeFixture(h) {
+export function nativeFixture(h) {
   const values=h.cex32Blocks(template).map(block=>block.value);
   Object.assign(values[1],{0:'Edificio de prueba',1:'Calle Ensayo 1',2:'Otro',3:'Sevilla',4:'BENACAZON',14:'41805',15:['00000000000000000000'],26:'Ninguna',28:'ResidencialPrivado'});
   Object.assign(values[2],{0:'C.T.E.',1:'Unifamiliar',2:'Sevilla',3:'Otro',4:'B4',5:'V',6:'114',7:'2.7',8:'2',9:'100',12:'BENACAZON',19:'2007',22:'104',23:'1',24:'0',25:'2'});
@@ -29,6 +29,13 @@ function nativeFixture(h) {
   values[4][0]=[['ACS','ACS',[77.2,'',''],'Caldera Estándar','GLP',[['114','100'],['',''],['','']],'Estimado según Instalación',['Bien aislada y mantenida','90','0.2','24',[0,0,1]],[0],'Edificio Objeto']];
   values[4][3]=[['Clima','climatizacion',['',153,113.9],'Bomba de Calor','Electricidad',[['',''],['76.73','67.31'],['76.73','67.31']],'Estimado según Instalación',[['','220','200'],[0,1,0],[],0],['','3000','3000'],'Edificio Objeto']];
   return h.cex32Blocks(template)[0].text + values.slice(1).map(v=>h.cex32Serialize(v)+'.').join('');
+}
+
+function alteredFixture(h, change) {
+  const blocks=h.cex32Blocks(nativeFixture(h));
+  const values=blocks.map(block=>block.value);
+  change(values);
+  return blocks[0].text+values.slice(1).map(value=>h.cex32Serialize(value)+'.').join('');
 }
 
 test('native 3.2 template has 15 blocks and no inherited envelope, systems or improvements',()=>{
@@ -106,13 +113,137 @@ test('new 3.2 exports never invent template installations or renewable contribut
 test('single-service heating and cooling retain their performance and coverage after export/import',()=>{
   const h=loadHelpers(), data={};
   for(const [service,performance] of [['calefaccion','180'],['refrigeracion','240']]) {
-    data['instalaciones.'+service+'.items']=[{nombre:service,tipoGenerador:'Bomba de Calor',combustible:'Electricidad',rendimientoEstacional:performance,m2Cubiertos:'75',demandaCubierta:'100',zona:'Edificio Objeto'}];
+    data['instalaciones.'+service+'.items']=[{nombre:service,modoDefinicion:'Conocido',tipoGenerador:'Bomba de Calor',combustible:'Electricidad',rendimientoEstacional:performance,m2Cubiertos:'75',demandaCubierta:'100',zona:'Edificio Objeto'}];
   }
   const restored=h.parseCexRecordData(h.buildCex32(template,{data}));
   assert.equal(restored['instalaciones.calefaccion.items'][0].rendimientoEstacional,'180');
   assert.equal(restored['instalaciones.refrigeracion.items'][0].rendimientoEstacional,'240');
   assert.equal(restored['instalaciones.calefaccion.items'][0].m2Cubiertos,'75');
   assert.equal(restored['instalaciones.refrigeracion.items'][0].demandaCubierta,'100');
+});
+
+test('all cadastral references survive export and only the primary reference is edited',()=>{
+  const h=loadHelpers(), source=alteredFixture(h,v=>{v[1][15]=['00000000000000000000','11111111111111111111'];});
+  const data=h.parseCexRecordData(source);
+  assert.deepEqual(plain(h.cex32Blocks(h.buildCex32(template,{data}))[1].value[15]),['00000000000000000000','11111111111111111111']);
+  data['admin.localizacion.referenciaCatastral']='22222222222222222222';
+  assert.deepEqual(plain(h.cex32Blocks(h.buildCex32(template,{data}))[1].value[15]),['22222222222222222222','11111111111111111111']);
+});
+
+test('renaming and reordering windows retains the correct native solar protections',()=>{
+  const h=loadHelpers(), source=alteredFixture(h,v=>{
+    const second=structuredClone(v[3][1][0]);second.descripcion='Ventana 2';second.elementosProteccionSolar=['Segunda protección'];v[3][1].push(second);
+  });
+  const data=h.parseCexRecordData(source);
+  data['envolvente.huecos.items'].reverse();
+  data['envolvente.huecos.items'][0].nombre='Ventana renombrada';
+  const windows=h.cex32Blocks(h.buildCex32(template,{data}))[3].value[1];
+  assert.equal(windows[0].descripcion,'Ventana renombrada');
+  assert.equal(windows[0].elementosProteccionSolar[0],'Segunda protección');
+  assert.equal(windows[1].elementosProteccionSolar[0],'dato que debe conservarse');
+});
+
+test('editing ACS retains estimated climate equipment, nominal powers and auxiliary systems',()=>{
+  const h=loadHelpers(), source=alteredFixture(h,v=>{v[4][12]=[['Auxiliar de prueba',['parámetros adicionales']]];});
+  const data=h.parseCexRecordData(source), before=h.cex32Blocks(source)[4].value;
+  data['instalaciones.acs.items'][0].nombre='ACS renombrado';
+  const after=h.cex32Blocks(h.buildCex32(template,{data}))[4].value;
+  assert.equal(after[0][0][0],'ACS renombrado');
+  assert.deepEqual(plain(after.slice(1)),plain(before.slice(1)));
+  assert.equal(after[0][0][6],before[0][0][6]);
+});
+
+test('shared coverage edits preserve the other service, estimates and storage parameters',()=>{
+  const h=loadHelpers(), source=alteredFixture(h,v=>{v[4][0][0][8]=[true,'150','80','60','4','Conocido','1'];});
+  const before=h.cex32Blocks(source)[4].value, data=h.parseCexRecordData(source);
+  Object.assign(data['instalaciones.calefaccion.items'][0],{m2Cubiertos:'80',demandaCubierta:'70'});
+  const after=h.cex32Blocks(h.buildCex32(template,{data}))[4].value;
+  assert.deepEqual(plain(after[0]),plain(before[0]));
+  assert.deepEqual(plain(after[3][0][5][1]),['80','70']);
+  assert.deepEqual(plain(after[3][0][5][2]),plain(before[3][0][5][2]));
+  assert.deepEqual(plain(after[3][0][7]),plain(before[3][0][7]));
+  assert.deepEqual(plain(after[3][0][8]),plain(before[3][0][8]));
+});
+
+test('shared common-field edits propagate once and conflicting edits are rejected',()=>{
+  const h=loadHelpers(), data=h.parseCexRecordData(nativeFixture(h));
+  data['instalaciones.calefaccion.items'][0].nombre='Equipo compartido';
+  assert.equal(h.cex32Blocks(h.buildCex32(template,{data}))[4].value[3][0][0],'Equipo compartido');
+  data['instalaciones.refrigeracion.items'][0].nombre='Otro nombre';
+  assert.throws(()=>h.buildCex32(template,{data}),/contradictorios/);
+});
+
+test('deleting one shared projection is rejected and deleting the whole equipment preserves auxiliaries',()=>{
+  const h=loadHelpers(), source=alteredFixture(h,v=>{v[4][11]=[['Auxiliar']];}), data=h.parseCexRecordData(source);
+  data['instalaciones.calefaccion.items']=[];
+  assert.throws(()=>h.buildCex32(template,{data}),/compartido/);
+  data['instalaciones.refrigeracion.items']=[];
+  const systems=h.cex32Blocks(h.buildCex32(template,{data}))[4].value;
+  assert.equal(systems[3].length,0);assert.equal(systems[0].length,1);
+  assert.deepEqual(plain(systems[11]),[['Auxiliar']]);
+});
+
+test('estimated performances are never silently converted into justified known values',()=>{
+  const h=loadHelpers(), data=h.parseCexRecordData(nativeFixture(h)), snapshot=data['cex.nativeInputs'];
+  data['instalaciones.calefaccion.items'][0].rendimientoEstacional='200';
+  assert.throws(()=>h.buildCex32(template,{data}),/estimado/);
+  assert.equal(data['cex.nativeInputs'],snapshot);
+});
+
+test('known performance edits preserve powers and unrelated services',()=>{
+  const h=loadHelpers(), source=alteredFixture(h,v=>{v[4][3][0][6]='Conocido (Ensayado/justificado)';v[4][3][0][7]=['','153','113.9'];});
+  const data=h.parseCexRecordData(source);data['instalaciones.calefaccion.items'][0].rendimientoEstacional='200';
+  const raw=h.cex32Blocks(h.buildCex32(template,{data}))[4].value[3][0];
+  assert.equal(raw[2][1],200);assert.equal(raw[7][1],'200');assert.equal(raw[2][2],113.9);
+  assert.deepEqual(plain(raw[8]),['','3000','3000']);
+});
+
+test('renaming a contribution preserves native monthly and auxiliary parameters',()=>{
+  const h=loadHelpers(), source=alteredFixture(h,v=>{
+    v[4][6]=[['Renovable','renovable',['10','',''],['100','2','3','4','5','Electricidad'],[true,false],'Edificio Objeto',['Mensual',1,2,3]]];
+    v[4][10]=[['Recuperación',42]];
+  });
+  const data=h.parseCexRecordData(source), before=h.cex32Blocks(source)[4].value;
+  data['instalaciones.contribuciones.items'][0].nombre='Renovable renombrada';
+  const after=h.cex32Blocks(h.buildCex32(template,{data}))[4].value;
+  assert.equal(after[6][0][0],'Renovable renombrada');
+  assert.deepEqual(plain(after[6][0].slice(1)),plain(before[6][0].slice(1)));
+  assert.deepEqual(plain(after[10]),plain(before[10]));
+});
+
+test('older stored records acquire stable source identities before editing',()=>{
+  const h=loadHelpers(), data=h.parseCexRecordData(nativeFixture(h));
+  for(const value of Object.values(data)) if(Array.isArray(value)) for(const row of value) delete row.__cexSource;
+  const record=h.normalizeRecord({data});
+  assert.equal(record.data['envolvente.huecos.items'][0].__cexSource,'e:1:0');
+  record.data['envolvente.huecos.items'][0].nombre='Otro nombre';
+  const raw=h.cex32Blocks(h.buildCex32(template,record))[3].value[1][0];
+  assert.equal(raw.elementosProteccionSolar[0],'dato que debe conservarse');
+});
+
+test('new estimated equipment is rejected instead of labelled as justified known input',()=>{
+  const h=loadHelpers(), data={'instalaciones.calefaccion.items':[{nombre:'Estimación',modoDefinicion:'Estimado según Instalación',rendimientoEstacional:'180',tipoGenerador:'Bomba de Calor',combustible:'Electricidad'}]};
+  assert.throws(()=>h.buildCex32(template,{data}),/conocido y justificado/);
+});
+
+test('provenance cannot be duplicated to overwrite a native window twice',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h));
+  data['envolvente.huecos.items'].push({...data['envolvente.huecos.items'][0],nombre:'Copia'});
+  assert.throws(()=>h.buildCex32(template,{data}),/mismo elemento original/);
+});
+
+test('native modes and custom towns remain selected instead of becoming the first option',()=>{
+  const h=loadHelpers();
+  assert.match(h.selectHtml('localidad','BENACAZON',['Sevilla','Otro']),/<option value="BENACAZON" selected>/);
+  assert.match(h.selectCellHtml('data-col="modoDefinicion"','Conocido (Ensayado/justificado)',['Estimado','Conocido']),/<option value="Conocido \(Ensayado\/justificado\)" selected>/);
+  assert.match(h.selectHtml('provincia','',['A Coruña','Sevilla']),/<option value="" selected>/);
+});
+
+test('administrative and general custom towns are exported independently',()=>{
+  const h=loadHelpers(), data=h.parseCexRecordData(nativeFixture(h));
+  data['admin.localizacion.localidad']='Sevilla';
+  const general=h.cex32Blocks(h.buildCex32(template,{data}))[2].value;
+  assert.equal(general[3],'Otro');assert.equal(general[12],'BENACAZON');
 });
 test('unsupported versions, non-residential CEX and truncated files are rejected',()=>{
   const h=loadHelpers();for(const version of ['CE3Xv3.1 Residencial','CE3Xv3.2 GranTerciario','CEXv2.4 Residencial']) {

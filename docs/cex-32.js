@@ -60,6 +60,7 @@ function cex32Inputs(template, record) {
   const blocks = cex32Blocks(template);
   if (blocks[0]?.value !== 'CE3Xv3.2 Residencial') throw new Error('La plantilla no es nativa de CE3X 3.2.');
   const data = record.data || {};
+  cex32HydrateSources(data);
   let native;
   if (data[CEX32_INPUT_KEY]) {
     try { native = JSON.parse(data[CEX32_INPUT_KEY]); }
@@ -81,7 +82,12 @@ function cex32Inputs(template, record) {
     21:'admin.tecnico.direccion',22:'admin.tecnico.provincia',23:'admin.tecnico.localidad',24:'admin.tecnico.codigoPostal',25:'admin.tecnico.titulacion',
     26:'admin.localizacion.gradoProteccion',28:'admin.localizacion.usoEdificio',
   });
-  admin[15] = [String(data['admin.localizacion.referenciaCatastral'] || '')];
+  const references = Array.isArray(admin[15]) ? admin[15].slice() : [];
+  if (data['admin.localizacion.referenciaCatastral'] !== undefined) {
+    const primary = String(data['admin.localizacion.referenciaCatastral'] || '').trim();
+    if (!primary && references.length > 1) throw new Error('No puedes dejar vacía la referencia principal mientras haya referencias adicionales en el CEX.');
+    admin[15] = primary ? [primary, ...references.slice(1)] : [];
+  }
   const local = cexCompatibleLocality(admin[2], admin[3]);
   admin[4] = local === 'Otro' ? admin[2] : ''; admin[2] = local;
   if (!admin[26]) admin[26] = 'Ninguna';
@@ -92,8 +98,9 @@ function cex32Inputs(template, record) {
     16:'generales.definicion.ventilacionInmueble',19:'generales.datos.anioConstruccion'});
   general[1] = cexBuildingType(general[1]);
   if (/^CTE\s*20\d\d$/i.test(general[0])) general[0] = 'C.T.E.';
-  general[12] = local === 'Otro' ? String(data['generales.datos.localidad'] || data['admin.localizacion.localidad'] || '') : '';
-  general[3] = cexCompatibleLocality(general[3], general[2]);
+  const generalLocal = cexCompatibleLocality(general[3], general[2]);
+  general[12] = generalLocal === 'Otro' ? String(data['generales.datos.localidad'] || data['admin.localizacion.localidad'] || '') : '';
+  general[3] = generalLocal;
   general[11] = /^(s[ií]|true|1)$/i.test(String(data['generales.definicion.ensayoEstanqueidad'] || ''));
   general[17] = embeddedImageBase64(data['generales.definicion.imagenEdificio']);
   general[18] = embeddedImageBase64(data['generales.definicion.planoSituacion']);
@@ -110,11 +117,17 @@ function cex32Inputs(template, record) {
     if (native) {
       const original = sourceData[path] || [];
       const raw = inputs[2][index];
+      const used = new Set();
       inputs[2][index] = rows.map((row, rowIndex) => {
-        const oldIndex = original.findIndex(item=>item.nombre === row.nombre);
+        const source = cex32FindOriginal(row, original);
+        const oldIndex = source ? original.indexOf(source) : -1;
         if (oldIndex < 0) return generated[rowIndex];
+        if (used.has(oldIndex)) throw new Error('Dos filas de la envolvente apuntan al mismo elemento original. Vuelve a importar el CEX.');
+        used.add(oldIndex);
         const item = structuredClone(raw[oldIndex]);
         const before = original[oldIndex];
+        if (index === 0 && row.tipoCerramiento !== before.tipoCerramiento) throw new Error('El cambio de tipo de cerramiento necesita revisar su definición en CE3X.');
+        if (index === 1 && row.modoDefinicion !== before.modoDefinicion) throw new Error('El cambio de modo del hueco necesita sus parámetros nativos en CE3X.');
         const maps = [
           {nombre:0,tipoCerramiento:1,superficie:2,u:3,peso:4,posicion:5,patronSombras:7,modoDefinicion:8},
           {nombre:'descripcion',cerramientoAsociado:'cerramientoAsociado',longitud:'longitud',altura:'altura',multiplicador:'multiplicador',superficie:'superficie',uVidrio:'Uvidrio',gVidrio:'Gvidrio',uMarco:'Umarco',porcMarco:'porcMarco',absortividadMarco:'absortividadValor',permeabilidad:'permeabilidadValor',orientacion:'orientacion',patronSombras:'patronSombras'},
@@ -132,31 +145,25 @@ function cex32Inputs(template, record) {
   if (!Array.isArray(inputs[2][3])) inputs[2][3] = [];
   const systemPaths = ['instalaciones.acs.items','instalaciones.calefaccion.items','instalaciones.refrigeracion.items','instalaciones.contribuciones.items'];
   const changed = systemPaths.some(path => !native || !cex32SameRows(cex32Table(record,path), sourceData[path]));
-  if (changed) {
+  if (changed && native) {
+    cex32PatchNativeSystems(inputs[3], sourceData, systemPaths.map(path => cex32Table(record,path)));
+  } else if (changed) {
     const [acs, heat, cool, contributions] = systemPaths.map(path => cex32Table(record,path));
     // Single-service systems stay independent: do not pair unrelated heating/cooling equipment.
-    const single = (row, service) => {
-      const performance = ['', '', '']; performance[service] = Number(String(row.rendimientoEstacional || 0).replace(',', '.'));
-      const coverage = [['',''],['',''],['','']]; coverage[service] = [String(row.m2Cubiertos || ''),String(row.demandaCubierta || '')];
-      const known = ['', '', '']; known[service] = String(row.rendimientoEstacional || '');
-      return [row.nombre, ['ACS','calefaccion','refrigeracion'][service], performance, row.tipoGenerador, row.combustible, coverage,
-        'Conocido (Ensayado/justificado)', known, ...(service === 0 ? [[0]] : [['','','']]), row.zona || 'Edificio Objeto'];
-    };
     if (acs.some(row => /^(s[ií]|true|1)$/i.test(String(row.acumulacion)))) {
       throw new Error('La acumulación de ACS necesita sus parámetros nativos. Conserva la instalación importada o completa la acumulación en CE3X antes de exportar.');
     }
     inputs[3] = Array.from({length:14},()=>[]);
-    inputs[3][0] = acs.map(row=>single(row,0));
-    inputs[3][1] = heat.map(row=>single(row,1));
-    inputs[3][2] = cool.map(row=>single(row,2));
+    inputs[3][0] = acs.map(row=>cex32KnownSystem(row,0));
+    inputs[3][1] = heat.map(row=>cex32KnownSystem(row,1));
+    inputs[3][2] = cool.map(row=>cex32KnownSystem(row,2));
     inputs[3][6] = new CexPickleParser(serializeCexContribucionesInput(contributions)+'.',0).parse();
-  } else {
-    while (inputs[3].length < 14) inputs[3].push([]);
-    if (native.version === '2.3') {
+  }
+  while (inputs[3].length < 14) inputs[3].push([]);
+  if (native?.version === '2.3') {
       for (const index of [1,2,3,4,5]) inputs[3][index].forEach(row=> {
         if (row.length === 9) row.splice(8,0,['','','']);
       });
-    }
   }
   return { blocks, inputs, shadows: native?.shadows };
 }
@@ -170,7 +177,124 @@ function cex32ImportedTables(inputs) {
 
 function cex32SameRows(rows, original) {
   return rows.length === (original || []).length && rows.every((row,index) =>
-    Object.keys(row).every(key => String(row[key] ?? '') === String(original[index][key] ?? '')));
+    Object.keys(row).filter(key => !key.startsWith('__cex')).every(key => String(row[key] ?? '') === String(original[index][key] ?? '')));
+}
+
+function cex32FindOriginal(row, originals) {
+  if (row.__cexSource) {
+    const original = originals.find(item => item.__cexSource === row.__cexSource);
+    if (!original) throw new Error('La fila no corresponde a sus datos originales. Vuelve a importar el CEX.');
+    return original;
+  }
+  const matches = originals.filter(item => item.nombre === row.nombre);
+  if (matches.length > 1) throw new Error('Hay elementos con el mismo nombre sin identificar. Vuelve a importar el CEX antes de editarlos.');
+  return matches[0];
+}
+
+function cex32HydrateSources(data) {
+  if (!data[CEX32_INPUT_KEY]) return;
+  let source;
+  try { source = cex32ImportedTables(JSON.parse(data[CEX32_INPUT_KEY]).inputs); }
+  catch { return; } // Export reports malformed snapshots; loading must retain the record.
+  for (const [path, originals] of Object.entries(source)) {
+    if (!Array.isArray(data[path])) continue;
+    data[path] = data[path].map(row => {
+      if (row.__cexSource || row.values) return row;
+      const matches = originals.filter(item => item.nombre === row.nombre);
+      return matches.length === 1 ? {...row, __cexSource: matches[0].__cexSource} : row;
+    });
+  }
+}
+
+function cex32PatchNativeSystems(systems, sourceData, currentTables) {
+  const paths = ['instalaciones.acs.items','instalaciones.calefaccion.items','instalaciones.refrigeracion.items','instalaciones.contribuciones.items'];
+  const originals = paths.map(path => sourceData[path] || []);
+  const retained = new Map(), edits = new Map(), additions = Array.from({length:7},()=>[]);
+  const known = value => /^conocido/i.test(String(value || ''));
+  const changed = (row,before,key) => row[key] !== undefined && String(row[key] ?? '') !== String(before[key] ?? '');
+  const number = (value,label) => {
+    if (!String(value).trim()) throw new Error('Completa ' + label + ' antes de exportar.');
+    const n = Number(String(value).replace(',','.'));
+    if (!Number.isFinite(n) || n < 0) throw new Error('Revisa el valor de ' + label + '.');
+    return n;
+  };
+  const common = (entity,key,value,apply) => {
+    const id=entity+':'+key;
+    if (edits.has(id) && edits.get(id)!==String(value)) throw new Error('El equipo compartido tiene cambios contradictorios en ' + key + '.');
+    edits.set(id,String(value)); apply();
+  };
+  for (let table=0;table<4;table++) {
+    const used = new Set();
+    for (const row of currentTables[table]) {
+      const before = cex32FindOriginal(row,originals[table]);
+      if (!before) {
+        if (table === 3) {
+          additions[6].push(new CexPickleParser(serializeCexContribucionesInput([row])+'.',0).parse()[0]);
+          continue;
+        }
+        additions[table].push(cex32KnownSystem(row,table));
+        continue;
+      }
+      if (used.has(before.__cexSource)) throw new Error('Un mismo equipo original aparece duplicado en la tabla.');
+      used.add(before.__cexSource);
+      const [,groupText,indexText,serviceText]=before.__cexSource.split(':');
+      const group=Number(groupText), index=Number(indexText), service=Number(serviceText), raw=systems[group][index], entity=group+':'+index;
+      if (!retained.has(entity)) retained.set(entity,new Set());
+      retained.get(entity).add(before.__cexSource);
+      if (table===3) {
+        for (const [key,slot] of Object.entries({nombre:0,zona:5})) if(changed(row,before,key)) raw[slot]=row[key];
+        const maps={acsRenovable:[2,0],calefaccionRenovable:[2,1],refrigeracionRenovable:[2,2],calorRecuperadoAcs:[3,1],calorRecuperadoCalefaccion:[3,2],frioRecuperado:[3,3],energiaConsumidaGeneracionElectricidad:[3,4],combustible:[3,5]};
+        for (const [key,[slot,part]] of Object.entries(maps)) if(changed(row,before,key)) {
+          if (!Array.isArray(raw[slot])) throw new Error('La contribución necesita revisar sus parámetros nativos.');
+          raw[slot][part]=row[key];
+        }
+        continue;
+      }
+      const originalKnown=known(before.modoDefinicion);
+      if (changed(row,before,'tipoEquipo')) throw new Error('El tipo de un equipo importado debe modificarse en CE3X.');
+      if (changed(row,before,'modoDefinicion') && !(originalKnown && known(row.modoDefinicion))) throw new Error('El cambio de modo de definición requiere completar sus parámetros en CE3X.');
+      for (const key of ['tipoGenerador','combustible']) if(changed(row,before,key) && !originalKnown) throw new Error('Para cambiar el generador o combustible de un equipo estimado, revisa sus parámetros en CE3X.');
+      for (const [key,slot] of Object.entries({nombre:0,tipoGenerador:3,combustible:4,zona:group===0?9:raw.length-1})) {
+        if(changed(row,before,key)) common(entity,key,row[key],()=>{raw[slot]=row[key];});
+      }
+      const legacy = group<3 && service>0 && String(raw[2]?.[service] ?? '')==='';
+      const slot=legacy?0:service;
+      if(changed(row,before,'rendimientoEstacional')) {
+        if(!originalKnown) throw new Error('El rendimiento estimado se calcula desde sus parámetros. Revísalos en CE3X antes de cambiarlo.');
+        const value=number(row.rendimientoEstacional,'rendimiento estacional');
+        if(!Array.isArray(raw[7])) throw new Error('El equipo necesita revisar sus parámetros de rendimiento conocidos.');
+        raw[2][slot]=value;
+        if(Array.isArray(raw[7][0])) raw[7][0][slot]=String(row.rendimientoEstacional);
+        else raw[7][slot]=String(row.rendimientoEstacional);
+      }
+      for(const [key,part] of [['m2Cubiertos',0],['demandaCubierta',1]]) if(changed(row,before,key)) {
+        const n=number(row[key],key==='m2Cubiertos'?'superficie cubierta':'porcentaje de demanda');
+        if(part===1 && n>100) throw new Error('La demanda cubierta debe estar entre 0 y 100 %.');
+        raw[5][slot][part]=String(row[key]);
+      }
+      if(changed(row,{...before,acumulacion:before.acumulacion||''},'acumulacion')) throw new Error('El cambio de acumulación necesita sus parámetros nativos en CE3X.');
+    }
+  }
+  // Keep whole shared equipment or remove all its projections; never split it silently.
+  const expected=new Map();
+  for(const list of originals) for(const row of list) {
+    const [,group,index]=row.__cexSource.split(':'), id=group+':'+index;
+    expected.set(id,(expected.get(id)||0)+1);
+  }
+  for(const [entity,set] of retained) if(set.size!==expected.get(entity)) throw new Error('Un equipo compartido no se puede eliminar solo de uno de sus servicios. Elimínalo de todas sus tablas o revísalo en CE3X.');
+  for(let group=0;group<7;group++) systems[group]=(systems[group]||[]).filter((row,index)=>retained.has(group+':'+index)).concat(additions[group]);
+}
+
+function cex32KnownSystem(row,service) {
+  if (!/^conocido/i.test(String(row.modoDefinicion || ''))) throw new Error('Los equipos nuevos requieren un rendimiento conocido y justificado. Para usar valores estimados, completa sus parámetros en CE3X.');
+  if (/^(s[ií]|true|1)$/i.test(String(row.acumulacion))) throw new Error('Completa los parámetros de acumulación de ACS en CE3X antes de exportar.');
+  const value=Number(String(row.rendimientoEstacional || '').replace(',','.'));
+  if(!Number.isFinite(value) || value<=0) throw new Error('Completa un rendimiento estacional conocido mayor que cero.');
+  const performance=['','',''], coverage=[['',''],['',''],['','']], parameters=['','',''];
+  performance[service]=value;
+  coverage[service]=[String(row.m2Cubiertos||''),String(row.demandaCubierta||'')];
+  parameters[service]=String(row.rendimientoEstacional);
+  return [row.nombre,['ACS','calefaccion','refrigeracion'][service],performance,row.tipoGenerador,row.combustible,coverage,'Conocido (Ensayado/justificado)',parameters,service===0?[0]:['','',''],row.zona||'Edificio Objeto'];
 }
 
 function buildCex32(template, record) {
