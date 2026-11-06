@@ -2,18 +2,20 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import {webcrypto} from 'node:crypto';
 
 export function loadHelpers() {
   const noop = {addEventListener(){},appendChild(){},close(){},querySelector(){return noop},remove(){},showModal(){},style:{}};
   const context = {structuredClone, Blob, TextDecoder, TextEncoder, URL, URLSearchParams, setTimeout,
     alert(){}, document:{body:noop,createElement(){return noop},querySelector(){return noop}},
     localStorage:{getItem(){return null},setItem(){},removeItem(){}},navigator:{},
-    window:{addEventListener(){},crypto:{randomUUID:()=> 'test-id'},location:{protocol:'http:',search:''},setTimeout}};
+    window:{addEventListener(){},crypto:{randomUUID:()=> 'test-id',subtle:webcrypto.subtle},location:{protocol:'http:',search:''},setTimeout}};
   context.globalThis=context; vm.createContext(context);
   let app=readFileSync(new URL('../app/app.js',import.meta.url),'utf8');
   for(const call of ['cleanupLocalDataStorage();','renderTabs();','renderStorageMode();','loadRecords();']) app=app.replace(call,'');
-  const source = ['cex-import.js','cex-32.js','estimation-model.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
+  const source = ['cex-import.js','cex-32.js','estimation-model.js','review-model.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
   vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml,estimationGroups,estimationStore,estimationRequest,estimationSignature,copySectionsData,copySectionPaths,cex32ReferenceList,cex32SetReferences,recordReferences,recordsMatchingReference,recordSearchText};',context);
+  vm.runInContext('Object.assign(globalThis.h,{reviewStamp,reviewStatus,reviewCheck,reviewUncheck,reviewDigest,prepareReviewWrite,cex32BridgeOrigins,setReviewState:(records)=>{state.records=records;state.config.apiUrl="";},setReviewTransport:(transport)=>{api=transport;state.config.apiUrl="https://example.test/exec";}});',context);
   return context.h;
 }
 
@@ -41,6 +43,111 @@ function alteredFixture(h, change) {
 function estimationResult(id, values) {
   return {ok:true,engine:'CE3X 3.2 installed seasonal-performance module',seasonalModuleSha256:'a'.repeat(64),runtimeExecutableSha256:'b'.repeat(64),systems:[{id,seasonalPerformancePercent:values}]};
 }
+
+test('reviews are tied to exact current values and manual changes invalidate prior checks',async()=>{
+  const h=loadHelpers(),path='generales.definicion.superficieUtilHabitable',data={[path]:'100'};
+  await h.reviewStamp(data,{},[path],{[path]:'catastro'},'2026-11-06T08:00:00Z');
+  let checked=await h.reviewCheck(data,path,'Técnico de prueba','Plano medido 01');
+  assert.equal((await h.reviewStatus(checked,path)).checked,true);
+  assert.equal((await h.reviewStatus(checked,path)).source,'catastro');
+  const before=structuredClone(checked);checked[path]='101';
+  assert.equal((await h.reviewStatus(checked,path)).checked,false);
+  await h.reviewStamp(checked,before,[path],{},'2026-11-06T09:00:00Z');
+  const status=await h.reviewStatus(checked,path);
+  assert.equal(status.source,'manual');assert.equal(status.checked,false);assert.equal(status.at,'2026-11-06T09:00:00Z');
+  assert.equal(checked['revision.campos'].fields[path].review,undefined);
+});
+
+test('unchanged writes retain checks and legacy values start with unknown provenance',async()=>{
+  const h=loadHelpers(),path='admin.localizacion.nombreEdificio',legacy={[path]:'Existente'};
+  assert.equal((await h.reviewStatus(legacy,path)).source,'unknown');
+  assert.equal((await h.reviewStatus(legacy,path)).checked,false);
+  const checked=await h.reviewCheck(legacy,path,'Revisor','Visita técnica');
+  await h.reviewStamp(checked,structuredClone(checked),[path],{[path]:'cex'});
+  assert.equal((await h.reviewStatus(checked,path)).checked,true);
+  assert.equal((await h.reviewStatus(checked,path)).source,'unknown');
+  assert.equal((await h.reviewStatus(h.reviewUncheck(checked,path),path)).checked,false);
+});
+
+test('Catastro values and inferred envelope retain different provenance and new copies do not inherit checks',async()=>{
+  const h=loadHelpers(),a='admin.localizacion.direccion',b='envolvente.cerramientos.items';
+  const data={[a]:'Calle Prueba',[b]:[{nombre:'Muro',u:'0.5'}]};
+  await h.reviewStamp(data,{},[a,b],{[a]:'catastro',[b]:'estimate'});
+  assert.equal((await h.reviewStatus(data,a)).source,'catastro');assert.equal((await h.reviewStatus(data,b)).source,'estimate');
+  const checked=await h.reviewCheck(data,b,'Revisor','Memoria de cálculo');
+  const target={};h.copySectionsData({id:'source',data:checked},target);
+  await h.reviewStamp(target,{},[b],{[b]:{source:'copied',detail:'Origen de prueba'}});
+  assert.equal((await h.reviewStatus(target,b)).checked,false);assert.equal((await h.reviewStatus(target,b)).source,'copied');
+});
+
+test('hidden native envelope edits invalidate table reviews without invalidating unrelated administrative fields',async()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),table='envolvente.huecos.items',admin='admin.localizacion.nombreEdificio';
+  let checked=await h.reviewCheck(data,table,'Revisor','CE3X revisado');checked=await h.reviewCheck(checked,admin,'Revisor','Ficha administrativa');
+  const native=JSON.parse(checked['cex.nativeInputs']);native.inputs[2][1][0].elementosProteccionSolar=['otra geometría'];checked['cex.nativeInputs']=JSON.stringify(native);
+  assert.equal((await h.reviewStatus(checked,table)).checked,false);assert.equal((await h.reviewStatus(checked,admin)).checked,true);
+});
+
+test('review metadata survives Sheets JSON serialization and cannot certify a changed persisted value',async()=>{
+  const h=loadHelpers(),path='generales.definicion.superficieUtilHabitable',data={[path]:'100'};
+  const checked=await h.reviewCheck(data,path,'Revisor','Plano');
+  const {storage}=loadStorageWriteHelpers([]),restored=storage.rowToRecord_(storage.recordToRow_({id:'review',data:checked}),storage.HEADERS);
+  assert.equal(storage.HEADERS.length,104);assert.equal(storage.HEADERS[103],'revision.campos');assert.equal(storage.HEADERS.slice(0,103).includes('revision.campos'),false);
+  assert.equal((await h.reviewStatus(restored.data,path)).checked,true);
+  restored.data[path]='200';assert.equal((await h.reviewStatus(restored.data,path)).checked,false);
+  const corrupted=structuredClone(data);corrupted['revision.campos']='invalid';
+  await assert.rejects(()=>h.reviewStatus(corrupted,path),/formato válido/);
+  await assert.rejects(()=>h.reviewCheck(data,path,'','Plano'),/quién comprueba/);
+});
+
+test('the real write preparation stamps changed values and includes review metadata in patch paths',async()=>{
+  const h=loadHelpers(),path='admin.localizacion.direccion',old={id:'real-write',data:{[path]:'Antes'}};
+  h.setReviewState([old]);const next=structuredClone(old);next.data[path]='Después';
+  const paths=await h.prepareReviewWrite(next,[path],{},'2026-11-06T10:00:00Z');
+  assert.ok(paths.includes('revision.campos'));assert.equal((await h.reviewStatus(next.data,path)).source,'manual');
+});
+
+test('writes are refused against a backend that cannot preserve review metadata',async()=>{
+  const h=loadHelpers(),path='admin.localizacion.direccion',record={id:'old-backend',data:{[path]:'Prueba'}};
+  const actions=[];h.setReviewTransport(async request=>{actions.push(request.action);return {result:{referenceWriteVersion:1}};});
+  await assert.rejects(()=>h.prepareReviewWrite(record,[path],{},'2026-11-06T10:00:00Z'),/Actualiza Apps Script/);
+  assert.deepEqual(actions,['schemaStatus']);
+});
+
+test('malformed review evidence and oversized metadata cannot appear as valid checks',async()=>{
+  const h=loadHelpers(),path='admin.localizacion.direccion',checked=await h.reviewCheck({[path]:'Prueba'},path,'Revisor','Plano');
+  checked['revision.campos'].fields[path].review.by={unexpected:true};assert.equal((await h.reviewStatus(checked,path)).checked,false);
+  const oversized={[path]:'Prueba','revision.campos':{schema:1,fields:{other:{detail:'x'.repeat(49000)}}}};
+  await assert.rejects(()=>h.reviewCheck(oversized,path,'Revisor','Plano'),/espacio disponible/);
+});
+
+test('user review declarations do not change native CEX contents or calculation inputs',async()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(bridgeFixture(h));
+  const baseline=h.buildCex32(template,{data:structuredClone(data)});
+  const checked=await h.reviewCheck(data,'envolvente.puentesTermicos.items','Revisor','Memoria técnica');
+  assert.equal(h.buildCex32(template,{data:checked}),baseline);
+});
+
+test('legacy bridge provenance remains explicitly unknown when no native snapshot exists',()=>{
+  const h=loadHelpers(),record=h.normalizeRecord({id:'legacy',data:{'envolvente.puentesTermicos.items':[{nombre:'PT',fi:'.8',longitud:'2'}]}});
+  assert.equal(record.data['envolvente.puentesTermicos.items'][0].origenFi,'Origen no registrado');
+  assert.equal(record.data['envolvente.puentesTermicos.items'][0].origenLongitud,'Origen no registrado');
+  const row=record.data['envolvente.puentesTermicos.items'][0];row.fi='.7';
+  const origins=h.cex32BridgeOrigins(row,null,'fi');assert.equal(origins.origenFi,'Introducido');assert.equal(origins.origenLongitud,'Origen no registrado');
+});
+
+test('review schema migration backs up first, appends column 104 and leaves historical columns untouched',()=>{
+  const old=JSON.parse(readFileSync(new URL('fixtures/sheet-headers-103.json',import.meta.url),'utf8'));
+  const context={};vm.createContext(context);
+  vm.runInContext(readFileSync(new URL('../google-apps-script/Code.gs',import.meta.url),'utf8')+'\nglobalThis.expected=HEADERS;globalThis.migrate=migrateSchema32;',context);
+  assert.deepEqual(plain(context.expected.slice(0,103)),old);assert.equal(context.expected[103],'revision.campos');
+  let headers=old.slice(),width=103;const log=[];
+  const sheet={getMaxColumns:()=>width,getMaxRows:()=>924,insertColumnsAfter:(at,count)=>{log.push({insert:[at,count]});width+=count;},getRange:(row,col,height,count)=>({setNumberFormat(){log.push({format:[row,col,height,count]});return this;},setValues(values){log.push({write:[row,col,height,count],values});if(row===1)headers.push(...values[0]);return this;}})};
+  context.LockService={getScriptLock:()=>({waitLock(){},releaseLock(){}})};context.sheet=sheet;context.headers=()=>headers;context.backup=()=>{log.push({backup:true});return 'backup-review';};
+  vm.runInContext('getSheet_=()=>sheet;getHeaderRow_=()=>headers();backupSheet_=()=>backup();schemaStatus_=()=>({clean:isCleanSchema_(headers())});',context);
+  const result=context.migrate();assert.equal(result.clean,true);assert.equal(result.backupSheet,'backup-review');assert.equal(log[0].backup,true);
+  const writes=log.filter(item=>item.write);assert.equal(writes.length,1);assert.deepEqual(writes[0].write,[1,104,1,1]);assert.deepEqual(plain(writes[0].values),[['revision.campos']]);
+  assert.deepEqual(headers.slice(0,103),old);const count=log.length;context.migrate();assert.equal(log.length,count);
+});
 
 function bridgeFixture(h) {
   return alteredFixture(h,v=>{

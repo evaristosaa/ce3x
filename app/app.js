@@ -561,7 +561,8 @@ async function createNewRecord(persist = true, initialData = {}) {
     data: Object.assign({}, DEFAULT_TECHNICIAN, initialData),
   });
   if (persist) {
-    const saved = await persistRecord(record);
+    const reviewSources=Object.fromEntries(FLAT_FIELDS.map(item=>[item.path,{source:Object.prototype.hasOwnProperty.call(initialData,item.path)?(initialData['cex.nativeInputs']?'cex':'manual'):'estimate',detail:initialData['cex.nativeInputs']?'CEX '+initialData['cex.sourceVersion']:''}]));
+    const saved = await persistRecord(record,{reviewSources});
     state.rightView = 'detail';
     selectRecord(saved, { openDetail: true });
     addChatMessage('assistant', 'Nuevo expediente creado y guardado como borrador. Completa los datos del técnico certificador.');
@@ -1033,11 +1034,11 @@ sectionFields.addEventListener('input', event => {
   if(bridgeInput?.closest('[data-table]')?.dataset.table==='envolvente.puentesTermicos.items') {
     const tr=bridgeInput.closest('tr'),record=selectedRecord();
     const row={__cexSource:tr.dataset.cexSource};
-    for(const key of ['nombre','fi','longitud']) row[key]=tr.querySelector(`[data-col="${key}"]`)?.value||'';
+    for(const key of ['nombre','fi','longitud','origenFi','origenLongitud']) row[key]=tr.querySelector(`[data-col="${key}"]`)?.value||'';
     let originals=[];
     try { originals=cex32ImportedTables(JSON.parse(record.data['cex.nativeInputs']).inputs)['envolvente.puentesTermicos.items']; } catch {}
     const original=originals.find(item=>row.__cexSource&&item.__cexSource===row.__cexSource);
-    const origins=cex32BridgeOrigins(row,original);
+    const origins=cex32BridgeOrigins(row,original,bridgeInput.dataset.col);
     for(const key of ['origenFi','origenLongitud']) tr.querySelector(`[data-col="${key}"]`).value=origins[key];
   }
   const percentageInput = event.target.closest('[data-col="demandaCubierta"]');
@@ -1228,7 +1229,8 @@ async function copyDataFromSelectedSource(event) {
     if(selectedRecord()?.id!==target.id)throw new Error('El expediente seleccionado ha cambiado. Vuelve a abrir la copia.');
     copySectionsData(source,data,template);
     const changedPaths = Array.from(new Set(copySectionPaths().concat(activeSectionPaths())));
-    const saved = await persistRecordPatch(Object.assign({}, target, { data }), changedPaths);
+    const reviewSources=Object.fromEntries(copySectionPaths().map(path=>[path,{source:'copied',detail:recordLabel(source)}]));
+    const saved = await persistRecordPatch(Object.assign({}, target, { data }), changedPaths,{reviewSources});
     state.activeSection = 'envolvente';
     renderAll();
     copyDataDialog.close();
@@ -1323,7 +1325,8 @@ async function persistAutocompletePatch(record, data, paths, message, options = 
   state.rightView = 'detail';
   renderAll();
   try {
-    const saved = await persistRecordPatch(optimistic, paths, options);
+    const reviewSources=options.reviewSources||Object.fromEntries(paths.map(path=>[path,'estimate']));
+    const saved = await persistRecordPatch(optimistic, paths, {...options,reviewSources,reviewBase:record.data});
     clearSyncAlert();
     addChatMessage('assistant', message + ' Guardado en Google Sheet.');
     upsertRecord(saved);
@@ -1739,7 +1742,7 @@ async function applyChatPatch(record, patch, options = {}) {
 
   let saved = optimistic;
   try {
-    saved = await persistRecordPatch(optimistic, changes.map(([path]) => path));
+    saved = await persistRecordPatch(optimistic, changes.map(([path]) => path),{reviewBase:current.data});
   } catch (error) {
     showSyncAlert(sheetErrorHelp(error));
     addChatMessage('assistant', 'Lo he aplicado en pantalla, pero Google Sheet no ha guardado. Al refrescar se perderá: ' + sheetErrorHelp(error));
@@ -1764,7 +1767,18 @@ function isTextareaField(path) {
   return FLAT_FIELDS.find(item => item.path === path)?.type === 'textarea';
 }
 
-async function persistRecord(record) {
+async function prepareReviewWrite(next,paths,options,now) {
+  if(typeof reviewStamp!=='function')return paths;
+  const tracked=paths.filter(path=>FLAT_FIELDS.some(item=>item.path===path));
+  if(!options.reviewPrepared)await reviewStamp(next.data,options.reviewBase||state.records.find(item=>item.id===next.id)?.data||{},tracked,options.reviewSources,now);
+  if(state.config.apiUrl) {
+    const status=await api({action:'schemaStatus'});
+    if(status.result?.reviewWriteVersion!==1)throw new Error('Actualiza Apps Script y migra el esquema de revisión antes de guardar con esta versión.');
+  }
+  return Array.from(new Set(paths.concat(REVIEW_DATA_KEY)));
+}
+
+async function persistRecord(record,options={}) {
   const now = new Date().toISOString();
   const next = normalizeRecord(Object.assign({}, record));
   next.id = next.id || createId();
@@ -1772,6 +1786,8 @@ async function persistRecord(record) {
   next.updatedAt = now;
   next.estado = inferStatus(next);
   addSummaryFields(next);
+
+  await prepareReviewWrite(next,FLAT_FIELDS.map(item=>item.path),options,now);
 
   if (!state.config.apiUrl) return saveLocalWorkspace(next);
 
@@ -1794,6 +1810,8 @@ async function persistRecordPatch(record, changedPaths, options = {}) {
   next.updatedAt = now;
   next.estado = inferStatus(next);
   addSummaryFields(next);
+
+  changedPaths=await prepareReviewWrite(next,changedPaths,options,now);
 
   if (!state.config.apiUrl) return saveLocalWorkspace(next);
 
@@ -2255,7 +2273,7 @@ async function saveCatastroCompletion(record, rawPatch, options = {}) {
     data,
     paths,
     'Catastro consultado, envolvente e instalaciones autocompletadas. Revisar los valores estimados.',
-    { skipVerification: true },
+    { skipVerification: true,reviewSources:Object.fromEntries(paths.map(path=>[path,Object.prototype.hasOwnProperty.call(catastroPatch,path)?'catastro':'estimate'])) },
   );
   if (!saved && options.throwOnError) throw new Error('Catastro no pudo guardar los datos del expediente.');
   return saved || selectedRecord() || record;
