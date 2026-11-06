@@ -2910,6 +2910,7 @@ async function collectDesktopXml() {
     const writer = await cex.createWritable();
     await writer.write(latin1Encode(text));
     await writer.close();
+    await job.getFileHandle("ready", { create: true });
     status.textContent = 'Abre ' + name + '.cex en la subcarpeta ' + jobName +
       '. En CE³X 3.2, calcula el expediente y genera el XML. La app esperará hasta cinco minutos.';
 
