@@ -42,6 +42,60 @@ function estimationResult(id, values) {
   return {ok:true,engine:'CE3X 3.2 installed seasonal-performance module',seasonalModuleSha256:'a'.repeat(64),runtimeExecutableSha256:'b'.repeat(64),systems:[{id,seasonalPerformancePercent:values}]};
 }
 
+function bridgeFixture(h) {
+  return alteredFixture(h,v=>{
+    v[3][2]=[['Puente A','PT','Encuentro de fachada con cubierta',0.82,12,'defecto_fi','defecto','Cubierta','Edificio Objeto'],
+      ['Puente B','PT','Pilar integrado en fachada',1.05,6,'usuario_fi','usuario','Cubierta','Edificio Objeto']];
+  });
+}
+
+test('editing bridge psi and length marks only the corresponding native origin as user input',()=>{
+  const h=loadHelpers(),source=bridgeFixture(h),data=h.parseCexRecordData(source);
+  data['envolvente.puentesTermicos.items'][0].fi='0,67';
+  let bridges=h.cex32Blocks(h.buildCex32(template,{data}))[3].value[2];
+  assert.equal(bridges[0][3],0.67);assert.equal(bridges[0][5],'usuario_fi');assert.equal(bridges[0][6],'defecto');
+  assert.deepEqual(plain(bridges[1]),plain(h.cex32Blocks(source)[3].value[2][1]));
+  data['envolvente.puentesTermicos.items'][0].longitud='9.5';
+  bridges=h.cex32Blocks(h.buildCex32(template,{data}))[3].value[2];
+  assert.equal(bridges[0][4],9.5);assert.equal(bridges[0][6],'usuario');
+  const imported=h.parseCexRecordData(h.buildCex32(template,{data}));
+  assert.equal(imported['envolvente.puentesTermicos.items'][0].origenFi,'Introducido');
+  assert.equal(imported['envolvente.puentesTermicos.items'][0].origenLongitud,'Introducido');
+});
+
+test('bridge numeric formatting and unrelated edits preserve native default and custom flags',()=>{
+  const h=loadHelpers(),source=alteredFixture(h,v=>{v[3][2]=[['PT','PT','Otro',0.82,12,'origen_especial','otro_modo','Cubierta','Zona especial']];});
+  const data=h.parseCexRecordData(source),row=data['envolvente.puentesTermicos.items'][0];
+  row.fi='0,8200';row.longitud='12.000';row.nombre='Renombrado';row.justificacion='Ficha del fabricante, página 4';
+  const bridge=h.cex32Blocks(h.buildCex32(template,{data}))[3].value[2][0];
+  assert.equal(bridge[5],'origen_especial');assert.equal(bridge[6],'otro_modo');assert.equal(bridge[8],'Zona especial');
+  assert.equal(bridge[0],'Renombrado');
+});
+
+test('bridge provenance and justification survive Sheets serialization and copied sections',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(bridgeFixture(h));
+  data['envolvente.puentesTermicos.items'][0].fi='-0.05';
+  data['envolvente.puentesTermicos.items'][0].justificacion='Cálculo bidimensional adjunto';
+  const normalized=h.normalizeRecord({id:'source',data});
+  assert.equal(normalized.data['envolvente.puentesTermicos.items'][0].origenFi,'Introducido');
+  const {storage}=loadStorageWriteHelpers([]),restored=storage.rowToRecord_(storage.recordToRow_(normalized),storage.HEADERS);
+  assert.equal(restored.data['envolvente.puentesTermicos.items'][0].justificacion,'Cálculo bidimensional adjunto');
+  const copied={'generales.datos.zonaClimaticaHE1':'B4','generales.datos.tipoEdificio':'Unifamiliar'};h.copySectionsData(normalized,copied,template);
+  assert.equal(copied['envolvente.puentesTermicos.items'][0].justificacion,'Cálculo bidimensional adjunto');
+  assert.equal(h.cex32Blocks(h.buildCex32(template,{data:copied}))[3].value[2][0][5],'usuario_fi');
+  assert.equal(h.cex32Blocks(h.buildCex32(template,{data:copied}))[3].value[2][0][3],-0.05);
+});
+
+test('new bridges use manual origins and invalid numeric bridge values cannot be exported',()=>{
+  const h=loadHelpers(),data={'envolvente.puentesTermicos.items':[{nombre:'Nuevo',tipoPuenteTermico:'Pilar integrado en fachada',fi:'0.7',longitud:'3',cerramientoAsociado:'Fachada'}]};
+  const bridge=h.cex32Blocks(h.buildCex32(template,{data}))[3].value[2][0];
+  assert.equal(bridge[5],'usuario_fi');assert.equal(bridge[6],'usuario');
+  for(const [key,value] of [['fi','NaN'],['fi',''],['longitud','-1'],['longitud','Infinity']]) {
+    const copy=structuredClone(data);copy['envolvente.puentesTermicos.items'][0][key]=value;
+    assert.throws(()=>h.buildCex32(template,{data:copy}),/puente térmico/);
+  }
+});
+
 function loadStorageWriteHelpers(records) {
   const context={initialRecords:plain(records),Utilities:{getUuid:()=> 'generated-id'}};vm.createContext(context);
   const gs=readFileSync(new URL('../google-apps-script/Code.gs',import.meta.url),'utf8');

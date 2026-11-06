@@ -185,6 +185,9 @@ const SECTIONS = [
           col('tipoPuenteTermico', 'Tipo de puente térmico'),
           col('fi', 'Ψ (W/mK)'),
           col('longitud', 'Longitud (m)'),
+          col('origenFi', 'Origen de Ψ', 'readonly'),
+          col('origenLongitud', 'Origen de longitud', 'readonly'),
+          col('justificacion', 'Justificación / documento de referencia'),
         ],
       }),
     ]),
@@ -928,6 +931,7 @@ function selectHtml(path, value, options) {
 function tableHtml(item, path, value) {
   const rows = readTableRows(value, item.columns);
   return `
+    ${path==='envolvente.puentesTermicos.items'?'<p class="dialog-help">Al cambiar Ψ o la longitud, su origen pasa a introducido. Anota el documento o cálculo que respalda el valor; la justificación se conserva en este expediente.</p>':''}
     <div class="table-wrap" data-table="${escapeHtml(path)}">
       <table>
         <thead>
@@ -956,6 +960,7 @@ function tableRowHtml(columns, rowItem, index) {
     ${columns.map((column, colIndex) => {
     const value = rowItem[column.id] ?? rowItem.values?.[colIndex] ?? '';
     const name = `data-col="${escapeHtml(column.id)}"`;
+    if (column.type === 'readonly') return `<td><input ${name} value="${escapeHtml(value)}" readonly aria-label="${escapeHtml(column.label)}"></td>`;
     if (column.type === 'select') return `<td>${selectCellHtml(name, value, SELECT_OPTIONS[column.optionsKey] || [])}</td>`;
     const computed = column.id==='rendimientoEstacional' && /^estimado/i.test(rowItem.modoDefinicion || '');
     return `<td><input ${name} value="${escapeHtml(value)}" autocomplete="off"${computed?' readonly title="Se calcula desde Parámetros y rendimiento"':''}></td>`;
@@ -1024,6 +1029,17 @@ sectionFields.addEventListener('change', event => {
 });
 
 sectionFields.addEventListener('input', event => {
+  const bridgeInput=event.target.closest('[data-col="fi"], [data-col="longitud"]');
+  if(bridgeInput?.closest('[data-table]')?.dataset.table==='envolvente.puentesTermicos.items') {
+    const tr=bridgeInput.closest('tr'),record=selectedRecord();
+    const row={__cexSource:tr.dataset.cexSource};
+    for(const key of ['nombre','fi','longitud']) row[key]=tr.querySelector(`[data-col="${key}"]`)?.value||'';
+    let originals=[];
+    try { originals=cex32ImportedTables(JSON.parse(record.data['cex.nativeInputs']).inputs)['envolvente.puentesTermicos.items']; } catch {}
+    const original=originals.find(item=>row.__cexSource&&item.__cexSource===row.__cexSource);
+    const origins=cex32BridgeOrigins(row,original);
+    for(const key of ['origenFi','origenLongitud']) tr.querySelector(`[data-col="${key}"]`).value=origins[key];
+  }
   const percentageInput = event.target.closest('[data-col="demandaCubierta"]');
   if (!percentageInput) return;
 
@@ -3724,15 +3740,24 @@ function cexCerramientoDimensions(rowItem) {
   };
 }
 
+function validateCexBridge(rowItem) {
+  for(const key of ['fi','longitud']) {
+    const text=String(rowItem[key]??'').trim().replace(',','.');
+    const value=Number(text);
+    if(!text||!Number.isFinite(value)||(key==='longitud'&&value<0))throw new Error('Revisa '+(key==='fi'?'Ψ':'la longitud')+' del puente térmico '+(rowItem.nombre||'sin nombre')+'.');
+  }
+}
+
 function serializeCexPuentesInput(rows) {
+  rows.forEach(rowItem => validateCexBridge(rowItem));
   return serializeCexList(rows.map(rowItem => serializeCexList([
     cexPickleString(rowItem.nombre),
     cexPickleString('PT'),
     cexPickleAscii(rowItem.tipoPuenteTermico),
     cexPickleFloat(rowItem.fi),
     cexPickleFloat(rowItem.longitud),
-    cexPickleAscii('defecto_fi'),
-    cexPickleAscii('defecto'),
+    cexPickleAscii('usuario_fi'),
+    cexPickleAscii('usuario'),
     cexPickleString(rowItem.cerramientoAsociado),
     cexPickleString('Edificio Objeto'),
   ])));

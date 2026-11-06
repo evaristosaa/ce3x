@@ -13,6 +13,8 @@ Estado del bloque de conservación: 5 de noviembre de 2026.
 - Copia entre expedientes que incluye los parámetros nativos, sombras y auxiliares de las secciones copiadas, conserva la identidad del destino y detecta cambios de contexto de cálculo.
 - Selecciones vacías y localidades fuera del catálogo conservadas al guardar.
 - Edición de la lista completa de referencias catastrales, promoción de la principal y búsqueda por adicionales, con guardado por ID y rechazo de coincidencias ambiguas.
+- Puentes térmicos con origen visible de Ψ y longitud, cambio coherente de las marcas nativas al editar y justificación documental conservada en la app y Sheets.
+- Caso sintético de puente editado: importación, guardado, recarga y exportación desde Chrome, y apertura con lectura de Ψ y longitud en CE³X 3.2. Ver [alcance de la validación](validation-bridges-3.2.md); no es una validación del cálculo energético completo.
 - Conversión de XML calculado a PDF mediante la prueba en Render.
 - Adaptador experimental de rendimientos estacionales conectado al formulario mediante el servidor local Windows. Permite borradores de parámetros, recálculo, persistencia y exportación con resultados actualizados en los equipos importados contrastados. Ver [alcance y ejecución](engine-adapter.md). No calcula la calificación del edificio ni está conectado a Render.
 
