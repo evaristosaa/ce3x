@@ -53,6 +53,19 @@ class CexUnpickler(pickle.Unpickler):
 
 class Ce3xHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
+        if self.path == '/api/local-technician':
+            host = self.headers.get('Host', '').split(':', 1)[0]
+            if host not in ('127.0.0.1', 'localhost') or not ipaddress.ip_address(self.client_address[0]).is_loopback:
+                self.write_json(403, {'error': 'Perfil disponible solo en este equipo.'})
+                return
+            profile = Path(__file__).resolve().parents[1] / 'diagnostics' / 'perfil-tecnico-local.json'
+            try:
+                data = json.loads(profile.read_text(encoding='utf-8-sig'))
+            except (OSError, ValueError):
+                self.write_json(404, {'error': 'Perfil local no disponible.'})
+                return
+            self.write_json(200, data)
+            return
         if self.path.split('?',1)[0]=='/api/estimation/status':
             if not ipaddress.ip_address(self.client_address[0]).is_loopback:
                 self.write_json(403,{'available':False,'message':'El módulo de instalaciones solo está disponible desde el equipo local.'})

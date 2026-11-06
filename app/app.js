@@ -569,6 +569,7 @@ async function submitNewRecordForm(event) {
 }
 
 async function createNewRecord(persist = true, initialData = {}) {
+  await loadLocalTechnicianDefault();
   const now = new Date().toISOString();
   const record = normalizeRecord({
     id: createId(),
@@ -4508,7 +4509,24 @@ function xmlFolderSetting(folder) {
   });
 }
 
-function openConfig() {
+async function loadLocalTechnicianDefault() {
+  if (state.config.technician || !['127.0.0.1', 'localhost'].includes(window.location.hostname)) return;
+  try {
+    const response = await fetch('/api/local-technician', {signal: AbortSignal.timeout(3000)});
+    if (!response.ok) return;
+    const profile = await response.json();
+    if (!state.config.technician) {
+      state.config.technician = Object.fromEntries(Object.keys(TECHNICIAN_CONFIG_LABELS)
+        .filter(key => typeof profile[key] === 'string')
+        .map(key => [TECHNICIAN_PATH_PREFIX + key, profile[key]]));
+    }
+  } catch {
+    // A private profile is optional.
+  }
+}
+
+async function openConfig() {
+  await loadLocalTechnicianDefault();
   configForm.elements.pdfKey.value = state.config.pdfKey || '';
   const fields = document.querySelector('#technicianConfigFields');
   fields.replaceChildren();
@@ -4530,9 +4548,13 @@ function openConfig() {
   document.querySelector('#chooseXmlFolderBtn').onclick = async () => {
     try {
       const folder = await window.showDirectoryPicker({ mode: 'readwrite' });
-      await folder.getFileHandle('.ce3x-xml-bridge');
-      await xmlFolderSetting(folder);
       folderStatus.textContent = 'Carpeta XML: ' + folder.name;
+      await xmlFolderSetting(folder);
+      try {
+        await folder.getFileHandle('.ce3x-xml-bridge');
+      } catch {
+        folderStatus.textContent += ' · Inicia el asistente XML en esta carpeta.';
+      }
     } catch (error) {
       if (error.name !== 'AbortError') folderStatus.textContent = 'Selecciona la carpeta donde está iniciado el asistente XML.';
     }
