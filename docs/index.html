@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store">
   <title>CE3X Captura</title>
-  <link rel="stylesheet" href="styles.css?v=20261106-window">
+  <link rel="stylesheet" href="styles.css?v=20261106-sheet-profile">
   <link rel="stylesheet" href="workspace.css?v=20261103-ce3x32">
 </head>
 <body>
@@ -131,7 +131,8 @@
       <button type="button" class="secondary" id="chooseXmlFolderBtn">Elegir carpeta de trabajo XML</button>
       <p id="xmlFolderConfigStatus" role="status"></p>
       <fieldset><legend>Técnico certificador por defecto</legend><div id="technicianConfigFields"></div>
-      <label>Importar perfil local JSON<input type="file" id="technicianProfileFile" accept=".json,application/json"></label></fieldset>
+      </fieldset>
+      <p id="sharedConfigStatus" role="status"></p>
       <p>Sin conexión configurada, los expedientes se guardan en este navegador. Con Google Sheets se usa el archivo compartido; los datos locales no se trasladan automáticamente.</p>
       <div class="form-actions">
         <button type="submit">Guardar config</button>
@@ -287,7 +288,7 @@
   <script src="estimation-model.js?v=20261106-window"></script>
   <script src="review-model.js?v=20261106-window"></script>
   <script src="workspace.js?v=20261106-window"></script>
-  <script src="app.js?v=20261106-folder-profile"></script>
+  <script src="app.js?v=20261106-sheet-profile"></script>
   <script src="estimation-ui.js?v=20261106-window"></script>
   <script src="references-ui.js?v=20261106-window"></script>
   <script src="review-ui.js?v=20261106-window"></script>

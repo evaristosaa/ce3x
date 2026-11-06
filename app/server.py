@@ -20,7 +20,7 @@ HOST = "0.0.0.0"
 PORT = 5177
 MAX_BODY_BYTES = 1024 * 1024
 MAX_GET_URL_BYTES = 6000
-WRITE_ACTIONS = {"save", "patch", "delete", "markGenerated"}
+WRITE_ACTIONS = {"save", "patch", "delete", "markGenerated", "saveTechnicianConfig"}
 BASE_CEX = Path(__file__).with_name("templates") / "base.cex"
 
 

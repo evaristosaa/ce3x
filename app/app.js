@@ -569,6 +569,9 @@ async function submitNewRecordForm(event) {
 }
 
 async function createNewRecord(persist = true, initialData = {}) {
+  if (state.config.apiUrl) {
+    try { await loadSharedTechnician(); } catch {}
+  }
   await loadLocalTechnicianDefault();
   const now = new Date().toISOString();
   const record = normalizeRecord({
@@ -4292,6 +4295,8 @@ async function apiWithConfig(config, payload) {
     if (!canUseDirectAppsScriptFallback(proxyError)) throw proxyError;
   }
 
+  if (request.action === 'saveTechnicianConfig') return postAppsScript(config.apiUrl, request);
+
   if (request.action === 'save') {
     try {
       return await postAppsScript(config.apiUrl, request);
@@ -4525,7 +4530,21 @@ async function loadLocalTechnicianDefault() {
   }
 }
 
+async function loadSharedTechnician() {
+  const config = state.config;
+  if (!config.apiUrl) return;
+  const response = await apiWithConfig(config, {action: 'getTechnicianConfig'});
+  if (state.config === config && response.technician) config.technician = response.technician;
+}
+
 async function openConfig() {
+  const sharedStatus = document.querySelector('#sharedConfigStatus');
+  sharedStatus.textContent = '';
+  try {
+    await loadSharedTechnician();
+  } catch (error) {
+    sharedStatus.textContent = 'No se pudo cargar el perfil de Google Sheets: ' + error.message;
+  }
   await loadLocalTechnicianDefault();
   configForm.elements.pdfKey.value = state.config.pdfKey || '';
   const fields = document.querySelector('#technicianConfigFields');
@@ -4559,27 +4578,14 @@ async function openConfig() {
       if (error.name !== 'AbortError') folderStatus.textContent = 'Selecciona la carpeta donde está iniciado el asistente XML.';
     }
   };
-  document.querySelector('#technicianProfileFile').value = '';
-  document.querySelector('#technicianProfileFile').onchange = async event => {
-    const file = event.target.files[0];
-    if (!file) return;
-    try {
-      const profile = JSON.parse(await file.text());
-      for (const key of Object.keys(TECHNICIAN_CONFIG_LABELS)) {
-        if (typeof profile[key] === 'string') configForm.elements[TECHNICIAN_PATH_PREFIX + key].value = profile[key];
-      }
-    } catch {
-      alert('El perfil del técnico no es un JSON válido.');
-    }
-  };
   configForm.elements.apiUrl.value = state.config.apiUrl || '';
   configForm.elements.secret.value = state.config.secret || '';
   configDialog.showModal();
 }
 
-function saveConfig(event) {
+async function saveConfig(event) {
   event.preventDefault();
-  state.config = {
+  const config = {
     pdfKey: configForm.elements.pdfKey.value.trim(),
     technician: Object.fromEntries(Object.keys(TECHNICIAN_CONFIG_LABELS).map(key => {
       const path = TECHNICIAN_PATH_PREFIX + key;
@@ -4588,7 +4594,23 @@ function saveConfig(event) {
     apiUrl: configForm.elements.apiUrl.value.trim(),
     secret: configForm.elements.secret.value.trim(),
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.config));
+  const status = document.querySelector('#sharedConfigStatus');
+  const submit = configForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  try {
+    if (config.apiUrl) {
+      status.textContent = 'Guardando el perfil en Google Sheets…';
+      const response = await apiWithConfig(config, {action: 'saveTechnicianConfig', technician: config.technician});
+      config.technician = response.technician;
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    state.config = config;
+  } catch (error) {
+    status.textContent = 'No se pudo guardar la configuración: ' + error.message;
+    return;
+  } finally {
+    submit.disabled = false;
+  }
   configDialog.close();
   renderStorageMode();
   loadRecords();
