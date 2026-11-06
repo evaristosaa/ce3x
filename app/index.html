@@ -189,7 +189,8 @@
       <label>Certificado en XML<input name="xmlFile" type="file" accept=".xml,application/xml,text/xml" required></label>
       <p class="dialog-help">¿Tienes un CEX? Ábrelo y calcula el expediente en CE³X 3.2; después genera su XML. El CEX por sí solo no sustituye ese cálculo.</p>
       <p id="reportStatus" class="report-status" role="status" aria-live="polite"></p>
-      <p id="cloudReportHelp" hidden>El generador web procesa el XML en Render y requiere la clave de acceso de la prueba. Puede tardar en despertar.</p>
+      <label id="cloudReportKey" hidden>Clave de la prueba<input type="password" name="accessKey" autocomplete="off"></label>
+      <p id="cloudReportHelp" hidden>Al generar el PDF se enviará el XML a Render. El servicio puede tardar en arrancar. La clave solo se usa para esta solicitud.</p>
       <a id="cloudReportLink" class="button-link" href="https://ce3x-pdf-prueba.onrender.com/" target="_blank" rel="noopener noreferrer" hidden>Abrir generador web de PDF</a>
       <div class="form-actions"><button id="generateReportBtn" type="submit">Generar y descargar PDF</button><button id="closeReportBtn" type="button" class="secondary">Cerrar</button></div>
     </form>
@@ -273,7 +274,7 @@
   <script src="window-model.js?v=20261106-window"></script>
   <script src="solar-tables.js?v=20261106-window"></script>
   <script src="solar-model.js?v=20261106-window"></script>
-  <script src="reports.js?v=20261104-pdf"></script>
+  <script src="reports.js?v=20261106-cloud"></script>
   <script src="cex-import.js?v=20261106-window"></script>
   <script src="ce3x-locations.js?v=20261106-window"></script>
   <script src="cex-32.js?v=20261106-individual"></script>
