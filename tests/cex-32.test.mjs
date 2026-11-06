@@ -23,6 +23,15 @@ export function loadHelpers() {
 const template=readFileSync(new URL('../app/templates/base-3.2.cex',import.meta.url),'latin1');
 const plain=value=>JSON.parse(JSON.stringify(value));
 
+test('CE3X 3.2 preserves the residential scope of an individual dwelling',()=>{
+  const h=loadHelpers();
+  const source=alteredFixture(h,values=>{values[2][1]='Vivienda Individual';});
+  const data=h.parseCexRecordData(source);
+  assert.equal(h.cex32Blocks(h.buildCex32(template,{data}))[2].value[1],'Vivienda Individual');
+  data['generales.datos.tipoEdificio']='Vivienda individual';
+  assert.equal(h.cex32Blocks(h.buildCex32(template,{data}))[2].value[1],'Vivienda Individual');
+});
+
 test('window properties match 96 installed CE3X 3.2 known, estimated and double-window references',()=>{
   const h=loadHelpers(),fixture=JSON.parse(readFileSync(new URL('fixtures/window-ce3x32.json',import.meta.url),'utf8'));
   assert.equal(fixture.cases.length,96);
