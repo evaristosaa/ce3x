@@ -8,6 +8,11 @@ const TECHNICIAN_PATH_PREFIX = 'admin.tecnico.';
 
 // Personal technician details are loaded from private expedientes, never shipped in this bundle.
 const DEFAULT_TECHNICIAN = {};
+const TECHNICIAN_CONFIG_LABELS = {
+  nombre: 'Nombre y apellidos', nif: 'NIF', razonSocial: 'Razón social', cif: 'CIF',
+  direccion: 'Dirección', provincia: 'Provincia', localidad: 'Localidad',
+  codigoPostal: 'Código postal', telefono: 'Teléfono', email: 'E-mail', titulacion: 'Titulación'
+};
 
 const DEFAULT_CLIENT = {
   'admin.cliente.telefono': '.',
@@ -564,13 +569,17 @@ async function submitNewRecordForm(event) {
 }
 
 async function createNewRecord(persist = true, initialData = {}) {
+  if (state.config.apiUrl) {
+    try { await loadSharedTechnician(); } catch {}
+  }
+  await loadLocalTechnicianDefault();
   const now = new Date().toISOString();
   const record = normalizeRecord({
     id: createId(),
     estado: 'BORRADOR',
     createdAt: now,
     updatedAt: now,
-    data: Object.assign({}, DEFAULT_TECHNICIAN, initialData),
+    data: Object.assign({}, DEFAULT_TECHNICIAN, state.config.technician, initialData),
   });
   if (persist) {
     const reviewSources=Object.fromEntries(FLAT_FIELDS.map(item=>[item.path,{source:Object.prototype.hasOwnProperty.call(initialData,item.path)?(initialData['cex.nativeInputs']?'cex':'manual'):'estimate',detail:initialData['cex.nativeInputs']?'CEX '+initialData['cex.sourceVersion']:''}]));
@@ -2909,7 +2918,13 @@ async function collectDesktopXml() {
 
   desktopXmlButton.disabled = true;
   try {
-    const folder = await window.showDirectoryPicker({ mode: 'readwrite' });
+    const folder = await xmlFolderSetting();
+    if (!folder || await folder.queryPermission({ mode: 'readwrite' }) !== 'granted') {
+      throw new Error('Elige o vuelve a autorizar la carpeta XML en Configuración.');
+    }
+    await folder.getFileHandle('.ce3x-xml-bridge').catch(() => {
+      throw new Error('Inicia el asistente con --watch y --auto-rate en la carpeta XML configurada.');
+    });
     const jobName = 'CE3X-' + crypto.randomUUID();
     const job = await folder.getDirectoryHandle(jobName, { create: true });
     const text = normalizeCexLineEndings(buildCex32(await loadCex32Template(), record));
@@ -2919,8 +2934,7 @@ async function collectDesktopXml() {
     await writer.write(latin1Encode(text));
     await writer.close();
     await job.getFileHandle("ready", { create: true });
-    status.textContent = 'Abre ' + name + '.cex en la subcarpeta ' + jobName +
-      '. En CE³X 3.2, calcula el expediente y genera el XML. La app esperará hasta cinco minutos.';
+    status.textContent = 'CEX preparado en ' + jobName + '. El asistente abrirá CE³X. Confirma allí las opciones del informe; la app espera hasta cinco minutos.';
 
     const deadline = Date.now() + 300000;
     while (Date.now() < deadline) {
@@ -4281,6 +4295,8 @@ async function apiWithConfig(config, payload) {
     if (!canUseDirectAppsScriptFallback(proxyError)) throw proxyError;
   }
 
+  if (request.action === 'saveTechnicianConfig') return postAppsScript(config.apiUrl, request);
+
   if (request.action === 'save') {
     try {
       return await postAppsScript(config.apiUrl, request);
@@ -4482,19 +4498,119 @@ function isNetworkFetchError(error) {
   return /Failed to fetch|NetworkError|Load failed|CORS/i.test(String(error && error.message ? error.message : error));
 }
 
-function openConfig() {
+function xmlFolderSetting(folder) {
+  return new Promise((resolve, reject) => {
+    const opening = indexedDB.open('ce3x-desktop-settings', 1);
+    opening.onupgradeneeded = () => opening.result.createObjectStore('settings');
+    opening.onerror = () => reject(opening.error);
+    opening.onsuccess = () => {
+      const db = opening.result;
+      const tx = db.transaction('settings', folder ? 'readwrite' : 'readonly');
+      const settings = tx.objectStore('settings');
+      const request = folder ? settings.put(folder, 'xmlFolder') : settings.get('xmlFolder');
+      tx.oncomplete = () => { db.close(); resolve(request.result); };
+      tx.onabort = () => { db.close(); reject(tx.error); };
+    };
+  });
+}
+
+async function loadLocalTechnicianDefault() {
+  if (state.config.technician || !['127.0.0.1', 'localhost'].includes(window.location.hostname)) return;
+  try {
+    const response = await fetch('/api/local-technician', {signal: AbortSignal.timeout(3000)});
+    if (!response.ok) return;
+    const profile = await response.json();
+    if (!state.config.technician) {
+      state.config.technician = Object.fromEntries(Object.keys(TECHNICIAN_CONFIG_LABELS)
+        .filter(key => typeof profile[key] === 'string')
+        .map(key => [TECHNICIAN_PATH_PREFIX + key, profile[key]]));
+    }
+  } catch {
+    // A private profile is optional.
+  }
+}
+
+async function loadSharedTechnician() {
+  const config = state.config;
+  if (!config.apiUrl) return;
+  const response = await apiWithConfig(config, {action: 'getTechnicianConfig'});
+  if (state.config === config && response.technician) config.technician = response.technician;
+}
+
+async function openConfig() {
+  const sharedStatus = document.querySelector('#sharedConfigStatus');
+  sharedStatus.textContent = '';
+  try {
+    await loadSharedTechnician();
+  } catch (error) {
+    sharedStatus.textContent = 'No se pudo cargar el perfil de Google Sheets: ' + error.message;
+  }
+  await loadLocalTechnicianDefault();
+  configForm.elements.pdfKey.value = state.config.pdfKey || '';
+  const fields = document.querySelector('#technicianConfigFields');
+  fields.replaceChildren();
+  for (const [key, caption] of Object.entries(TECHNICIAN_CONFIG_LABELS)) {
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.name = TECHNICIAN_PATH_PREFIX + key;
+    input.value = state.config.technician?.[input.name] || '';
+    label.append(caption, input);
+    fields.append(label);
+  }
+  const folderStatus = document.querySelector('#xmlFolderConfigStatus');
+  folderStatus.textContent = 'Carpeta XML sin configurar.';
+  if (typeof window.showDirectoryPicker === 'function') {
+    xmlFolderSetting().then(folder => {
+      if (folder) folderStatus.textContent = 'Carpeta XML: ' + folder.name;
+    }).catch(error => { folderStatus.textContent = error.message; });
+  }
+  document.querySelector('#chooseXmlFolderBtn').onclick = async () => {
+    try {
+      const folder = await window.showDirectoryPicker({ mode: 'readwrite' });
+      folderStatus.textContent = 'Carpeta XML: ' + folder.name;
+      await xmlFolderSetting(folder);
+      try {
+        await folder.getFileHandle('.ce3x-xml-bridge');
+      } catch {
+        folderStatus.textContent += ' · Inicia el asistente XML en esta carpeta.';
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') folderStatus.textContent = 'Selecciona la carpeta donde está iniciado el asistente XML.';
+    }
+  };
   configForm.elements.apiUrl.value = state.config.apiUrl || '';
   configForm.elements.secret.value = state.config.secret || '';
   configDialog.showModal();
 }
 
-function saveConfig(event) {
+async function saveConfig(event) {
   event.preventDefault();
-  state.config = {
+  const config = {
+    pdfKey: configForm.elements.pdfKey.value.trim(),
+    technician: Object.fromEntries(Object.keys(TECHNICIAN_CONFIG_LABELS).map(key => {
+      const path = TECHNICIAN_PATH_PREFIX + key;
+      return [path, configForm.elements[path].value.trim()];
+    }).filter(([, value]) => value)),
     apiUrl: configForm.elements.apiUrl.value.trim(),
     secret: configForm.elements.secret.value.trim(),
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.config));
+  const status = document.querySelector('#sharedConfigStatus');
+  const submit = configForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  try {
+    if (config.apiUrl) {
+      status.textContent = 'Guardando el perfil en Google Sheets…';
+      const response = await apiWithConfig(config, {action: 'saveTechnicianConfig', technician: config.technician});
+      config.technician = response.technician;
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    state.config = config;
+  } catch (error) {
+    status.textContent = 'No se pudo guardar la configuración: ' + error.message;
+    return;
+  } finally {
+    submit.disabled = false;
+  }
   configDialog.close();
   renderStorageMode();
   loadRecords();
@@ -4525,9 +4641,10 @@ function loadConfig() {
     secret: params.get('configSecret') || '',
   };
   if (configFromUrl.apiUrl && configFromUrl.secret) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(configFromUrl));
+    const config = {...stored, ...configFromUrl};
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     stripConfigFromUrl(params);
-    return configFromUrl;
+    return config;
   }
   return stored;
 }

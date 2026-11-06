@@ -93,6 +93,8 @@ def watch_jobs(folder, executable, auto_rate=False):
     """Open new browser jobs in an explicitly selected, private folder."""
     if not folder.is_dir() or not executable.is_file():
         raise ValueError("Selecciona una carpeta de trabajo existente y una instalación de CE³X 3.2.")
+    if auto_rate:
+        (folder / ".ce3x-xml-bridge").touch()
     seen = set(folder.iterdir())
     print("Esperando nuevas exportaciones de la app. Pulsa Ctrl+C para detener.", flush=True)
     while True:

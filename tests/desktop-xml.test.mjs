@@ -41,12 +41,14 @@ test('desktop XML handoff publishes readiness after writing the CEX and download
     criticalCexIssues: () => [],
     desktopXmlButton: button,
     document: {querySelector: () => status},
-    window: {showDirectoryPicker: async () => ({
+    xmlFolderSetting: async () => ({
+      queryPermission: async () => 'granted',
+      getFileHandle: async name => assert.equal(name, '.ce3x-xml-bridge'),
       getDirectoryHandle: async name => {
         assert.equal(name, 'CE3X-unique');
         return job;
       }
-    })},
+    }),
     crypto: {randomUUID: () => 'unique'},
     normalizeCexLineEndings: value => value,
     buildCex32: () => 'cex bytes',
