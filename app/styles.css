@@ -736,7 +736,7 @@ dialog::backdrop {
 #solarDialog{width:min(680px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;box-sizing:border-box}
 #solarForm{display:grid;gap:12px}
 #solarFields{display:grid;gap:12px}
-#solarFields fieldset{min-width:0;border:1px solid var(--line);border-radius:8px;padding:14px}
+#solarFields fieldset{display:block;min-width:0;border:1px solid var(--line);border-radius:8px;padding:14px}
 .solar-enabled{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .solar-enabled input{width:auto}
 .solar-dimensions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
