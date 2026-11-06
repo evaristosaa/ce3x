@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "runtime": "CE3X 3.2 desktop application",
+  "runtimeExecutableSha256": "4e4a80660ff62fcd6a1bdd6f27af17287f399073e77219ea94f7182934e4f5d6",
+  "installedExampleSha256": "8b4ca4dbb37ec646ee9168f9cebe53905285f9693ae79191509d2a94eb31e0aa",
+  "savedInputAudit": {
+    "savedRoundtripInputDifferences": [],
+    "savedModifiedInputDifferences": [
+      "/2/1/0/__cexClass",
+      "/2/1/0/elementosProteccionSolar/0",
+      "/2/1/0/elementosProteccionSolar/1",
+      "/2/1/0/elementosProteccionSolar/2",
+      "/2/1/0/elementosProteccionSolar/3",
+      "/2/1/0/elementosProteccionSolar/4",
+      "/2/1/0/elementosProteccionSolar/5",
+      "/2/1/0/elementosProteccionSolar/17",
+      "/2/1/0/elementosProteccionSolar/18",
+      "/2/1/0/__tipo__",
+      "/2/1/0/correctorFSInvierno",
+      "/2/1/0/correctorFSCTE",
+      "/2/1/0/tieneProteccionSolar",
+      "/2/1/0/tipoMarco",
+      "/2/1/0/dobleVentana",
+      "/2/1/0/Uvidrio",
+      "/2/1/0/tipoVidrio",
+      "/2/1/0/Gvidrio",
+      "/2/1/0/correctorFSVerano",
+      "/2/1/0/Umarco",
+      "/2/1/0/marcoSeleccionado",
+      "/2/1/0/GvidrioConocido",
+      "/2/1/0/vidrioSeleccionado",
+      "/2/1/0/UmarcoConocido",
+      "/2/1/0/UvidrioConocido",
+      "/2/1/0/correctorSolar"
+    ]
+  },
+  "displayedPrecision": "One decimal as displayed in the desktop UI; not full-precision equality of all result fields",
+  "displayedReference": {
+    "globalEmissions": 58.0,
+    "globalEmissionsGrade": "E",
+    "heatingDemand": 112.0,
+    "coolingDemand": 18.4,
+    "heatingEmissions": 42.1,
+    "coolingEmissions": 3.0,
+    "acsEmissions": 12.9
+  },
+  "displayedRoundtrip": {
+    "globalEmissions": 58.0,
+    "globalEmissionsGrade": "E",
+    "heatingDemand": 112.0,
+    "coolingDemand": 18.4,
+    "heatingEmissions": 42.1,
+    "coolingEmissions": 3.0,
+    "acsEmissions": 12.9
+  },
+  "displayedModified": {
+    "globalEmissions": 58.0,
+    "globalEmissionsGrade": "E",
+    "heatingDemand": 112.8,
+    "coolingDemand": 16.6,
+    "heatingEmissions": 42.4,
+    "coolingEmissions": 2.7,
+    "acsEmissions": 12.9
+  },
+  "modifiedXml": {
+    "version": "3.0",
+    "heatingDemand": 112.75,
+    "coolingDemand": 16.59,
+    "globalEmissions": 58.03,
+    "primaryNonRenewableEnergy": 311.76,
+    "emissionsGrade": "E",
+    "primaryNonRenewableEnergyGrade": "F",
+    "sha256": "51096ac197ce22bdc17e243cb922d6629d426b03f3da5e9838d343ca4532c227"
+  },
+  "localPdf": {
+    "pages": 14,
+    "bytes": 411395,
+    "sha256": "63b78d66870d93868ae9a1acf371a393b148ec23455fb6cd131bb663a894bd23",
+    "testNoticeVerified": true,
+    "allPagesRenderedForVisualReview": true
+  },
+  "scope": "One installed example and a controlled variant, calculated in the official desktop UI. Does not validate a web or independent whole-building calculation engine."
+}

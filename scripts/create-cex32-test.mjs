@@ -17,7 +17,7 @@ if(process.argv.includes('--complete')) {
     'generales.definicion.alturaLibrePlanta':'2.7',
     'generales.definicion.masaParticionesInternas':'Media',
     'envolvente.cerramientos.items':[{nombre:'Fachada de prueba',tipoCerramiento:'Fachada',superficie:'30',u:'0.5',peso:'200',posicion:'S',modoDefinicion:'Conocidas',patronSombras:'Sin patrón'}],
-    'envolvente.huecos.items':[{nombre:'Ventana de prueba',cerramientoAsociado:'Fachada de prueba',longitud:'1',altura:'1',multiplicador:'1',superficie:'1',uVidrio:'3.3',gVidrio:'.75',uMarco:'4',porcMarco:'20',absortividadMarco:'.3',permeabilidad:'50',orientacion:'S',patronSombras:'Sin patrón'}],
+    'envolvente.huecos.items':[{nombre:'Ventana de prueba',cerramientoAsociado:'Fachada de prueba',longitud:'1',altura:'1',multiplicador:'1',superficie:'1',uVidrio:'3.3',gVidrio:'.75',uMarco:'4',porcMarco:'20',absortividadMarco:'.3',permeabilidad:'50',orientacion:'S',patronSombras:'Sin patrón',modoDefinicion:'Conocidas'}],
     'envolvente.puentesTermicos.items':[{nombre:'Puente de prueba',tipoPuenteTermico:'Pilar integrado en fachada',fi:'.8',longitud:'2',cerramientoAsociado:'Fachada de prueba'}],
     'instalaciones.acs.items':[{nombre:'ACS de prueba',tipoGenerador:'Efecto Joule',combustible:'Electricidad',rendimientoEstacional:'100',m2Cubiertos:'100',demandaCubierta:'100',zona:'Edificio Objeto',acumulacion:'No'}],
     'instalaciones.calefaccion.items':[{nombre:'Calefacción de prueba',tipoGenerador:'Efecto Joule',combustible:'Electricidad',rendimientoEstacional:'100',m2Cubiertos:'100',demandaCubierta:'100',zona:'Edificio Objeto'}]

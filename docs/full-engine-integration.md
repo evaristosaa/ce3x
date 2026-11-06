@@ -12,6 +12,10 @@ Comprobación local: 5 de noviembre de 2026. Este documento registra una investi
 
 El diagnóstico devuelve por separado `contextVerified`, `projectLoaded`, `buildingRatingCompared` y `buildingCalculationValidated`. Que un módulo se importe no implica que el cálculo del edificio esté disponible. El host conserva su contexto de dependencias hasta terminar el proceso, porque la biblioteca gráfica activa contextos anidados.
 
+## Contraste posterior en el programa de escritorio
+
+El 6 de noviembre se abrió y recalculó en la interfaz oficial un bloque de viviendas original, su reexportación sin cambios y una variante con propiedades térmicas y protecciones solares editadas desde el adaptador de la app. La reexportación conserva exactamente sus cuatro bloques de entradas y los resultados visibles. La variante también produjo XML y PDF mediante el conversor local. Ver [registro y límites](validation-building-3.2.md). Este avance valida ese recorrido de escritorio; no cambia el diagnóstico de ejecución independiente ni habilita el motor completo en la web.
+
 ## Información oficial consultada
 
 [Efinovatic](https://efinova.es/CE3X) identifica CE³X 3.2 como versión actual, indica su distribución gratuita y la propiedad del IDAE. La página consultada describe complementos, pero no especifica un contrato para ejecutar el motor completo en un servidor independiente. La distribución gratuita no basta para deducir las condiciones de esa integración.

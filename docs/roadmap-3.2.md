@@ -15,9 +15,10 @@ Estado del bloque de conservación y revisión: 6 de noviembre de 2026.
 - Selecciones vacías y localidades fuera del catálogo conservadas al guardar.
 - Edición de la lista completa de referencias catastrales, promoción de la principal y búsqueda por adicionales, con guardado por ID y rechazo de coincidencias ambiguas.
 - Puentes térmicos con origen visible de Ψ y longitud, cambio coherente de las marcas nativas al editar y justificación documental conservada en la app y Sheets.
-- Editor de voladizos y retranqueos por hueco con factores calculados en el navegador, contraste de 1.296 casos y conservación en Sheets/CEX. Corrección de orientaciones cardinales y eliminación de protecciones por defecto inventadas. Ver [alcance y validación](solar-protections.md); pendiente apertura de este caso solar y recálculo completo en CE³X.
+- Editor de voladizos y retranqueos por hueco con factores calculados en el navegador, contraste de 1.296 casos y conservación en Sheets/CEX. Corrección de orientaciones cardinales y eliminación de protecciones por defecto inventadas. Ver [alcance](solar-protections.md) y [apertura y recálculo en CE³X](validation-building-3.2.md).
 - Editor de propiedades térmicas conocidas o estimadas de huecos, selección de vidrio/marco y doble ventana. Conserva entradas originales y propiedades efectivas, corrige la clase nativa y contrasta 96 casos con CE³X instalado. Ver [alcance](window-properties.md); no sustituye el cálculo del edificio.
 - Caso sintético de puente editado: importación, guardado, recarga y exportación desde Chrome, y apertura con lectura de Ψ y longitud en CE³X 3.2. Ver [alcance de la validación](validation-bridges-3.2.md); no es una validación del cálculo energético completo.
+- Caso completo de bloque de viviendas: conservación exacta de los cuatro bloques de entradas tras importar/exportar, coincidencia de indicadores visibles tras recalcular en CE³X y cálculo de una variante térmica/solar con XML y PDF local de 14 páginas. Ver [evidencia y límites](validation-building-3.2.md). El motor completo continúa fuera de la web.
 - Conversión de XML calculado a PDF mediante la prueba en Render.
 - Adaptador experimental de rendimientos estacionales conectado al formulario mediante el servidor local Windows. Permite borradores de parámetros, recálculo, persistencia y exportación con resultados actualizados en los equipos importados contrastados. Ver [alcance y ejecución](engine-adapter.md). No calcula la calificación del edificio ni está conectado a Render.
 
@@ -26,7 +27,7 @@ Estado del bloque de conservación y revisión: 6 de noviembre de 2026.
 1. Modelar parámetros de estimación de instalaciones: potencia, antigüedad, aislamiento, rendimiento nominal, acumulación y equipos mixtos. Incorporarlos conjuntamente al formulario, JSON de Sheets y serialización.
 2. Añadir edición de parámetros avanzados de envolvente, sombras y puentes térmicos.
 3. Ampliar la revisión a los parámetros avanzados que se incorporen al formulario y contrastar su uso con expedientes reales. La revisión por campo o tabla ya distingue procedencia y comprobaciones pendientes.
-4. Validar apertura y recálculo de los CEX exportados en CE³X 3.2 con casos de referencia. Las pruebas de serialización no sustituyen esta validación.
+4. Ampliar la validación de apertura y recálculo a más casos de referencia. Ya se ha contrastado un bloque de viviendas y una variante en el programa de escritorio; las pruebas de serialización no sustituyen ese contraste.
 
 ## Cálculo y salida XML
 
