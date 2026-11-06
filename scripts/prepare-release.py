@@ -35,7 +35,8 @@ names += ['app/server.py', 'app/report_service.py', 'app/estimation_service.py',
           'docs/data-review.md','tests/fixtures/sheet-headers-103.json',
           'scripts/generate-solar-reference.py','scripts/engine/solar_reference_worker.py',
           'tests/fixtures/solar-ce3x32.json','docs/solar-protections.md',
-          'tests/fixtures/window-ce3x32.json','scripts/engine/window_reference_worker.py','docs/window-properties.md']
+          'tests/fixtures/window-ce3x32.json','scripts/engine/window_reference_worker.py','docs/window-properties.md',
+          'scripts/prepare-building-validation.mjs','docs/validation-building-3.2.md','docs/validation-building-3.2.json']
 if '--meta' in sys.argv:
     print(json.dumps([{'path':name, 'size':(ROOT/name).stat().st_size,
                        'sha':hashlib.sha1(b'blob '+str((ROOT/name).stat().st_size).encode()+b'\0'+(ROOT/name).read_bytes()).hexdigest()}

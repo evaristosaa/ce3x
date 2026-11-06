@@ -96,7 +96,7 @@ function cex32Inputs(template, record) {
     4:'generales.datos.zonaClimaticaHE1',5:'generales.datos.zonaClimaticaHE4',6:'generales.definicion.superficieUtilHabitable',7:'generales.definicion.alturaLibrePlanta',
     8:'generales.definicion.numeroPlantasHabitables',9:'generales.definicion.demandaDiariaACS',10:'generales.definicion.masaParticionesInternas',
     16:'generales.definicion.ventilacionInmueble',19:'generales.datos.anioConstruccion'});
-  general[1] = cexBuildingType(general[1]);
+  general[1] = normalizeText(general[1]) === 'vivienda individual' ? 'Vivienda Individual' : cexBuildingType(general[1]);
   if (/^CTE\s*20\d\d$/i.test(general[0])) general[0] = 'C.T.E.';
   const generalLocal = cexCompatibleLocality(general[3], general[2]);
   general[12] = generalLocal === 'Otro' ? String(data['generales.datos.localidad'] || data['admin.localizacion.localidad'] || '') : '';

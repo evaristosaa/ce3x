@@ -41,4 +41,4 @@ Huellas SHA-256 del runtime usado en el contraste:
 
 Comprobado en Chrome local con expediente sintético: editar ambas protecciones, guardar, recargar, recuperar medidas, bloquear H=0 y descargar CEX. También se ha accionado Guardar con viewport de 390×844. Las dimensiones y factores del archivo descargado se revisan mediante el parser seguro de datos.
 
-La activación de la ventana de CE³X falló en esta sesión; la apertura de este CEX solar en su interfaz y el recálculo completo del edificio siguen pendientes. Las pruebas numéricas y de serialización no equivalen a esa validación ni a una certificación energética.
+En una comprobación posterior del mismo 6 de noviembre se consiguió activar CE³X, abrir el CEX descargado y leer ambas geometrías en sus diálogos. También se recalculó una variante de un ejemplo completo con protecciones solares. Ver [apertura, cálculo y salida documental](validation-building-3.2.md). Esta evidencia corresponde al programa de escritorio; no valida un motor web ni una certificación energética.
