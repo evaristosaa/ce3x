@@ -520,6 +520,7 @@ async function submitNewRecordForm(event) {
 
   setNewRecordLoading(true, mode === 'catastro' ? 'Consultando Catastro y rellenando el expediente...' : 'Leyendo el archivo .cex...');
   let createdRecord = null;
+  let importError = '';
   try {
     if (mode === 'catastro') {
       createdRecord = await createNewRecord(true, {
@@ -537,9 +538,11 @@ async function submitNewRecordForm(event) {
     const text = new TextDecoder('iso-8859-1').decode(buffer);
     const importedData = parseCexRecordData(text);
     if (state.config.apiUrl) {
+      setNewRecordLoading(true, 'CEX leído. Comprobando la hoja de expedientes…');
       const schema = await api({action: 'schemaStatus'});
       if (schema.result?.cexVersion !== '3.2' || schema.result?.missingHeaders?.length || !schema.result?.clean) throw new Error('Actualiza Apps Script con Code.gs de esta versión y ejecuta compactSchema() para migrar la hoja con copia de seguridad antes de importar. Faltan columnas o su orden no corresponde con esta app.');
     }
+    setNewRecordLoading(true, 'CEX leído. Guardando el expediente…');
     const record = await createNewRecord(true, importedData);
     newRecordDialog.close();
     addChatMessage('assistant', `Expediente creado desde ${file.name}: ${recordLabel(record)}.`);
@@ -549,9 +552,14 @@ async function submitNewRecordForm(event) {
       selectRecord(current, { openDetail: true });
       newRecordDialog.close();
     }
-    addChatMessage('assistant', 'No he podido crear el expediente: ' + (error.message || error));
+    importError = 'No he podido crear el expediente: ' + (error.message || error);
+    addChatMessage('assistant', importError);
   } finally {
     setNewRecordLoading(false);
+    if (importError && newRecordDialog.open) {
+      newRecordStatus.textContent = importError;
+      newRecordStatus.hidden = false;
+    }
   }
 }
 
@@ -4294,7 +4302,7 @@ async function apiWithConfig(config, payload) {
   try {
     return await postAppsScript(config.apiUrl, request);
   } catch (error) {
-    if (!isNetworkFetchError(error)) throw error;
+    if (error.name !== 'TimeoutError' && !isNetworkFetchError(error)) throw error;
     return await jsonpAppsScript(config.apiUrl, request);
   }
 }
@@ -4326,13 +4334,14 @@ function sleep(ms) {
 }
 
 async function proxyAppsScript(apiUrl, request) {
-  if (!window.location || window.location.protocol === 'file:') {
-    throw new Error('Proxy no disponible desde archivo local');
+  if (!window.location || window.location.protocol === 'file:' || window.location.hostname.endsWith('.github.io')) {
+    throw new Error('Proxy no disponible en esta página');
   }
   const response = await fetch('/api/apps-script', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ apiUrl, payload: request }),
+    signal: AbortSignal.timeout(30000),
   });
   const text = await response.text();
   let data;
@@ -4355,6 +4364,7 @@ async function postAppsScript(apiUrl, request) {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(request),
+    signal: AbortSignal.timeout(20000),
   });
   const data = await response.json();
   if (!data.ok) throw new Error(data.error || 'Error Apps Script');
