@@ -370,6 +370,10 @@ document.querySelector('#testConfigBtn').addEventListener('click', testConfigCon
 document.querySelector('#copyConfigLinkBtn').addEventListener('click', copyConfigLink);
 document.querySelector('#downloadJsonBtn').addEventListener('click', downloadJson);
 document.querySelector('#downloadCexBtn').addEventListener('click', downloadCex);
+const desktopXmlButton = document.querySelector('#collectDesktopXmlBtn');
+desktopXmlButton.hidden = typeof window.showDirectoryPicker !== 'function';
+desktopXmlButton.addEventListener('click', collectDesktopXml);
+
 backToListBtn.addEventListener('click', showListView);
 chatForm.addEventListener('submit', handleChatSubmit);
 chatInput.addEventListener('keydown', handleChatInputKeydown);
@@ -2881,6 +2885,57 @@ async function downloadCex() {
     downloadBlob(new Blob([latin1Encode(text)], { type: 'application/octet-stream' }), filename);
   } catch (error) {
     alert('Generación .cex pendiente: ' + error.message);
+  }
+}
+
+async function collectDesktopXml() {
+  const record = selectedRecordWithCurrentFormData();
+  if (!record) return;
+  const status = document.querySelector('#desktopXmlStatus');
+  const issues = criticalCexIssues(record);
+  status.hidden = false;
+  if (issues.length) {
+    status.textContent = 'Completa estos datos antes de calcular: ' + issues.join(', ');
+    return;
+  }
+
+  desktopXmlButton.disabled = true;
+  try {
+    const folder = await window.showDirectoryPicker({ mode: 'readwrite' });
+    const jobName = 'CE3X-' + crypto.randomUUID();
+    const job = await folder.getDirectoryHandle(jobName, { create: true });
+    const text = normalizeCexLineEndings(buildCex32(await loadCex32Template(), record));
+    const name = fileSafe(recordLabel(record));
+    const cex = await job.getFileHandle(name + '.cex', { create: true });
+    const writer = await cex.createWritable();
+    await writer.write(latin1Encode(text));
+    await writer.close();
+    status.textContent = 'Abre ' + name + '.cex en la subcarpeta ' + jobName +
+      '. En CE³X 3.2, calcula el expediente y genera el XML. La app esperará hasta cinco minutos.';
+
+    const deadline = Date.now() + 300000;
+    while (Date.now() < deadline) {
+      try {
+        const handle = await job.getFileHandle(name + '.xml');
+        const file = await handle.getFile();
+        if (file.size > 12 * 1024 * 1024) throw new Error('El XML supera 12 MB.');
+        const documentXml = new DOMParser().parseFromString(await file.text(), 'application/xml');
+        if (documentXml.documentElement.localName === 'DatosEnergeticosDelEdificio' &&
+            !documentXml.doctype && !documentXml.getElementsByTagName('parsererror').length) {
+          downloadBlob(file, name + '.xml');
+          status.textContent = 'XML recogido de CE³X. También está disponible junto al CEX.';
+          return;
+        }
+      } catch (error) {
+        if (!['NotFoundError', 'NotReadableError'].includes(error.name)) throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    status.textContent = 'Terminó la espera. Si exportas el XML después, estará junto al CEX en ' + jobName + '.';
+  } catch (error) {
+    status.textContent = error.name === 'AbortError' ? 'Selección de carpeta cancelada.' : error.message;
+  } finally {
+    desktopXmlButton.disabled = false;
   }
 }
 
