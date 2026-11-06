@@ -49,13 +49,16 @@ def collect_xml(source, destination, executable, timeout):
         raise TimeoutError("CE³X no exportó el XML en el tiempo indicado.")
 
 
-def request_rating(process, project):
-    """Dispatch the CE3X 3.2 Calculate menu command to this project window."""
+def request_xml_options(process, project):
+    """Calculate this CE3X 3.2 project and open its XML options."""
     user = ctypes.WinDLL("user32", use_last_error=True)
     callback = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     user.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.DWORD))
     user.GetWindowTextW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
     user.EnumWindows.argtypes = (callback, wintypes.LPARAM)
+    user.SendMessageTimeoutW.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM, wintypes.UINT, wintypes.UINT, ctypes.POINTER(ctypes.c_size_t))
+    user.SendMessageTimeoutW.restype = wintypes.LPARAM
+    user.IsWindowEnabled.argtypes = (wintypes.HWND,)
     user.PostMessageW.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
     expected = str(project).casefold()
     matches = []
@@ -76,7 +79,12 @@ def request_rating(process, project):
         matches.clear()
         user.EnumWindows(find_project, 0)
         if len(matches) == 1:
-            return bool(user.PostMessageW(matches[0], 0x0111, 3195, 0))
+            window = matches[0]
+            result = ctypes.c_size_t()
+            calculated = user.SendMessageTimeoutW(window, 0x0111, 3195, 0, 2, 120000, ctypes.byref(result))
+            if calculated and user.IsWindowEnabled(window):
+                return bool(user.PostMessageW(window, 0x0111, 3200, 0))
+            return False
         time.sleep(0.5)
     return False
 
@@ -103,8 +111,8 @@ def watch_jobs(folder, executable, auto_rate=False):
                 continue
             seen.add(job)
             process = subprocess.Popen([str(executable), str(project)], cwd=executable.parent)
-            if auto_rate and request_rating(process, project):
-                print("Cálculo solicitado. Revisa la calificación y genera el XML desde CE³X.", flush=True)
+            if auto_rate and request_xml_options(process, project):
+                print("Opciones XML solicitadas. Revisa la calificación y confirma el informe en CE³X.", flush=True)
                 continue
             print("CEX abierto. Califica el proyecto y genera el XML desde CE³X.", flush=True)
         time.sleep(1)
@@ -116,7 +124,7 @@ def main():
     parser.add_argument("xml", type=Path, nargs="?")
     parser.add_argument("--watch", type=Path, metavar="CARPETA_PRIVADA")
     parser.add_argument("--ce3x", type=Path, default=DEFAULT_CE3X)
-    parser.add_argument("--auto-rate", action="store_true", help="Solicitar el cálculo en CE³X 3.2 para cada trabajo de --watch")
+    parser.add_argument("--auto-rate", action="store_true", help="Calcular y abrir las opciones XML en CE³X 3.2 para cada trabajo de --watch")
     parser.add_argument("--timeout", type=int, default=300)
     args = parser.parse_args()
     if bool(args.watch) == bool(args.cex or args.xml) or (not args.watch and not (args.cex and args.xml)):
