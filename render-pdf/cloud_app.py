@@ -22,6 +22,21 @@ def application(environ, start_response):
     if method == 'GET' and path == '/':
         return respond(start_response, '200 OK', Path(__file__).with_name('index.html').read_bytes(), 'text/html; charset=utf-8',
                        [('Content-Security-Policy', "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")])
+    if path == '/api/report':
+        origin = environ.get('HTTP_ORIGIN')
+        cors = [('Vary', 'Origin')]
+        if origin == 'https://evaristosaa.github.io':
+            cors.append(('Access-Control-Allow-Origin', origin))
+        original_start = start_response
+
+        def start_response(status, headers):
+            return original_start(status, [*headers, *cors])
+
+        if method == 'OPTIONS' and len(cors) == 2:
+            return respond(start_response, '200 OK', b'', extra=[
+                ('Access-Control-Allow-Methods', 'POST'),
+                ('Access-Control-Allow-Headers', 'Authorization, Content-Type'),
+            ])
     if path != '/api/report' or method != 'POST':
         return respond(start_response, '404 Not Found', {'error':'Ruta no disponible.'})
     token = os.environ.get('PDF_ACCESS_TOKEN', '')
