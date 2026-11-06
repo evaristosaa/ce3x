@@ -13,9 +13,10 @@ export function loadHelpers() {
   context.globalThis=context; vm.createContext(context);
   let app=readFileSync(new URL('../app/app.js',import.meta.url),'utf8');
   for(const call of ['cleanupLocalDataStorage();','renderTabs();','renderStorageMode();','loadRecords();']) app=app.replace(call,'');
-  const source = ['cex-import.js','cex-32.js','estimation-model.js','review-model.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
+  const source = ['cex-import.js','cex-32.js','estimation-model.js','review-model.js','solar-tables.js','solar-model.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
   vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml,estimationGroups,estimationStore,estimationRequest,estimationSignature,copySectionsData,copySectionPaths,cex32ReferenceList,cex32SetReferences,recordReferences,recordsMatchingReference,recordSearchText};',context);
   vm.runInContext('Object.assign(globalThis.h,{reviewStamp,reviewStatus,reviewCheck,reviewUncheck,reviewDigest,prepareReviewWrite,cex32BridgeOrigins,setReviewState:(records)=>{state.records=records;state.config.apiUrl="";},setReviewTransport:(transport)=>{api=transport;state.config.apiUrl="https://example.test/exec";}});',context);
+  vm.runInContext('Object.assign(globalThis.h,{solarCalculate,solarApply,solarBlank,solarNativeSettings,solarRowSettings,cexWallOrientation});',context);
   return context.h;
 }
 
@@ -43,6 +44,90 @@ function alteredFixture(h, change) {
 function estimationResult(id, values) {
   return {ok:true,engine:'CE3X 3.2 installed seasonal-performance module',seasonalModuleSha256:'a'.repeat(64),runtimeExecutableSha256:'b'.repeat(64),systems:[{id,seasonalPerformancePercent:values}]};
 }
+
+test('browser solar factors match 1296 installed CE3X 3.2 boundary and combination references',()=>{
+  const h=loadHelpers(),fixture=JSON.parse(readFileSync(new URL('fixtures/solar-ce3x32.json',import.meta.url),'utf8'));
+  assert.equal(fixture.cases.length,1296);
+  const mismatches=[];
+  for(const row of fixture.cases) {
+    const settings={schema:1,overhang:{enabled:!!row.overhang,...row.overhang},recess:{enabled:!!row.recess,...row.recess}};
+    const result=h.solarCalculate(settings,row.orientation),actual=[result.cte,result.winter,result.summer];
+    if(actual.some((value,index)=>Math.abs(value-row.expected[index])>1e-12))mismatches.push({row,actual});
+  }
+  assert.equal(mismatches.length,0,JSON.stringify(mismatches.slice(0,4)));
+});
+
+test('all cardinal and diagonal directions retain their physical meaning in new CEX exports',()=>{
+  const h=loadHelpers(),directions={N:'Norte',S:'Sur',E:'Este',O:'Oeste',W:'Oeste',NE:'NE',SE:'SE',SO:'SO',NO:'NO',NW:'NO',SW:'SO'};
+  for(const [input,expected] of Object.entries(directions)) {
+    const data={'envolvente.cerramientos.items':[{nombre:'Muro',tipoCerramiento:'Fachada',superficie:'10',u:'.5',peso:'200',posicion:input}],
+      'envolvente.huecos.items':[{nombre:'Ventana',cerramientoAsociado:'Muro',superficie:'1',altura:'1',longitud:'1',multiplicador:'1',uVidrio:'3.3',gVidrio:'.75',uMarco:'4',porcMarco:'20',absortividadMarco:'.3',permeabilidad:'50',orientacion:input}]};
+    const env=h.cex32Blocks(h.buildCex32(template,{data}))[3].value;
+    assert.equal(env[0][0][5],expected,input);assert.equal(env[1][0].orientacion,expected,input);
+    assert.equal(Boolean(env[1][0].tieneProteccionSolar),false);assert.equal(env[1][0].correctorFSCTE,1);assert.equal(env[1][0].correctorFSInvierno,1);assert.equal(env[1][0].correctorFSVerano,1);
+  }
+});
+
+function simpleSolarFixture(h,settings,orientation='Sur') {
+  return alteredFixture(h,values=>{
+    const item=values[3][1][0];delete item.elementosProteccionSolar;
+    values[3][1][0]=h.solarApply(item,settings,orientation);
+  });
+}
+
+test('solar geometry persists through Sheets and export with the native order of dimensions and flags',()=>{
+  const h=loadHelpers(),source=simpleSolarFixture(h,h.solarBlank()),data=h.parseCexRecordData(source);
+  const settings={schema:1,overhang:{enabled:true,L:'1',H:'2',D:'0,2'},recess:{enabled:true,R:'.2',H:'2',W:'1'}};
+  data['envolvente.huecos.items'][0].proteccionSolar=JSON.stringify(settings);
+  const {storage}=loadStorageWriteHelpers([]),restored=storage.rowToRecord_(storage.recordToRow_({id:'solar',data}),storage.HEADERS);
+  const output=h.cex32Blocks(h.buildCex32(template,restored)),window=output[3].value[1][0];
+  assert.deepEqual(plain(window.elementosProteccionSolar.slice(0,6)),['1','0.2','2','2','1','0.2']);
+  assert.equal(Boolean(window.elementosProteccionSolar[17]),true);assert.equal(Boolean(window.elementosProteccionSolar[18]),true);
+  assert.equal(window.correctorFSCTE,.6068);assert.equal(window.correctorFSInvierno,.8004);assert.equal(window.correctorFSVerano,.65);
+  assert.equal(window.tipoMarco,'Metálico con RPT');assert.deepEqual(plain(output[4].value),plain(h.cex32Blocks(source)[4].value));
+  const reimported=h.parseCexRecordData(h.buildCex32(template,restored));
+  const read=h.solarRowSettings(reimported,reimported['envolvente.huecos.items'][0]);
+  assert.equal(read.overhang.L,'1');assert.equal(read.overhang.D,'0.2');assert.equal(read.overhang.H,'2');assert.equal(read.recess.R,'0.2');
+});
+
+test('orientation changes recalculate supported imported solar factors instead of retaining stale values',()=>{
+  const h=loadHelpers(),settings={...h.solarBlank(),overhang:{enabled:true,L:1,H:2,D:.2}},data=h.parseCexRecordData(simpleSolarFixture(h,settings,'SE'));
+  data['envolvente.huecos.items'][0].orientacion='S';
+  const window=h.cex32Blocks(h.buildCex32(template,{data}))[3].value[1][0];
+  assert.equal(window.orientacion,'Sur');assert.equal(window.correctorFSCTE,.82);assert.equal(window.correctorFSInvierno,.92);assert.equal(window.correctorFSVerano,.65);
+  data['envolvente.huecos.items'][0].orientacion='N';
+  const north=h.cex32Blocks(h.buildCex32(template,{data}))[3].value[1][0];assert.equal(north.orientacion,'Norte');assert.equal(north.correctorFSCTE,1);
+});
+
+test('complex imported solar devices and malformed drafts are protected from destructive edits',()=>{
+  const h=loadHelpers(),source=simpleSolarFixture(h,h.solarBlank()),data=h.parseCexRecordData(source),native=JSON.parse(data['cex.nativeInputs']);
+  native.inputs[2][1][0].elementosProteccionSolar[19]=true;native.inputs[2][1][0].elementosProteccionSolar[6]=['30',0,0];data['cex.nativeInputs']=JSON.stringify(native);
+  const before=data['cex.nativeInputs'];data['envolvente.huecos.items'][0].orientacion='Este';
+  assert.throws(()=>h.buildCex32(template,{data}),/lamas/);assert.equal(data['cex.nativeInputs'],before);
+  data['envolvente.huecos.items'][0].orientacion='Sur';data['envolvente.huecos.items'][0].proteccionSolar='invalid';
+  assert.throws(()=>h.buildCex32(template,{data}),/lamas|protecciones guardadas/);
+  assert.throws(()=>h.solarCalculate({schema:1,overhang:{enabled:true,L:1,H:0,D:0},recess:{enabled:false}},'Sur'),/altura/);
+});
+
+test('solar updates preserve native vector versions and reject inactive custom parameters',()=>{
+  const h=loadHelpers(),blank=h.solarBlank(),item={elementosProteccionSolar:['','','','','','',['',0,0],['',0,0],'',0,0,'',0,0,'','','',0,0,0,0,0,0,0,['',''],0,'preserved shutter type','preserved colour']};
+  const next=h.solarApply(item,{...blank,recess:{enabled:true,H:2,W:1,R:.2}},'Este');
+  assert.equal(next.elementosProteccionSolar.length,28);
+  assert.deepEqual(plain(next.elementosProteccionSolar.slice(25)),[0,'preserved shutter type','preserved colour']);
+  assert.equal(item.elementosProteccionSolar[3],'');
+  item.elementosProteccionSolar[24]=['.8','.6'];assert.throws(()=>h.solarApply(item,blank,'Sur'),/adicionales/);
+});
+
+test('solar input validation rejects invalid dimensions and orientations without mutating drafts',()=>{
+  const h=loadHelpers();
+  for(const value of ['',true,-1,'NaN','Infinity']) {
+    const settings={...h.solarBlank(),overhang:{enabled:true,L:value,H:2,D:0}},before=JSON.stringify(settings);
+    assert.throws(()=>h.solarCalculate(settings,'Sur'),/longitud/);assert.equal(JSON.stringify(settings),before);
+  }
+  assert.throws(()=>h.solarCalculate({...h.solarBlank(),recess:{enabled:true,R:.2,H:2,W:0}},'Sur'),/anchura/);
+  assert.throws(()=>h.solarCalculate({...h.solarBlank(),overhang:{enabled:true,L:1,H:2,D:0}},'Techo'),/orientación/);
+  assert.deepEqual(plain(h.solarCalculate(h.solarBlank(),'Techo')),{cte:1,winter:1,summer:1});
+});
 
 test('reviews are tied to exact current values and manual changes invalidate prior checks',async()=>{
   const h=loadHelpers(),path='generales.definicion.superficieUtilHabitable',data={[path]:'100'};
