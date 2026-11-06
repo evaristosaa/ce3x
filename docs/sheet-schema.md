@@ -42,6 +42,8 @@ Esto valida captura y persistencia; no sustituye el cálculo energético.
 El campo `rawJson` permite evolucionar el formulario sin rehacer el Sheet cada vez.
 
 La lista completa de referencias catastrales se conserva en `cex.nativeInputs` y sus continuaciones existentes. La columna `referenciaCatastral` refleja la primera referencia; una lista vacía mantiene ese campo vacío. No se añaden columnas. El formulario de referencias exige un backend compatible antes de guardar en Sheets. Los cambios con ID nunca usan la referencia como alternativa para seleccionar otra fila; sin ID, una coincidencia ambigua se rechaza.
+
+Cada fila de `envolvente.puentesTermicos.items` admite `origenFi`, `origenLongitud` y `justificacion` dentro de su JSON existente. Los orígenes son informativos y se derivan de las entradas nativas al importar o normalizar un expediente; los cambios numéricos se exportan como `usuario_fi` o `usuario` de forma independiente. Un cambio de formato decimal no cambia el origen. `justificacion` se conserva al guardar y copiar secciones; no se añade al CEX porque su lista nativa de puente térmico no tiene un campo para ese texto. No requiere migración ni nueva implementación de Apps Script.
 # Parámetros y resultados de instalaciones
 
 Las filas de `instalaciones.acs.items`, `instalaciones.calefaccion.items` e `instalaciones.refrigeracion.items` pueden incluir `estimacion`, una cadena JSON con `schema`, `parameters` y `receipt`. Se almacena dentro de la columna JSON existente, sin añadir columnas.

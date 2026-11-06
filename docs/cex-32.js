@@ -138,6 +138,10 @@ function cex32Inputs(template, record) {
             const value = row[key]; item[slot] = typeof item[slot] === 'number' ? Number(String(value).replace(',','.')) : value;
           }
         }
+        if(index===2) {
+          if(cex32NumericChanged(row.fi,before.fi))item[5]='usuario_fi';
+          if(cex32NumericChanged(row.longitud,before.longitud))item[6]='usuario';
+        }
         return item;
       });
     } else inputs[2][index] = generated;
@@ -281,11 +285,28 @@ function cex32HydrateSources(data) {
     }
     if (!Array.isArray(data[path])) continue;
     data[path] = data[path].map(row => {
-      if (row.__cexSource || row.values) return row;
+      if(row.values)return row;
       const matches = originals.filter(item => item.nombre === row.nombre);
-      return matches.length === 1 ? {...row, __cexSource: matches[0].__cexSource} : row;
+      const next=row.__cexSource?row:matches.length === 1 ? {...row, __cexSource: matches[0].__cexSource} : row;
+      if(path==='envolvente.puentesTermicos.items') {
+        const original=originals.find(item=>item.__cexSource===next.__cexSource);
+        return {...next,...cex32BridgeOrigins(next,original)};
+      }
+      return next;
     });
   }
+}
+
+function cex32NumericChanged(value,before) {
+  if(value===undefined)return false;
+  const text=String(value??'').trim().replace(',','.'),old=String(before??'').trim().replace(',','.');
+  return text!==old && (!text||!old||!Number.isFinite(Number(text))||!Number.isFinite(Number(old))||Number(text)!==Number(old));
+}
+
+function cex32BridgeOrigins(row,original) {
+  return Object.fromEntries([['fi','origenFi'],['longitud','origenLongitud']].map(([key,origin])=>[
+    origin,original&&!cex32NumericChanged(row[key],original[key])?original[origin]:(String(row[key]??'').trim()?'Introducido':'')
+  ]));
 }
 
 function cex32PatchNativeSystems(systems, sourceData, currentTables, approvedEstimated = {}) {

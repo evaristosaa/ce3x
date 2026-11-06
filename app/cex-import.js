@@ -307,6 +307,8 @@ function envelopePuenteRows(rows) {
     __cexSource: `e:2:${index}`,
     nombre: cexImportValue(item[0]), tipoPuenteTermico: cexImportValue(item[2]), fi: cexImportValue(item[3]),
     longitud: cexImportValue(item[4]), cerramientoAsociado: cexImportValue(item[7]),
+    origenFi: item[5] === 'defecto_fi' ? 'Por defecto' : item[5] === 'usuario_fi' ? 'Introducido' : 'Importado',
+    origenLongitud: item[6] === 'defecto' ? 'Por defecto' : item[6] === 'usuario' ? 'Introducido' : 'Importado',
   })).filter(item => item.nombre || item.tipoPuenteTermico);
 }
 
