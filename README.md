@@ -39,3 +39,15 @@ Las tablas conservan la identidad de cada elemento original dentro de su JSON; n
 ## Límites
 
 Ver [hoja de ruta](docs/roadmap-3.2.md). Las propuestas de Catastro requieren revisión. Los equipos nuevos con rendimiento estimado necesitan sus parámetros de cálculo; el exportador no los convierte silenciosamente en rendimientos conocidos. Revisar y recalcular el CEX en CE³X 3.2 antes de emitir un certificado.
+
+### Recogida local de XML con CE³X 3.2 (experimental)
+
+En Windows, crea una carpeta local privada para los intercambios. Inicia el asistente desde el repositorio:
+
+```powershell
+python scripts/collect-ce3x-xml.py --watch "C:\ruta\carpeta-privada"
+```
+
+En la app, abre un expediente, pulsa **Recoger XML de CE³X** y selecciona esa misma carpeta. La app crea una subcarpeta nueva. El asistente abre el CEX cuando la escritura termina. En CE³X, califica el proyecto, pulsa el botón XML y revisa las fechas y mejoras antes de exportar. La app espera hasta cinco minutos y descarga el XML resultante. El original queda junto al CEX. Para detener el asistente, pulsa Ctrl+C en la terminal.
+
+Usa una carpeta que solo controles tú y reserva el asistente a CEX de confianza. El arranque desde la carpeta se comprobó con CE³X 3.2 y un ejemplo de la instalación. El cálculo y la revisión del informe se hacen en CE³X.
