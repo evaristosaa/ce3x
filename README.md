@@ -53,3 +53,5 @@ En la app, abre un expediente, pulsa **Recoger XML de CE³X** y selecciona esa m
 Usa una carpeta que solo controles tú y reserva el asistente a CEX de confianza. El arranque desde la carpeta se comprobó con CE³X 3.2 y un ejemplo de la instalación. El cálculo y la revisión del informe se hacen en CE³X.
 
 En la prueba del 6 de noviembre, el CEX abierto por el asistente se recalculó en CE³X 3.2 y mostró 58,0 kg CO₂/m² (E). La exportación desde Ctrl+J, con una fecha sintética y una nota explícita de prueba, produjo un XML de 146.352 bytes en la carpeta del trabajo. El conversor local lo procesó y devolvió un PDF de 411.163 bytes. Esta comprobación cubre la salida real de escritorio; la descarga automática en el navegador sigue pendiente de una prueba integrada.
+
+Para solicitar también el cálculo al abrir cada trabajo, añade `--auto-rate` al comando anterior. Se comprobó con CE³X 3.2 en Windows sobre un CEX de ejemplo nuevo: la ventana mostró 58,0 kg CO₂/m² (E) sin pulsar Calificar. Revisa el resultado y confirma las opciones del informe en CE³X antes de exportar el XML.
