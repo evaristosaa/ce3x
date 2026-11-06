@@ -127,7 +127,6 @@ function cex32Inputs(template, record) {
         const item = structuredClone(raw[oldIndex]);
         const before = original[oldIndex];
         if (index === 0 && row.tipoCerramiento !== before.tipoCerramiento) throw new Error('El cambio de tipo de cerramiento necesita revisar su definición en CE3X.');
-        if (index === 1 && row.modoDefinicion !== before.modoDefinicion) throw new Error('El cambio de modo del hueco necesita sus parámetros nativos en CE3X.');
         const maps = [
           {nombre:0,tipoCerramiento:1,superficie:2,u:3,peso:4,posicion:5,patronSombras:7,modoDefinicion:8},
           {nombre:'descripcion',cerramientoAsociado:'cerramientoAsociado',longitud:'longitud',altura:'altura',multiplicador:'multiplicador',superficie:'superficie',uVidrio:'Uvidrio',gVidrio:'Gvidrio',uMarco:'Umarco',porcMarco:'porcMarco',absortividadMarco:'absortividadValor',permeabilidad:'permeabilidadValor',orientacion:'orientacion',patronSombras:'patronSombras'},
@@ -149,6 +148,7 @@ function cex32Inputs(template, record) {
   if (!Array.isArray(inputs[2][3])) inputs[2][3] = [];
   inputs[2][0].forEach(item=>{if(typeof item[5]==='string')item[5]=cexWallOrientation(item[5]);});
   solarOverlay(data,inputs[2][1],cex32Table(record,'envolvente.huecos.items'),sourceData['envolvente.huecos.items']);
+  windowOverlay(data,inputs[2][1],cex32Table(record,'envolvente.huecos.items'),sourceData['envolvente.huecos.items']);
   const systemPaths = ['instalaciones.acs.items','instalaciones.calefaccion.items','instalaciones.refrigeracion.items','instalaciones.contribuciones.items'];
   const changed = systemPaths.some(path => !native || !cex32SameRows(cex32Table(record,path), sourceData[path]));
   const approvedEstimated = estimationOverlay(data,inputs[3]);

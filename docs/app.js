@@ -947,7 +947,7 @@ function tableHtml(item, path, value) {
         </tbody>
       </table>
       <div class="table-actions">
-        ${path==='envolvente.huecos.items'?'<button type="button" class="secondary" data-open-solar>Protecciones solares</button>':''}
+        ${path==='envolvente.huecos.items'?'<button type="button" class="secondary" data-open-window>Propiedades térmicas</button><button type="button" class="secondary" data-open-solar>Protecciones solares</button>':''}
         <button type="button" class="secondary add-row-btn" data-add-row="${escapeHtml(path)}">Añadir fila</button>
         <button type="button" class="danger delete-row-btn" data-delete-rows="${escapeHtml(path)}" disabled>Eliminar fila</button>
       </div>
@@ -956,12 +956,13 @@ function tableHtml(item, path, value) {
 }
 
 function tableRowHtml(columns, rowItem, index) {
-  return `<tr data-cex-source="${escapeHtml(rowItem.__cexSource || '')}" data-estimation="${escapeHtml(rowItem.estimacion || '')}" data-solar="${escapeHtml(rowItem.proteccionSolar || '')}">
+  return `<tr data-cex-source="${escapeHtml(rowItem.__cexSource || '')}" data-estimation="${escapeHtml(rowItem.estimacion || '')}" data-solar="${escapeHtml(rowItem.proteccionSolar || '')}" data-thermal="${escapeHtml(rowItem.propiedadesTermicas || '')}">
     <td><input type="checkbox" data-row-select aria-label="Seleccionar fila ${index + 1}"></td>
     <td data-row-number>${index + 1}</td>
     ${columns.map((column, colIndex) => {
     const value = rowItem[column.id] ?? rowItem.values?.[colIndex] ?? '';
     const name = `data-col="${escapeHtml(column.id)}"`;
+    if(columns.some(col=>col.id==='uVidrio')&&['uVidrio','gVidrio','uMarco','modoDefinicion'].includes(column.id))return `<td><input ${name} value="${escapeHtml(value)}" readonly title="Editar desde Propiedades térmicas" aria-label="${escapeHtml(column.label)}"></td>`;
     if (column.type === 'readonly') return `<td><input ${name} value="${escapeHtml(value)}" readonly aria-label="${escapeHtml(column.label)}"></td>`;
     if (column.type === 'select') return `<td>${selectCellHtml(name, value, SELECT_OPTIONS[column.optionsKey] || [])}</td>`;
     const computed = column.id==='rendimientoEstacional' && /^estimado/i.test(rowItem.modoDefinicion || '');
@@ -1296,6 +1297,7 @@ function collectTables(data) {
       if (Object.values(item).some(Boolean) && tr.dataset.cexSource) item.__cexSource = tr.dataset.cexSource;
       if (Object.values(item).some(Boolean) && tr.dataset.estimation) item.estimacion = tr.dataset.estimation;
       if (Object.values(item).some(Boolean) && tr.dataset.solar) item.proteccionSolar = tr.dataset.solar;
+      if (Object.values(item).some(Boolean) && tr.dataset.thermal) item.propiedadesTermicas = tr.dataset.thermal;
       return item;
     }).filter(item => Object.values(item).some(Boolean));
     data[path] = rows;
@@ -1402,6 +1404,7 @@ function estimatedEnvelopePatchLegacy(data) {
     porcMarco: '20',
     absortividadMarco: '0.65',
     modoDefinicion: 'Estimadas',
+          propiedadesTermicas: JSON.stringify({schema:1,mode:'Estimadas',tipoVidrio:'Doble',tipoMarco:'Metálico con RPT',dobleVentana:false}),
     permeabilidad: '50',
     orientacion: orientation,
     patronSombras: noShadow,
@@ -1556,6 +1559,7 @@ function estimateHuecosByFacadeAndFloor(facadeRows, floorAreas, height, noShadow
           porcMarco: '20',
           absortividadMarco: '0.65',
           modoDefinicion: 'Estimadas',
+          propiedadesTermicas: JSON.stringify({schema:1,mode:'Estimadas',tipoVidrio:'Doble',tipoMarco:'Metálico con RPT',dobleVentana:false}),
           permeabilidad: '50',
           orientacion: facade.posicion,
           patronSombras: noShadow,

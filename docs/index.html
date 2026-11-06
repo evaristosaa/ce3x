@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store">
   <title>CE3X Captura</title>
-  <link rel="stylesheet" href="styles.css?v=20261106-solar">
+  <link rel="stylesheet" href="styles.css?v=20261106-window">
   <link rel="stylesheet" href="workspace.css?v=20261103-ce3x32">
 </head>
 <body>
@@ -247,20 +247,45 @@
       <div class="form-actions"><button id="saveSolarBtn" type="submit">Guardar protecciones</button><button id="closeSolarBtn" type="button" class="secondary">Cerrar</button></div>
     </form>
   </dialog>
-  <script src="solar-tables.js?v=20261106-solar"></script>
-  <script src="solar-model.js?v=20261106-solar"></script>
+  <dialog id="windowDialog" aria-labelledby="windowTitle">
+    <form id="windowForm" novalidate>
+      <span class="eyebrow">ENVOLVENTE TÉRMICA</span>
+      <h2 id="windowTitle">Propiedades térmicas del hueco</h2>
+      <label>Hueco<select id="windowSelector"></select></label>
+      <label>Modo de definición<select id="windowMode"><option>Conocidas</option><option>Estimadas</option></select></label>
+      <p class="dialog-help">Conocidas: introduce valores respaldados por documentación o ensayos. Estimadas: elige vidrio y marco para calcular sus valores. Completa el porcentaje de marco y su absortividad en la tabla.</p>
+      <fieldset id="windowKnownFields"><legend>Valores de la ventana antes de añadir doble ventana</legend>
+        <label>U vidrio (W/m²K)<input data-window-value="uVidrio" inputmode="decimal"></label>
+        <label>g vidrio (0–1)<input data-window-value="gVidrio" inputmode="decimal"></label>
+        <label>U marco (W/m²K)<input data-window-value="uMarco" inputmode="decimal"></label>
+      </fieldset>
+      <fieldset id="windowEstimatedFields" hidden><legend>Características observadas</legend>
+        <label>Tipo de vidrio<select id="windowGlass"></select></label>
+        <label>Tipo de marco<select id="windowFrame"></select></label>
+      </fieldset>
+      <label class="solar-enabled"><input id="windowDouble" type="checkbox">Doble ventana</label>
+      <p class="dialog-help">Doble ventana significa dos ventanas paralelas en el mismo hueco. Es distinto de un acristalamiento doble. Esta opción aplica la corrección de CE³X; no calcula la calificación energética del edificio.</p>
+      <p id="windowPreview" role="status" aria-live="polite"></p>
+      <p id="windowStatus" class="dialog-status" role="status"></p>
+      <div class="form-actions"><button id="saveWindowBtn" type="submit">Guardar propiedades</button><button id="closeWindowBtn" type="button" class="secondary">Cerrar</button></div>
+    </form>
+  </dialog>
+  <script src="window-model.js?v=20261106-window"></script>
+  <script src="solar-tables.js?v=20261106-window"></script>
+  <script src="solar-model.js?v=20261106-window"></script>
   <script src="reports.js?v=20261104-pdf"></script>
-  <script src="cex-import.js?v=20261106-solar"></script>
-  <script src="ce3x-locations.js?v=20261106-solar"></script>
-  <script src="cex-32.js?v=20261106-solar"></script>
-  <script src="estimation-model.js?v=20261106-solar"></script>
-  <script src="review-model.js?v=20261106-solar"></script>
-  <script src="workspace.js?v=20261106-solar"></script>
-  <script src="app.js?v=20261106-solar"></script>
-  <script src="estimation-ui.js?v=20261106-solar"></script>
-  <script src="references-ui.js?v=20261106-solar"></script>
-  <script src="review-ui.js?v=20261106-solar"></script>
-  <script src="solar-ui.js?v=20261106-solar"></script>
+  <script src="cex-import.js?v=20261106-window"></script>
+  <script src="ce3x-locations.js?v=20261106-window"></script>
+  <script src="cex-32.js?v=20261106-window"></script>
+  <script src="estimation-model.js?v=20261106-window"></script>
+  <script src="review-model.js?v=20261106-window"></script>
+  <script src="workspace.js?v=20261106-window"></script>
+  <script src="app.js?v=20261106-window"></script>
+  <script src="estimation-ui.js?v=20261106-window"></script>
+  <script src="references-ui.js?v=20261106-window"></script>
+  <script src="review-ui.js?v=20261106-window"></script>
+  <script src="solar-ui.js?v=20261106-window"></script>
+  <script src="window-ui.js?v=20261106-window"></script>
 </body>
 </html>
 

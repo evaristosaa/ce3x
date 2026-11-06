@@ -11,6 +11,7 @@ UI_FILES = ['index.html', 'app.js', 'styles.css', 'workspace.js', 'workspace.css
             'reports.js', 'cex-import.js', 'cex-32.js', 'ce3x-locations.js',
             'estimation-model.js', 'estimation-ui.js', 'references-ui.js', 'review-model.js', 'review-ui.js',
             'solar-tables.js', 'solar-model.js', 'solar-ui.js',
+            'window-model.js', 'window-ui.js',
             'templates/base-3.2.cex']
 for name in UI_FILES:
     target = ROOT / 'docs' / name
@@ -33,7 +34,8 @@ names += ['app/server.py', 'app/report_service.py', 'app/estimation_service.py',
           'docs/consulta-integracion-CE3X.md', 'docs/validation-bridges-3.2.md', 'tests/test_estimation_http.py',
           'docs/data-review.md','tests/fixtures/sheet-headers-103.json',
           'scripts/generate-solar-reference.py','scripts/engine/solar_reference_worker.py',
-          'tests/fixtures/solar-ce3x32.json','docs/solar-protections.md']
+          'tests/fixtures/solar-ce3x32.json','docs/solar-protections.md',
+          'tests/fixtures/window-ce3x32.json','scripts/engine/window_reference_worker.py','docs/window-properties.md']
 if '--meta' in sys.argv:
     print(json.dumps([{'path':name, 'size':(ROOT/name).stat().st_size,
                        'sha':hashlib.sha1(b'blob '+str((ROOT/name).stat().st_size).encode()+b'\0'+(ROOT/name).read_bytes()).hexdigest()}
