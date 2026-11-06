@@ -127,6 +127,11 @@
       <h2>Configuracion</h2>
       <label>Apps Script URL<input name="apiUrl" placeholder="https://script.google.com/macros/s/.../exec"></label>
       <label>APP_SECRET<input name="secret" type="password"></label>
+      <label>Clave de Render para PDF<input name="pdfKey" type="password" autocomplete="off"></label>
+      <button type="button" class="secondary" id="chooseXmlFolderBtn">Elegir carpeta de trabajo XML</button>
+      <p id="xmlFolderConfigStatus" role="status"></p>
+      <fieldset><legend>Técnico certificador por defecto</legend><div id="technicianConfigFields"></div>
+      <label>Importar perfil local JSON<input type="file" id="technicianProfileFile" accept=".json,application/json"></label></fieldset>
       <p>Sin conexión configurada, los expedientes se guardan en este navegador. Con Google Sheets se usa el archivo compartido; los datos locales no se trasladan automáticamente.</p>
       <div class="form-actions">
         <button type="submit">Guardar config</button>
@@ -191,8 +196,7 @@
       <label>Certificado en XML<input name="xmlFile" type="file" accept=".xml,application/xml,text/xml" required></label>
       <p class="dialog-help">¿Tienes un CEX? Ábrelo y calcula el expediente en CE³X 3.2; después genera su XML. El CEX por sí solo no sustituye ese cálculo.</p>
       <p id="reportStatus" class="report-status" role="status" aria-live="polite"></p>
-      <label id="cloudReportKey" hidden>Clave de la prueba<input type="password" name="accessKey" autocomplete="off"></label>
-      <p id="cloudReportHelp" hidden>Al generar el PDF se enviará el XML a Render. El servicio puede tardar en arrancar. La clave solo se usa para esta solicitud.</p>
+      <p id="cloudReportHelp" hidden>Al generar el PDF se enviará el XML a Render. El servicio puede tardar en arrancar. La clave se toma de Configuración.</p>
       <a id="cloudReportLink" class="button-link" href="https://ce3x-pdf-prueba.onrender.com/" target="_blank" rel="noopener noreferrer" hidden>Abrir generador web de PDF</a>
       <div class="form-actions"><button id="generateReportBtn" type="submit">Generar y descargar PDF</button><button id="closeReportBtn" type="button" class="secondary">Cerrar</button></div>
     </form>
@@ -276,14 +280,14 @@
   <script src="window-model.js?v=20261106-window"></script>
   <script src="solar-tables.js?v=20261106-window"></script>
   <script src="solar-model.js?v=20261106-window"></script>
-  <script src="reports.js?v=20261106-cloud"></script>
+  <script src="reports.js?v=20261106-desktop-config"></script>
   <script src="cex-import.js?v=20261106-window"></script>
   <script src="ce3x-locations.js?v=20261106-window"></script>
   <script src="cex-32.js?v=20261106-individual"></script>
   <script src="estimation-model.js?v=20261106-window"></script>
   <script src="review-model.js?v=20261106-window"></script>
   <script src="workspace.js?v=20261106-window"></script>
-  <script src="app.js?v=20261106-import-post"></script>
+  <script src="app.js?v=20261106-desktop-config"></script>
   <script src="estimation-ui.js?v=20261106-window"></script>
   <script src="references-ui.js?v=20261106-window"></script>
   <script src="review-ui.js?v=20261106-window"></script>

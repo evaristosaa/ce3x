@@ -11,11 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
     form.reset(); submit.disabled = true; status.textContent = 'Comprobando el generador…'; dialog.showModal();
     document.getElementById('cloudReportLink').hidden = !staticSite;
     document.getElementById('cloudReportHelp').hidden = !staticSite;
-    document.getElementById('cloudReportKey').hidden = !staticSite;
-    form.elements.accessKey.required = staticSite;
     if (staticSite) {
-      status.textContent = 'Selecciona el XML e introduce la clave para generar el PDF.';
-      submit.disabled = false;
+      submit.disabled = !state.config.pdfKey;
+      status.textContent = submit.disabled ? 'Guarda la clave de Render en Configuración.' : 'Selecciona el XML para generar el PDF.';
       return;
     }
     try {
@@ -25,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
       submit.disabled = !result.available;
     } catch (error) { status.textContent = error.message; }
   });
-  dialog.addEventListener('close', () => { form.elements.accessKey.value = ''; });
   close.addEventListener('click', () => dialog.close());
   dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
   form.addEventListener('submit', async event => {
@@ -37,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     status.textContent = 'Validando el XML y generando el PDF. Puede tardar hasta dos minutos…';
     try {
       const headers = {'Content-Type': 'application/xml'};
-      if (staticSite) headers.Authorization = 'Bearer ' + form.elements.accessKey.value.trim();
+      if (staticSite) headers.Authorization = 'Bearer ' + state.config.pdfKey;
       const response = await fetch(staticSite ? cloudEndpoint : '/api/report', {
         method: 'POST', headers, body: file, redirect: 'error',
         signal: AbortSignal.timeout(240000)
