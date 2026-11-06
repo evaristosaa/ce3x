@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store">
   <title>CE3X Captura</title>
-  <link rel="stylesheet" href="styles.css?v=20261106-bridges">
+  <link rel="stylesheet" href="styles.css?v=20261106-review">
   <link rel="stylesheet" href="workspace.css?v=20261103-ce3x32">
 </head>
 <body>
@@ -90,6 +90,7 @@
           <button id="backToListBtn" type="button" class="secondary">Volver a la lista</button>
           <div class="detail-actions">
             <button id="saveDetailBtn" type="submit" form="detailForm">Guardar detalle</button>
+            <button id="reviewDataBtn" type="button" class="secondary">Origen y revisión de datos</button>
             <button id="catastroBtn" type="button" class="secondary">Traer Catastro</button>
             <button id="catastroMapBtn" type="button" class="secondary" title="Abrir la cartografía del Catastro">Cartografía Catastro</button>
             <button id="catastro3dBtn" type="button" class="secondary" title="Abrir el Visor 3D del Catastro">Visor3D Catastro</button>
@@ -214,15 +215,35 @@
       <div class="form-actions"><button id="calculateEstimationBtn" type="submit">Recalcular y guardar</button><button id="saveEstimationBtn" type="button" class="secondary">Guardar parámetros</button><button id="closeEstimationBtn" type="button" class="secondary">Cerrar</button></div>
     </form>
   </dialog>
+  <dialog id="reviewDialog" aria-labelledby="reviewTitle">
+    <div class="review-dialog-content">
+      <span class="eyebrow">CALIDAD DE LOS DATOS</span>
+      <h2 id="reviewTitle">Origen y revisión de datos</h2>
+      <p>Comprueba cada dato o tabla con la documentación del expediente. Esta revisión es una declaración del usuario; no calcula ni valida la calificación energética.</p>
+      <p id="reviewSummary" role="status"></p>
+      <div class="review-list" id="reviewList"></div>
+      <form id="reviewCheckForm" hidden>
+        <h3 id="reviewFieldTitle"></h3><p id="reviewValuePreview"></p><p id="reviewFieldEvidence"></p>
+        <label>Comprobado por<input id="reviewBy" maxlength="120" required></label>
+        <label>Documento o cálculo de referencia<input id="reviewDocument" maxlength="500" required></label>
+        <label class="review-attestation"><input id="reviewAttested" type="checkbox" required>He contrastado el dato o la tabla con esa referencia.</label>
+        <div class="form-actions"><button type="submit">Guardar comprobación</button><button type="button" class="secondary" id="reviewUncheckBtn">Marcar pendiente</button></div>
+      </form>
+      <p id="reviewStatus" class="dialog-status" role="status"></p>
+      <div class="form-actions"><button id="closeReviewBtn" type="button" class="secondary">Cerrar</button></div>
+    </div>
+  </dialog>
   <script src="reports.js?v=20261104-pdf"></script>
-  <script src="cex-import.js?v=20261106-bridges"></script>
-  <script src="ce3x-locations.js?v=20261106-bridges"></script>
-  <script src="cex-32.js?v=20261106-bridges"></script>
-  <script src="estimation-model.js?v=20261106-bridges"></script>
-  <script src="workspace.js?v=20261106-bridges"></script>
-  <script src="app.js?v=20261106-bridges"></script>
-  <script src="estimation-ui.js?v=20261106-bridges"></script>
-  <script src="references-ui.js?v=20261106-bridges"></script>
+  <script src="cex-import.js?v=20261106-review"></script>
+  <script src="ce3x-locations.js?v=20261106-review"></script>
+  <script src="cex-32.js?v=20261106-review"></script>
+  <script src="estimation-model.js?v=20261106-review"></script>
+  <script src="review-model.js?v=20261106-review"></script>
+  <script src="workspace.js?v=20261106-review"></script>
+  <script src="app.js?v=20261106-review"></script>
+  <script src="estimation-ui.js?v=20261106-review"></script>
+  <script src="references-ui.js?v=20261106-review"></script>
+  <script src="review-ui.js?v=20261106-review"></script>
 </body>
 </html>
 

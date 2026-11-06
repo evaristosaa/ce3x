@@ -275,7 +275,13 @@ function cex32FindOriginal(row, originals) {
 }
 
 function cex32HydrateSources(data) {
-  if (!data[CEX32_INPUT_KEY]) return;
+  if (!data[CEX32_INPUT_KEY]) {
+    let rows=data['envolvente.puentesTermicos.items'];
+    if(typeof rows==='string'){try{rows=JSON.parse(rows);}catch{return;}}
+    if(Array.isArray(rows))data['envolvente.puentesTermicos.items']=rows.map(row=>row.values?row:{...row,
+      origenFi:row.origenFi||'Origen no registrado',origenLongitud:row.origenLongitud||'Origen no registrado'});
+    return;
+  }
   let source;
   try { source = cex32ImportedTables(JSON.parse(data[CEX32_INPUT_KEY]).inputs); }
   catch { return; } // Export reports malformed snapshots; loading must retain the record.
@@ -303,9 +309,10 @@ function cex32NumericChanged(value,before) {
   return text!==old && (!text||!old||!Number.isFinite(Number(text))||!Number.isFinite(Number(old))||Number(text)!==Number(old));
 }
 
-function cex32BridgeOrigins(row,original) {
+function cex32BridgeOrigins(row,original,changedKey='') {
   return Object.fromEntries([['fi','origenFi'],['longitud','origenLongitud']].map(([key,origin])=>[
-    origin,original&&!cex32NumericChanged(row[key],original[key])?original[origin]:(String(row[key]??'').trim()?'Introducido':'')
+    origin,!original&&changedKey&&key!==changedKey?(row[origin]||'Origen no registrado'):
+      original&&!cex32NumericChanged(row[key],original[key])?original[origin]:(String(row[key]??'').trim()?'Introducido':'')
   ]));
 }
 

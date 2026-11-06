@@ -721,3 +721,14 @@ dialog::backdrop {
 .reference-tools { grid-column: 1 / -1; }
 .reference-tools p { margin: 8px 0 0; font-size: .85rem; color: #667568; }
 #referenceListInput { font-family: ui-monospace,Consolas,monospace; text-transform: uppercase; }
+#reviewDialog { width: min(960px,94vw); max-height: 90vh; }
+.review-dialog-content { display: grid; gap: 12px; }
+.review-list { display: grid; gap: 8px; max-height: 35vh; overflow: auto; }
+.review-entry { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; text-align: left; color: #20372e; background: #f4f7f4; border: 1px solid #cedbd2; padding: 12px; }
+.review-entry strong { font-size: .85rem; }
+.review-entry span { font-size: .8rem; }
+#reviewCheckForm { display: grid; gap: 10px; }
+#reviewCheckForm[hidden] { display: none; }
+.review-attestation { display: flex; align-items: center; gap: 10px; }
+.review-attestation input { width: auto; }
+@media(max-width:600px) { .review-entry { grid-template-columns: 1fr; gap: 4px; } }

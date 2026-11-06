@@ -7,7 +7,7 @@ sus posiciones. CN:CY añade versión de origen, entradas nativas, protección,
 uso, NIF/NIE del cliente y siete continuaciones de las entradas nativas.
 La migración `migrateSchema32()` añade columnas sin reescribir expedientes y
 crea un respaldo. `verifySchema32()` comprueba el esquema y la fragmentación.
-Apps Script publicado: versión 26, misma URL de conexión. Incluye guardado por ID y la señal de compatibilidad `referenceWriteVersion: 1`.
+Extensión de revisión (6 noviembre 2026): columna 104, CZ `revision.campos`. Las 103 columnas anteriores conservan su posición. `migrateSchema32()` crea una copia antes de añadirla. Apps Script privado: versión 27, misma URL de conexión, con señales `referenceWriteVersion: 1` y `reviewWriteVersion: 1`.
 
 Validación de integración: CEX sintético importado por la app; NIF cambiado y
 guardado; recarga recuperada desde Google y comprobación de las columnas nuevas.
@@ -44,6 +44,8 @@ El campo `rawJson` permite evolucionar el formulario sin rehacer el Sheet cada v
 La lista completa de referencias catastrales se conserva en `cex.nativeInputs` y sus continuaciones existentes. La columna `referenciaCatastral` refleja la primera referencia; una lista vacía mantiene ese campo vacío. No se añaden columnas. El formulario de referencias exige un backend compatible antes de guardar en Sheets. Los cambios con ID nunca usan la referencia como alternativa para seleccionar otra fila; sin ID, una coincidencia ambigua se rechaza.
 
 Cada fila de `envolvente.puentesTermicos.items` admite `origenFi`, `origenLongitud` y `justificacion` dentro de su JSON existente. Los orígenes son informativos y se derivan de las entradas nativas al importar o normalizar un expediente; los cambios numéricos se exportan como `usuario_fi` o `usuario` de forma independiente. Un cambio de formato decimal no cambia el origen. `justificacion` se conserva al guardar y copiar secciones; no se añade al CEX porque su lista nativa de puente térmico no tiene un campo para ese texto. No requiere migración ni nueva implementación de Apps Script.
+
+`revision.campos` contiene un objeto JSON con `schema: 1` y `fields` por ruta del formulario. Cada entrada guarda la huella SHA-256 del valor, procedencia, detalle y fecha. La comprobación opcional añade persona, documento, fecha y huella de los valores comprobados. El formulario vuelve a mostrar pendiente cuando la huella ya no corresponde a los datos actuales. La procedencia no se deduce retroactivamente para registros antiguos y no se incorporan estas declaraciones al CEX. Límite de la trazabilidad: 48.000 caracteres, con rechazo explícito si se supera.
 # Parámetros y resultados de instalaciones
 
 Las filas de `instalaciones.acs.items`, `instalaciones.calefaccion.items` e `instalaciones.refrigeracion.items` pueden incluir `estimacion`, una cadena JSON con `schema`, `parameters` y `receipt`. Se almacena dentro de la columna JSON existente, sin añadir columnas.

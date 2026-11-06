@@ -1,12 +1,13 @@
 # Hoja de ruta CE³X 3.2
 
-Estado del bloque de conservación: 5 de noviembre de 2026.
+Estado del bloque de conservación y revisión: 6 de noviembre de 2026.
 
 ## Implementado
 
 - Escritorio de expedientes y captura secundaria.
 - Adaptador residencial 2.3/3.2 y plantilla nativa de 15 bloques.
 - Esquema Sheets de 103 columnas, migración con copia previa y almacenamiento fragmentado de entradas nativas.
+- Extensión a 104 columnas para origen y revisión por campo o tabla, con copia previa y conservación de las 103 columnas anteriores. La revisión declarada deja de ser vigente si cambia el valor, incluyendo parámetros nativos de las tablas. Ver [alcance](data-review.md).
 - Identidad de filas conservada al renombrar o reordenar.
 - Edición por equipo y servicio, detección de cambios contradictorios y eliminación parcial de equipos compartidos.
 - Conservación de parámetros importados que el formulario todavía no expone.
@@ -22,7 +23,7 @@ Estado del bloque de conservación: 5 de noviembre de 2026.
 
 1. Modelar parámetros de estimación de instalaciones: potencia, antigüedad, aislamiento, rendimiento nominal, acumulación y equipos mixtos. Incorporarlos conjuntamente al formulario, JSON de Sheets y serialización.
 2. Añadir edición de parámetros avanzados de envolvente, sombras y puentes térmicos.
-3. Marcar el origen de los datos y cuáles requieren comprobación técnica.
+3. Ampliar la revisión a los parámetros avanzados que se incorporen al formulario y contrastar su uso con expedientes reales. La revisión por campo o tabla ya distingue procedencia y comprobaciones pendientes.
 4. Validar apertura y recálculo de los CEX exportados en CE³X 3.2 con casos de referencia. Las pruebas de serialización no sustituyen esta validación.
 
 ## Cálculo y salida XML
