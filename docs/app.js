@@ -73,7 +73,7 @@ const SELECT_OPTIONS = {
   masaParticionesInternas: ['Ligera', 'Media', 'Pesada'],
   ensayoEstanqueidad: ['No', 'Sí'],
   tipoCerramiento: ['Cubierta', 'Suelo', 'Fachada', 'Medianera'],
-  posicion: ['Techo', 'Suelo', 'NO', 'NE', 'SE', 'SO', 'N', 'S', 'E', 'O'],
+  posicion: ['Techo', 'Suelo', 'Norte', 'NE', 'Este', 'SE', 'Sur', 'SO', 'Oeste', 'NO'],
   modoDefinicion: ['Por defecto', 'Estimadas', 'Estimado', 'Estimado según Instalación', 'Conocido'],
   patronSombras: ['Sin patrón'],
   tipoEquipo: ['ACS', 'Calefacción', 'Refrigeración', 'Calefacción y refrigeración'],
@@ -947,6 +947,7 @@ function tableHtml(item, path, value) {
         </tbody>
       </table>
       <div class="table-actions">
+        ${path==='envolvente.huecos.items'?'<button type="button" class="secondary" data-open-solar>Protecciones solares</button>':''}
         <button type="button" class="secondary add-row-btn" data-add-row="${escapeHtml(path)}">Añadir fila</button>
         <button type="button" class="danger delete-row-btn" data-delete-rows="${escapeHtml(path)}" disabled>Eliminar fila</button>
       </div>
@@ -955,7 +956,7 @@ function tableHtml(item, path, value) {
 }
 
 function tableRowHtml(columns, rowItem, index) {
-  return `<tr data-cex-source="${escapeHtml(rowItem.__cexSource || '')}" data-estimation="${escapeHtml(rowItem.estimacion || '')}">
+  return `<tr data-cex-source="${escapeHtml(rowItem.__cexSource || '')}" data-estimation="${escapeHtml(rowItem.estimacion || '')}" data-solar="${escapeHtml(rowItem.proteccionSolar || '')}">
     <td><input type="checkbox" data-row-select aria-label="Seleccionar fila ${index + 1}"></td>
     <td data-row-number>${index + 1}</td>
     ${columns.map((column, colIndex) => {
@@ -1294,6 +1295,7 @@ function collectTables(data) {
       });
       if (Object.values(item).some(Boolean) && tr.dataset.cexSource) item.__cexSource = tr.dataset.cexSource;
       if (Object.values(item).some(Boolean) && tr.dataset.estimation) item.estimacion = tr.dataset.estimation;
+      if (Object.values(item).some(Boolean) && tr.dataset.solar) item.proteccionSolar = tr.dataset.solar;
       return item;
     }).filter(item => Object.values(item).some(Boolean));
     data[path] = rows;
@@ -3732,13 +3734,11 @@ function cexWallOrientation(value) {
   if (normalized === 'TECHO') return 'Techo';
   if (normalized === 'SUELO') return 'Suelo';
   const map = {
-    N: 'NO',
-    S: 'SO',
-    E: 'SE',
-    O: 'NO',
-    W: 'NO',
+    N:'Norte',NORTE:'Norte',NORTH:'Norte',S:'Sur',SUR:'Sur',SOUTH:'Sur',
+    E:'Este',ESTE:'Este',EAST:'Este',O:'Oeste',W:'Oeste',OESTE:'Oeste',WEST:'Oeste',
+    NE:'NE',SE:'SE',SO:'SO',SW:'SO',NO:'NO',NW:'NO',
   };
-  return map[normalized] || normalized;
+  return map[normalized] || normalizedValue;
 }
 
 function cexCerramientoDimensions(rowItem) {
@@ -3789,22 +3789,21 @@ function serializeCexHuecoEstimadasObject(rowItem) {
   const orientation = cexWallOrientation(rowItem.orientacion);
   const protection = serializeCexList([
     cexPickleString(''), cexPickleString(''), cexPickleString(''),
-    cexPickleString(cexDecimal(rowItem.altura)), cexPickleString(cexDecimal(rowItem.longitud)),
-    cexPickleString('0.20'),
+    cexPickleString(''), cexPickleString(''), cexPickleString(''),
     serializeCexList([cexPickleString(''), cexPickleInteger('0'), cexPickleInteger('0')]),
     serializeCexList([cexPickleString(''), cexPickleInteger('0'), cexPickleInteger('0')]),
     cexPickleString(''), cexPickleBool(false), cexPickleBool(false),
     cexPickleString(''), cexPickleBool(false), cexPickleBool(false),
     cexPickleString(''), cexPickleString(''), cexPickleString(''),
-    cexPickleBool(false), cexPickleBool(true), cexPickleBool(false),
+    cexPickleBool(false), cexPickleBool(false), cexPickleBool(false),
     cexPickleBool(false), cexPickleBool(false), cexPickleBool(false), cexPickleBool(false),
     serializeCexList([cexPickleString(''), cexPickleString('')]),
   ]);
   const attrs = [
     ['elementosProteccionSolar', protection],
-    ['correctorFSCTE', cexFloat('0.66')],
+    ['correctorFSCTE', cexFloat('1')],
     ['permeabilidadValor', cexPickleString(cexDecimal(rowItem.permeabilidad))],
-    ['tieneProteccionSolar', cexPickleBool(true)],
+    ['tieneProteccionSolar', cexPickleBool(false)],
     ['superficie', cexPickleString(cexDecimal(rowItem.superficie))],
     ['descripcion', cexPickleString(rowItem.nombre)],
     ['absortividadValor', cexPickleString(cexDecimal(rowItem.absortividadMarco))],
@@ -3816,7 +3815,7 @@ function serializeCexHuecoEstimadasObject(rowItem) {
     ['Umarco', cexFloat(rowItem.uMarco)],
     ['porcMarco', cexPickleString(cexDecimal(rowItem.porcMarco))],
     ['__tipo__', cexPickleString('HuecoEstimadas')],
-    ['correctorFSInvierno', cexFloat('0.71')],
+    ['correctorFSInvierno', cexFloat('1')],
     ['permeabilidadChoice', cexPickleString('Estanco')],
     ['orientacion', cexPickleString(orientation)],
     ['tipoMarco', cexPickleString('Metálico con RPT')],
@@ -3826,7 +3825,7 @@ function serializeCexHuecoEstimadasObject(rowItem) {
     ['Uvidrio', cexFloat(rowItem.uVidrio)],
     ['patronSombras', cexPickleString(rowItem.patronSombras || 'Sin patrón')],
     ['Gvidrio', cexFloat(rowItem.gVidrio)],
-    ['correctorFSVerano', cexFloat('0.66')],
+    ['correctorFSVerano', cexFloat('1')],
     ['tipoVidrio', cexPickleString('Doble')],
     ['altura', cexPickleString(cexDecimal(rowItem.altura))],
   ];

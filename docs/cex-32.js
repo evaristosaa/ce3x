@@ -147,6 +147,8 @@ function cex32Inputs(template, record) {
     } else inputs[2][index] = generated;
   });
   if (!Array.isArray(inputs[2][3])) inputs[2][3] = [];
+  inputs[2][0].forEach(item=>{if(typeof item[5]==='string')item[5]=cexWallOrientation(item[5]);});
+  solarOverlay(data,inputs[2][1],cex32Table(record,'envolvente.huecos.items'),sourceData['envolvente.huecos.items']);
   const systemPaths = ['instalaciones.acs.items','instalaciones.calefaccion.items','instalaciones.refrigeracion.items','instalaciones.contribuciones.items'];
   const changed = systemPaths.some(path => !native || !cex32SameRows(cex32Table(record,path), sourceData[path]));
   const approvedEstimated = estimationOverlay(data,inputs[3]);

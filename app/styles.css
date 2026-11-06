@@ -732,3 +732,14 @@ dialog::backdrop {
 .review-attestation { display: flex; align-items: center; gap: 10px; }
 .review-attestation input { width: auto; }
 @media(max-width:600px) { .review-entry { grid-template-columns: 1fr; gap: 4px; } }
+/* Solar editor stays inside the viewport on phones and desktops. */
+#solarDialog{width:min(680px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;box-sizing:border-box}
+#solarForm{display:grid;gap:12px}
+#solarFields{display:grid;gap:12px}
+#solarFields fieldset{min-width:0;border:1px solid var(--line);border-radius:8px;padding:14px}
+.solar-enabled{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.solar-enabled input{width:auto}
+.solar-dimensions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.solar-dimensions label{min-width:0}
+.solar-dimensions input{width:100%;box-sizing:border-box}
+@media(max-width:480px){.solar-dimensions{grid-template-columns:1fr}#solarDialog{padding:16px}}

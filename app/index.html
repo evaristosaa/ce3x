@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store">
   <title>CE3X Captura</title>
-  <link rel="stylesheet" href="styles.css?v=20261106-review">
+  <link rel="stylesheet" href="styles.css?v=20261106-solar">
   <link rel="stylesheet" href="workspace.css?v=20261103-ce3x32">
 </head>
 <body>
@@ -233,19 +233,37 @@
       <div class="form-actions"><button id="closeReviewBtn" type="button" class="secondary">Cerrar</button></div>
     </div>
   </dialog>
+  <dialog id="solarDialog" aria-labelledby="solarTitle">
+    <form id="solarForm">
+      <span class="eyebrow">ENVOLVENTE TÉRMICA</span>
+      <h2 id="solarTitle">Protecciones solares</h2>
+      <p class="dialog-help">Edita voladizos y retranqueos. Los factores se calculan en el navegador y se incorporan al CEX. El cálculo energético completo del edificio sigue siendo necesario.</p>
+      <label>Hueco<select id="solarWindow"></select></label>
+      <p id="solarOrientation"></p>
+      <p class="dialog-help">Medidas en metros: L es el vuelo horizontal; D, la separación vertical entre el hueco y el voladizo; H, la altura del hueco; W, su anchura; R, la profundidad del retranqueo. Si hay retranqueo, mide L desde el centro del acristalamiento.</p>
+      <div id="solarFields"></div>
+      <p id="solarPreview" role="status" aria-live="polite"></p>
+      <p id="solarStatus" class="dialog-status" role="status"></p>
+      <div class="form-actions"><button id="saveSolarBtn" type="submit">Guardar protecciones</button><button id="closeSolarBtn" type="button" class="secondary">Cerrar</button></div>
+    </form>
+  </dialog>
+  <script src="solar-tables.js?v=20261106-solar"></script>
+  <script src="solar-model.js?v=20261106-solar"></script>
   <script src="reports.js?v=20261104-pdf"></script>
-  <script src="cex-import.js?v=20261106-review"></script>
-  <script src="ce3x-locations.js?v=20261106-review"></script>
-  <script src="cex-32.js?v=20261106-review"></script>
-  <script src="estimation-model.js?v=20261106-review"></script>
-  <script src="review-model.js?v=20261106-review"></script>
-  <script src="workspace.js?v=20261106-review"></script>
-  <script src="app.js?v=20261106-review"></script>
-  <script src="estimation-ui.js?v=20261106-review"></script>
-  <script src="references-ui.js?v=20261106-review"></script>
-  <script src="review-ui.js?v=20261106-review"></script>
+  <script src="cex-import.js?v=20261106-solar"></script>
+  <script src="ce3x-locations.js?v=20261106-solar"></script>
+  <script src="cex-32.js?v=20261106-solar"></script>
+  <script src="estimation-model.js?v=20261106-solar"></script>
+  <script src="review-model.js?v=20261106-solar"></script>
+  <script src="workspace.js?v=20261106-solar"></script>
+  <script src="app.js?v=20261106-solar"></script>
+  <script src="estimation-ui.js?v=20261106-solar"></script>
+  <script src="references-ui.js?v=20261106-solar"></script>
+  <script src="review-ui.js?v=20261106-solar"></script>
+  <script src="solar-ui.js?v=20261106-solar"></script>
 </body>
 </html>
+
 
 
 
