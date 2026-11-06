@@ -743,3 +743,7 @@ dialog::backdrop {
 .solar-dimensions label{min-width:0}
 .solar-dimensions input{width:100%;box-sizing:border-box}
 @media(max-width:480px){.solar-dimensions{grid-template-columns:1fr}#solarDialog{padding:16px}}
+#windowDialog{width:min(680px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;box-sizing:border-box}
+#windowForm{display:grid;gap:12px}
+#windowForm fieldset{display:grid;gap:12px;min-width:0;padding:14px;border:1px solid var(--line);border-radius:8px}
+#windowForm fieldset[hidden]{display:none}

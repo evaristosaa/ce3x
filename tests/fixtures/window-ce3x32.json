@@ -1,0 +1,1378 @@
+{
+  "engine": "Installed CE3X 3.2 window property classes",
+  "cases": [
+    {
+      "double": false,
+      "frame": "Metálico sin RPT",
+      "percent": 0,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        5.7,
+        0.82,
+        5.7,
+        5.7,
+        0.82
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico sin RPT",
+      "percent": 20,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        5.7,
+        0.82,
+        5.7,
+        5.7,
+        0.66968
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico sin RPT",
+      "percent": 100,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        5.7,
+        5.7,
+        0.0684
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico sin RPT",
+      "percent": 0,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        2.813425468904245,
+        0.6723999999999999,
+        2.813425468904245,
+        2.813425468904245,
+        0.6723999999999999
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico sin RPT",
+      "percent": 20,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        2.813425468904245,
+        0.6723999999999999,
+        2.813425468904245,
+        2.813425468904245,
+        0.5446722211253702
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico sin RPT",
+      "percent": 100,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.813425468904245,
+        2.813425468904245,
+        0.03376110562685094
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico con RPT",
+      "percent": 0,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        5.7,
+        0.82,
+        4.0,
+        5.7,
+        0.82
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico con RPT",
+      "percent": 20,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        5.7,
+        0.82,
+        4.0,
+        5.36,
+        0.6656000000000001
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico con RPT",
+      "percent": 100,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        4.0,
+        4.0,
+        0.048
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico con RPT",
+      "percent": 0,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        2.813425468904245,
+        0.6723999999999999,
+        2.3255813953488373,
+        2.813425468904245,
+        0.6723999999999999
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico con RPT",
+      "percent": 20,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        2.813425468904245,
+        0.6723999999999999,
+        2.3255813953488373,
+        2.7158566541931632,
+        0.5435013953488371
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico con RPT",
+      "percent": 100,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.3255813953488373,
+        2.3255813953488373,
+        0.027906976744186053
+      ]
+    },
+    {
+      "double": false,
+      "frame": "PVC",
+      "percent": 0,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        5.7,
+        0.82,
+        2.2,
+        5.7,
+        0.82
+      ]
+    },
+    {
+      "double": false,
+      "frame": "PVC",
+      "percent": 20,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        5.7,
+        0.82,
+        2.2,
+        5.000000000000001,
+        0.66128
+      ]
+    },
+    {
+      "double": false,
+      "frame": "PVC",
+      "percent": 100,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.2,
+        2.2,
+        0.0264
+      ]
+    },
+    {
+      "double": true,
+      "frame": "PVC",
+      "percent": 0,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        2.813425468904245,
+        0.6723999999999999,
+        1.5759312320916905,
+        2.813425468904245,
+        0.6723999999999999
+      ]
+    },
+    {
+      "double": true,
+      "frame": "PVC",
+      "percent": 20,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        2.813425468904245,
+        0.6723999999999999,
+        1.5759312320916905,
+        2.565926621541734,
+        0.54170223495702
+      ]
+    },
+    {
+      "double": true,
+      "frame": "PVC",
+      "percent": 100,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        1.5759312320916905,
+        1.5759312320916905,
+        0.018911174785100286
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Madera",
+      "percent": 0,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        5.7,
+        0.82,
+        2.2,
+        5.7,
+        0.82
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Madera",
+      "percent": 20,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        5.7,
+        0.82,
+        2.2,
+        5.000000000000001,
+        0.66128
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Madera",
+      "percent": 100,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.2,
+        2.2,
+        0.0264
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Madera",
+      "percent": 0,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        2.813425468904245,
+        0.6723999999999999,
+        1.5759312320916905,
+        2.813425468904245,
+        0.6723999999999999
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Madera",
+      "percent": 20,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        2.813425468904245,
+        0.6723999999999999,
+        1.5759312320916905,
+        2.565926621541734,
+        0.54170223495702
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Madera",
+      "percent": 100,
+      "glass": "Simple",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        1.5759312320916905,
+        1.5759312320916905,
+        0.018911174785100286
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico sin RPT",
+      "percent": 0,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        3.3,
+        0.75,
+        5.7,
+        3.3,
+        0.75
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico sin RPT",
+      "percent": 20,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        3.3,
+        0.75,
+        5.7,
+        3.7800000000000002,
+        0.6136800000000001
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico sin RPT",
+      "percent": 100,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        5.7,
+        5.7,
+        0.0684
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico sin RPT",
+      "percent": 0,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        2.0702634880803013,
+        0.615,
+        2.813425468904245,
+        2.0702634880803013,
+        0.615
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico sin RPT",
+      "percent": 20,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        2.0702634880803013,
+        0.615,
+        2.813425468904245,
+        2.2188958842450903,
+        0.49875222112537015
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico sin RPT",
+      "percent": 100,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.813425468904245,
+        2.813425468904245,
+        0.03376110562685094
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico con RPT",
+      "percent": 0,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        3.3,
+        0.75,
+        4.0,
+        3.3,
+        0.75
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico con RPT",
+      "percent": 20,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        3.3,
+        0.75,
+        4.0,
+        3.4400000000000004,
+        0.6096000000000001
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico con RPT",
+      "percent": 100,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        4.0,
+        4.0,
+        0.048
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico con RPT",
+      "percent": 0,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        2.0702634880803013,
+        0.615,
+        2.3255813953488373,
+        2.0702634880803013,
+        0.615
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico con RPT",
+      "percent": 20,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        2.0702634880803013,
+        0.615,
+        2.3255813953488373,
+        2.1213270695340087,
+        0.4975813953488372
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico con RPT",
+      "percent": 100,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.3255813953488373,
+        2.3255813953488373,
+        0.027906976744186053
+      ]
+    },
+    {
+      "double": false,
+      "frame": "PVC",
+      "percent": 0,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        3.3,
+        0.75,
+        2.2,
+        3.3,
+        0.75
+      ]
+    },
+    {
+      "double": false,
+      "frame": "PVC",
+      "percent": 20,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        3.3,
+        0.75,
+        2.2,
+        3.08,
+        0.60528
+      ]
+    },
+    {
+      "double": false,
+      "frame": "PVC",
+      "percent": 100,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.2,
+        2.2,
+        0.0264
+      ]
+    },
+    {
+      "double": true,
+      "frame": "PVC",
+      "percent": 0,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        2.0702634880803013,
+        0.615,
+        1.5759312320916905,
+        2.0702634880803013,
+        0.615
+      ]
+    },
+    {
+      "double": true,
+      "frame": "PVC",
+      "percent": 20,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        2.0702634880803013,
+        0.615,
+        1.5759312320916905,
+        1.9713970368825793,
+        0.49578223495702006
+      ]
+    },
+    {
+      "double": true,
+      "frame": "PVC",
+      "percent": 100,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        1.5759312320916905,
+        1.5759312320916905,
+        0.018911174785100286
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Madera",
+      "percent": 0,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        3.3,
+        0.75,
+        2.2,
+        3.3,
+        0.75
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Madera",
+      "percent": 20,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        3.3,
+        0.75,
+        2.2,
+        3.08,
+        0.60528
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Madera",
+      "percent": 100,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.2,
+        2.2,
+        0.0264
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Madera",
+      "percent": 0,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        2.0702634880803013,
+        0.615,
+        1.5759312320916905,
+        2.0702634880803013,
+        0.615
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Madera",
+      "percent": 20,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        2.0702634880803013,
+        0.615,
+        1.5759312320916905,
+        1.9713970368825793,
+        0.49578223495702006
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Madera",
+      "percent": 100,
+      "glass": "Doble",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        1.5759312320916905,
+        1.5759312320916905,
+        0.018911174785100286
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico sin RPT",
+      "percent": 0,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        2.7,
+        0.65,
+        5.7,
+        2.7,
+        0.65
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico sin RPT",
+      "percent": 20,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        2.7,
+        0.65,
+        5.7,
+        3.3,
+        0.53368
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico sin RPT",
+      "percent": 100,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        5.7,
+        5.7,
+        0.0684
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico sin RPT",
+      "percent": 0,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        1.816958277254374,
+        0.533,
+        2.813425468904245,
+        1.816958277254374,
+        0.533
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico sin RPT",
+      "percent": 20,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        1.816958277254374,
+        0.533,
+        2.813425468904245,
+        2.0162517155843482,
+        0.4331522211253702
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico sin RPT",
+      "percent": 100,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.813425468904245,
+        2.813425468904245,
+        0.03376110562685094
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico con RPT",
+      "percent": 0,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        2.7,
+        0.65,
+        4.0,
+        2.7,
+        0.65
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico con RPT",
+      "percent": 20,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        2.7,
+        0.65,
+        4.0,
+        2.96,
+        0.5296000000000001
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Metálico con RPT",
+      "percent": 100,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        4.0,
+        4.0,
+        0.048
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico con RPT",
+      "percent": 0,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        1.816958277254374,
+        0.533,
+        2.3255813953488373,
+        1.816958277254374,
+        0.533
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico con RPT",
+      "percent": 20,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        1.816958277254374,
+        0.533,
+        2.3255813953488373,
+        1.9186829008732667,
+        0.4319813953488373
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Metálico con RPT",
+      "percent": 100,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.3255813953488373,
+        2.3255813953488373,
+        0.027906976744186053
+      ]
+    },
+    {
+      "double": false,
+      "frame": "PVC",
+      "percent": 0,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        2.7,
+        0.65,
+        2.2,
+        2.7,
+        0.65
+      ]
+    },
+    {
+      "double": false,
+      "frame": "PVC",
+      "percent": 20,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        2.7,
+        0.65,
+        2.2,
+        2.6,
+        0.52528
+      ]
+    },
+    {
+      "double": false,
+      "frame": "PVC",
+      "percent": 100,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.2,
+        2.2,
+        0.0264
+      ]
+    },
+    {
+      "double": true,
+      "frame": "PVC",
+      "percent": 0,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        1.816958277254374,
+        0.533,
+        1.5759312320916905,
+        1.816958277254374,
+        0.533
+      ]
+    },
+    {
+      "double": true,
+      "frame": "PVC",
+      "percent": 20,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        1.816958277254374,
+        0.533,
+        1.5759312320916905,
+        1.7687528682218374,
+        0.4301822349570201
+      ]
+    },
+    {
+      "double": true,
+      "frame": "PVC",
+      "percent": 100,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        1.5759312320916905,
+        1.5759312320916905,
+        0.018911174785100286
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Madera",
+      "percent": 0,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        2.7,
+        0.65,
+        2.2,
+        2.7,
+        0.65
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Madera",
+      "percent": 20,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        2.7,
+        0.65,
+        2.2,
+        2.6,
+        0.52528
+      ]
+    },
+    {
+      "double": false,
+      "frame": "Madera",
+      "percent": 100,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        2.2,
+        2.2,
+        0.0264
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Madera",
+      "percent": 0,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        1.816958277254374,
+        0.533,
+        1.5759312320916905,
+        1.816958277254374,
+        0.533
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Madera",
+      "percent": 20,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        1.816958277254374,
+        0.533,
+        1.5759312320916905,
+        1.7687528682218374,
+        0.4301822349570201
+      ]
+    },
+    {
+      "double": true,
+      "frame": "Madera",
+      "percent": 100,
+      "glass": "Doble bajo emisivo",
+      "mode": "Estimadas",
+      "expected": [
+        0.0,
+        0.0,
+        1.5759312320916905,
+        1.5759312320916905,
+        0.018911174785100286
+      ]
+    },
+    {
+      "g": 0.52,
+      "double": false,
+      "percent": 0,
+      "mode": "Conocidas",
+      "expected": [
+        1.4,
+        0.52,
+        2.2,
+        1.4,
+        0.52
+      ],
+      "ug": 1.4,
+      "uf": 2.2
+    },
+    {
+      "g": 0.52,
+      "double": false,
+      "percent": 20,
+      "mode": "Conocidas",
+      "expected": [
+        1.4,
+        0.52,
+        2.2,
+        1.5599999999999998,
+        0.42128000000000004
+      ],
+      "ug": 1.4,
+      "uf": 2.2
+    },
+    {
+      "g": 0.52,
+      "double": false,
+      "percent": 100,
+      "mode": "Conocidas",
+      "expected": [
+        0.0,
+        0.0,
+        2.2,
+        2.2,
+        0.0264
+      ],
+      "ug": 1.4,
+      "uf": 2.2
+    },
+    {
+      "g": 0.52,
+      "double": true,
+      "percent": 0,
+      "mode": "Conocidas",
+      "expected": [
+        1.1182108626198082,
+        0.4264,
+        1.5759312320916905,
+        1.1182108626198082,
+        0.4264
+      ],
+      "ug": 1.4,
+      "uf": 2.2
+    },
+    {
+      "g": 0.52,
+      "double": true,
+      "percent": 20,
+      "mode": "Conocidas",
+      "expected": [
+        1.1182108626198082,
+        0.4264,
+        1.5759312320916905,
+        1.2097549365141846,
+        0.3449022349570201
+      ],
+      "ug": 1.4,
+      "uf": 2.2
+    },
+    {
+      "g": 0.52,
+      "double": true,
+      "percent": 100,
+      "mode": "Conocidas",
+      "expected": [
+        0.0,
+        0.0,
+        1.5759312320916905,
+        1.5759312320916905,
+        0.018911174785100286
+      ],
+      "ug": 1.4,
+      "uf": 2.2
+    },
+    {
+      "g": 0.75,
+      "double": false,
+      "percent": 0,
+      "mode": "Conocidas",
+      "expected": [
+        3.3,
+        0.75,
+        4.0,
+        3.3,
+        0.75
+      ],
+      "ug": 3.3,
+      "uf": 4
+    },
+    {
+      "g": 0.75,
+      "double": false,
+      "percent": 20,
+      "mode": "Conocidas",
+      "expected": [
+        3.3,
+        0.75,
+        4.0,
+        3.4400000000000004,
+        0.6096000000000001
+      ],
+      "ug": 3.3,
+      "uf": 4
+    },
+    {
+      "g": 0.75,
+      "double": false,
+      "percent": 100,
+      "mode": "Conocidas",
+      "expected": [
+        0.0,
+        0.0,
+        4.0,
+        4.0,
+        0.048
+      ],
+      "ug": 3.3,
+      "uf": 4
+    },
+    {
+      "g": 0.75,
+      "double": true,
+      "percent": 0,
+      "mode": "Conocidas",
+      "expected": [
+        2.0702634880803013,
+        0.615,
+        2.3255813953488373,
+        2.0702634880803013,
+        0.615
+      ],
+      "ug": 3.3,
+      "uf": 4
+    },
+    {
+      "g": 0.75,
+      "double": true,
+      "percent": 20,
+      "mode": "Conocidas",
+      "expected": [
+        2.0702634880803013,
+        0.615,
+        2.3255813953488373,
+        2.1213270695340087,
+        0.4975813953488372
+      ],
+      "ug": 3.3,
+      "uf": 4
+    },
+    {
+      "g": 0.75,
+      "double": true,
+      "percent": 100,
+      "mode": "Conocidas",
+      "expected": [
+        0.0,
+        0.0,
+        2.3255813953488373,
+        2.3255813953488373,
+        0.027906976744186053
+      ],
+      "ug": 3.3,
+      "uf": 4
+    },
+    {
+      "g": 0.82,
+      "double": false,
+      "percent": 0,
+      "mode": "Conocidas",
+      "expected": [
+        5.7,
+        0.82,
+        5.7,
+        5.7,
+        0.82
+      ],
+      "ug": 5.7,
+      "uf": 5.7
+    },
+    {
+      "g": 0.82,
+      "double": false,
+      "percent": 20,
+      "mode": "Conocidas",
+      "expected": [
+        5.7,
+        0.82,
+        5.7,
+        5.7,
+        0.66968
+      ],
+      "ug": 5.7,
+      "uf": 5.7
+    },
+    {
+      "g": 0.82,
+      "double": false,
+      "percent": 100,
+      "mode": "Conocidas",
+      "expected": [
+        0.0,
+        0.0,
+        5.7,
+        5.7,
+        0.0684
+      ],
+      "ug": 5.7,
+      "uf": 5.7
+    },
+    {
+      "g": 0.82,
+      "double": true,
+      "percent": 0,
+      "mode": "Conocidas",
+      "expected": [
+        2.813425468904245,
+        0.6723999999999999,
+        2.813425468904245,
+        2.813425468904245,
+        0.6723999999999999
+      ],
+      "ug": 5.7,
+      "uf": 5.7
+    },
+    {
+      "g": 0.82,
+      "double": true,
+      "percent": 20,
+      "mode": "Conocidas",
+      "expected": [
+        2.813425468904245,
+        0.6723999999999999,
+        2.813425468904245,
+        2.813425468904245,
+        0.5446722211253702
+      ],
+      "ug": 5.7,
+      "uf": 5.7
+    },
+    {
+      "g": 0.82,
+      "double": true,
+      "percent": 100,
+      "mode": "Conocidas",
+      "expected": [
+        0.0,
+        0.0,
+        2.813425468904245,
+        2.813425468904245,
+        0.03376110562685094
+      ],
+      "ug": 5.7,
+      "uf": 5.7
+    },
+    {
+      "g": 0.4,
+      "double": false,
+      "percent": 0,
+      "mode": "Conocidas",
+      "expected": [
+        0.8,
+        0.4,
+        1.1,
+        0.8,
+        0.4
+      ],
+      "ug": 0.8,
+      "uf": 1.1
+    },
+    {
+      "g": 0.4,
+      "double": false,
+      "percent": 20,
+      "mode": "Conocidas",
+      "expected": [
+        0.8,
+        0.4,
+        1.1,
+        0.8600000000000001,
+        0.32264000000000004
+      ],
+      "ug": 0.8,
+      "uf": 1.1
+    },
+    {
+      "g": 0.4,
+      "double": false,
+      "percent": 100,
+      "mode": "Conocidas",
+      "expected": [
+        0.0,
+        0.0,
+        1.1,
+        1.1,
+        0.0132
+      ],
+      "ug": 0.8,
+      "uf": 1.1
+    },
+    {
+      "g": 0.4,
+      "double": true,
+      "percent": 0,
+      "mode": "Conocidas",
+      "expected": [
+        0.6993006993006994,
+        0.328,
+        0.9181969949916527,
+        0.6993006993006994,
+        0.328
+      ],
+      "ug": 0.8,
+      "uf": 1.1
+    },
+    {
+      "g": 0.4,
+      "double": true,
+      "percent": 20,
+      "mode": "Conocidas",
+      "expected": [
+        0.6993006993006994,
+        0.328,
+        0.9181969949916527,
+        0.7430799584388901,
+        0.26460367278797997
+      ],
+      "ug": 0.8,
+      "uf": 1.1
+    },
+    {
+      "g": 0.4,
+      "double": true,
+      "percent": 100,
+      "mode": "Conocidas",
+      "expected": [
+        0.0,
+        0.0,
+        0.9181969949916527,
+        0.9181969949916529,
+        0.011018363939899833
+      ],
+      "ug": 0.8,
+      "uf": 1.1
+    }
+  ],
+  "schema": 1,
+  "moduleHashes": {
+    "ce3xv3.2.exe": "4e4a80660ff62fcd6a1bdd6f27af17287f399073e77219ea94f7182934e4f5d6",
+    "Envolvente/objetosEnvolvente.pyd": "1b8e8f30669a5a15495ad7e57d62a4f1a869eecbf917d6b4b5c50d6c185421ec"
+  }
+}

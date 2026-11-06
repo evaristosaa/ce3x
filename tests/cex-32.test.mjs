@@ -13,15 +13,90 @@ export function loadHelpers() {
   context.globalThis=context; vm.createContext(context);
   let app=readFileSync(new URL('../app/app.js',import.meta.url),'utf8');
   for(const call of ['cleanupLocalDataStorage();','renderTabs();','renderStorageMode();','loadRecords();']) app=app.replace(call,'');
-  const source = ['cex-import.js','cex-32.js','estimation-model.js','review-model.js','solar-tables.js','solar-model.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
+  const source = ['cex-import.js','cex-32.js','estimation-model.js','review-model.js','solar-tables.js','solar-model.js','window-model.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
   vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml,estimationGroups,estimationStore,estimationRequest,estimationSignature,copySectionsData,copySectionPaths,cex32ReferenceList,cex32SetReferences,recordReferences,recordsMatchingReference,recordSearchText};',context);
   vm.runInContext('Object.assign(globalThis.h,{reviewStamp,reviewStatus,reviewCheck,reviewUncheck,reviewDigest,prepareReviewWrite,cex32BridgeOrigins,setReviewState:(records)=>{state.records=records;state.config.apiUrl="";},setReviewTransport:(transport)=>{api=transport;state.config.apiUrl="https://example.test/exec";}});',context);
-  vm.runInContext('Object.assign(globalThis.h,{solarCalculate,solarApply,solarBlank,solarNativeSettings,solarRowSettings,cexWallOrientation});',context);
+  vm.runInContext('Object.assign(globalThis.h,{solarCalculate,solarApply,solarBlank,solarNativeSettings,solarRowSettings,cexWallOrientation,windowCalculate,windowStore,windowApply,windowRowSettings});',context);
   return context.h;
 }
 
 const template=readFileSync(new URL('../app/templates/base-3.2.cex',import.meta.url),'latin1');
 const plain=value=>JSON.parse(JSON.stringify(value));
+
+test('window properties match 96 installed CE3X 3.2 known, estimated and double-window references',()=>{
+  const h=loadHelpers(),fixture=JSON.parse(readFileSync(new URL('fixtures/window-ce3x32.json',import.meta.url),'utf8'));
+  assert.equal(fixture.cases.length,96);
+  for(const row of fixture.cases) {
+    const settings={schema:1,mode:row.mode,dobleVentana:row.double,tipoVidrio:row.glass,tipoMarco:row.frame,uVidrio:row.ug,gVidrio:row.g,uMarco:row.uf};
+    const v=h.windowCalculate(settings,row.percent??20,.3),actual=[v.uVidrio,v.gVidrio,v.uMarco,v.uHueco,v.fsHueco];
+    for(let index=0;index<5;index++)assert.ok(Math.abs(actual[index]-row.expected[index])<1e-12,JSON.stringify({row,index,actual}));
+  }
+});
+
+test('new known windows export the correct class and original inputs alongside double-window properties',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h));delete data['cex.nativeInputs'];
+  for(const key of Object.keys(data))if(key.startsWith('instalaciones.'))delete data[key];
+  data['envolvente.huecos.items'][0].modoDefinicion='Conocidas';
+  const settings={schema:1,mode:'Conocidas',dobleVentana:true,uVidrio:'1,4',gVidrio:'.52',uMarco:'2.2'};
+  const stored=h.windowStore(data,0,settings),item=h.cex32Blocks(h.buildCex32(template,{data:stored}))[3].value[1][0];
+  assert.equal(item.__cexClass,'Envolvente.objetosEnvolvente.HuecoConocidas');assert.equal(item.__tipo__,'HuecoConocidas');
+  assert.equal(item.UvidrioConocido,'1.4');assert.equal(item.GvidrioConocido,'.52');assert.equal(item.UmarcoConocido,'2.2');assert.equal(Boolean(item.dobleVentana),true);
+  assert.ok(Math.abs(item.Uvidrio-1/(1/1.4+.18))<1e-12);assert.equal(item.Gvidrio,.52*.82);assert.equal(item.tipoVidrio,undefined);assert.equal(item.tipoMarco,undefined);
+  const reimported=h.parseCexRecordData(h.buildCex32(template,{data:stored})),read=h.windowRowSettings(reimported,reimported['envolvente.huecos.items'][0]);
+  assert.equal(read.uVidrio,'1.4');assert.equal(read.dobleVentana,true);
+  const again=h.cex32Blocks(h.buildCex32(template,{data:reimported}))[3].value[1][0];assert.equal(again.Uvidrio,item.Uvidrio);
+});
+
+test('editing a known imported window synchronizes the original known inputs used by native recalculation',()=>{
+  const h=loadHelpers(),source=alteredFixture(h,values=>{
+    const item=values[3][1][0];item.__cexClass='Envolvente.objetosEnvolvente.HuecoConocidas';item.__tipo__='HuecoConocidas';item.UvidrioConocido='3.3';item.GvidrioConocido='.75';item.UmarcoConocido='4';item.dobleVentana=false;
+  }),data=h.parseCexRecordData(source);
+  Object.assign(data['envolvente.huecos.items'][0],{uVidrio:'1.2',gVidrio:'.5',uMarco:'2.1'});
+  const out=h.cex32Blocks(h.buildCex32(template,{data}))[3].value[1][0];assert.equal(out.Uvidrio,1.2);assert.equal(out.UvidrioConocido,'1.2');assert.equal(out.GvidrioConocido,'.5');assert.equal(out.UmarcoConocido,'2.1');
+  assert.deepEqual(plain(out.elementosProteccionSolar),['dato que debe conservarse']);
+});
+
+test('thermal editor persists in Sheets, switches modes and preserves solar and system inputs',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(simpleSolarFixture(h,h.solarBlank()));
+  const settings={schema:1,mode:'Estimadas',dobleVentana:true,tipoVidrio:'Doble bajo emisivo',tipoMarco:'PVC'};
+  const stored=h.windowStore(data,0,settings),{storage}=loadStorageWriteHelpers([]),record=storage.rowToRecord_(storage.recordToRow_({id:'thermal',data:stored}),storage.HEADERS);
+  const out=h.cex32Blocks(h.buildCex32(template,record)),item=out[3].value[1][0];
+  assert.equal(item.tipoVidrio,'Doble bajo emisivo');assert.equal(item.tipoMarco,'PVC');assert.ok(Math.abs(item.Uvidrio-1/(1/2.7+.18))<1e-12);
+  assert.deepEqual(plain(out[4].value),plain(h.cex32Blocks(simpleSolarFixture(h,h.solarBlank()))[4].value));assert.equal(item.elementosProteccionSolar.length,25);
+  const known=h.windowStore(record.data,0,{schema:1,mode:'Conocidas',dobleVentana:false,uVidrio:1,gVidrio:.4,uMarco:2});
+  const changed=h.cex32Blocks(h.buildCex32(template,{data:known}))[3].value[1][0];assert.match(changed.__cexClass,/HuecoConocidas$/);assert.equal(changed.UvidrioConocido,'1');assert.equal(changed.tipoVidrio,undefined);
+  const importedKnown=h.parseCexRecordData(h.buildCex32(template,{data:known})),back=h.windowStore(importedKnown,0,settings);
+  const estimated=h.cex32Blocks(h.buildCex32(template,{data:back}))[3].value[1][0];assert.match(estimated.__cexClass,/HuecoEstimadas$/);assert.equal(estimated.UvidrioConocido,undefined);assert.equal(estimated.tipoVidrio,'Doble bajo emisivo');
+});
+
+test('thermal editor rejects stale displayed properties, invalid inputs and missing estimated definitions',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),settings={schema:1,mode:'Conocidas',dobleVentana:false,uVidrio:1.4,gVidrio:.52,uMarco:2.2};
+  const stored=h.windowStore(data,0,settings);stored['envolvente.huecos.items'][0].uVidrio='7';assert.throws(()=>h.buildCex32(template,{data:stored}),/fuera del editor/);
+  for(const bad of [{...settings,uVidrio:0},{...settings,gVidrio:1.1},{...settings,uMarco:true},{...settings,dobleVentana:'false'}])assert.throws(()=>h.windowCalculate(bad,20,.3),/Revisa/);
+  assert.throws(()=>h.windowCalculate({schema:1,mode:'Estimadas',dobleVentana:false},20,.3),/Selecciona/);
+  assert.throws(()=>h.windowCalculate(settings,101,.3),/porcentaje/);assert.throws(()=>h.windowCalculate(settings,20,-.1),/absortividad/);
+  data['envolvente.huecos.items'][0].uVidrio='1';assert.throws(()=>h.buildCex32(template,{data}),/Propiedades térmicas/);
+});
+
+test('copying thermal definitions keeps their inputs and native class while preserving target identity',()=>{
+  const h=loadHelpers(),source=h.windowStore(h.parseCexRecordData(nativeFixture(h)),0,{schema:1,mode:'Conocidas',dobleVentana:true,uVidrio:1.4,gVidrio:.52,uMarco:2.2});
+  const target={'admin.localizacion.nombreEdificio':'Destino','generales.datos.zonaClimaticaHE1':'B4','generales.datos.tipoEdificio':'Unifamiliar'};h.copySectionsData({id:'source',data:source},target,template);
+  const item=h.cex32Blocks(h.buildCex32(template,{data:target}))[3].value[1][0];assert.match(item.__cexClass,/HuecoConocidas$/);assert.equal(item.UvidrioConocido,'1.4');assert.equal(target['admin.localizacion.nombreEdificio'],'Destino');
+});
+
+test('changing frame percentage preserves original glazing inputs across the opaque boundary',()=>{
+  const h=loadHelpers(),data=h.parseCexRecordData(nativeFixture(h)),settings={schema:1,mode:'Conocidas',dobleVentana:true,uVidrio:1.4,gVidrio:.52,uMarco:2.2};
+  data['envolvente.huecos.items'][0].porcMarco='100';
+  const opaque=h.windowStore(data,0,settings),out=h.cex32Blocks(h.buildCex32(template,{data:opaque}))[3].value[1][0];assert.equal(out.Uvidrio,0);assert.equal(out.Gvidrio,0);assert.equal(out.UvidrioConocido,'1.4');
+  opaque['envolvente.huecos.items'][0].porcMarco='20';assert.throws(()=>h.buildCex32(template,{data:opaque}),/fuera del editor/);
+  const corrected=h.windowStore(opaque,0,settings),back=h.cex32Blocks(h.buildCex32(template,{data:corrected}))[3].value[1][0];assert.ok(Math.abs(back.Uvidrio-1.1182108626198082)<1e-12);
+});
+
+test('saving thermal properties invalidates a previous review of the window table',async()=>{
+  const h=loadHelpers(),path='envolvente.huecos.items',data=h.parseCexRecordData(nativeFixture(h));
+  const checked=await h.reviewCheck(data,path,'Técnico','Ficha del fabricante');assert.equal((await h.reviewStatus(checked,path)).checked,true);
+  const next=h.windowStore(checked,0,{schema:1,mode:'Conocidas',dobleVentana:false,uVidrio:1.4,gVidrio:.52,uMarco:2.2});assert.equal((await h.reviewStatus(next,path)).checked,false);
+});
 
 export function nativeFixture(h) {
   const values=h.cex32Blocks(template).map(block=>block.value);
@@ -61,7 +136,7 @@ test('all cardinal and diagonal directions retain their physical meaning in new 
   const h=loadHelpers(),directions={N:'Norte',S:'Sur',E:'Este',O:'Oeste',W:'Oeste',NE:'NE',SE:'SE',SO:'SO',NO:'NO',NW:'NO',SW:'SO'};
   for(const [input,expected] of Object.entries(directions)) {
     const data={'envolvente.cerramientos.items':[{nombre:'Muro',tipoCerramiento:'Fachada',superficie:'10',u:'.5',peso:'200',posicion:input}],
-      'envolvente.huecos.items':[{nombre:'Ventana',cerramientoAsociado:'Muro',superficie:'1',altura:'1',longitud:'1',multiplicador:'1',uVidrio:'3.3',gVidrio:'.75',uMarco:'4',porcMarco:'20',absortividadMarco:'.3',permeabilidad:'50',orientacion:input}]};
+      'envolvente.huecos.items':[{nombre:'Ventana',cerramientoAsociado:'Muro',superficie:'1',altura:'1',longitud:'1',multiplicador:'1',uVidrio:'3.3',gVidrio:'.75',uMarco:'4',porcMarco:'20',absortividadMarco:'.3',permeabilidad:'50',orientacion:input,modoDefinicion:'Conocidas'}]};
     const env=h.cex32Blocks(h.buildCex32(template,{data}))[3].value;
     assert.equal(env[0][0][5],expected,input);assert.equal(env[1][0].orientacion,expected,input);
     assert.equal(Boolean(env[1][0].tieneProteccionSolar),false);assert.equal(env[1][0].correctorFSCTE,1);assert.equal(env[1][0].correctorFSInvierno,1);assert.equal(env[1][0].correctorFSVerano,1);
