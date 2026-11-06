@@ -42,3 +42,35 @@ class CollectXmlTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 collector.collect_xml(source, destination, executable, 2)
             self.assertEqual(destination.read_bytes(), expected)
+
+    def test_watch_launches_only_a_new_completed_export_once(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            executable = root / "ce3x.exe"
+            executable.touch()
+            old = root / "CE3X-00000000-0000-4000-8000-000000000000"
+            old.mkdir()
+            (old / "old.cex").write_bytes(b"old")
+            (old / "ready").touch()
+            job = root / "CE3X-00000000-0000-4000-8000-000000000001"
+            project = job / "new.cex"
+
+            def create_job():
+                job.mkdir()
+                project.write_bytes(b"new")
+
+            with patch.object(collector.subprocess, "Popen") as start:
+                steps = iter((create_job, lambda: (job / "ready").touch(), lambda: None))
+                def advance(_):
+                    self.assertLessEqual(start.call_count, 1)
+                    step = next(steps, None)
+                    if step is None:
+                        raise KeyboardInterrupt
+                    if step is create_job or not (job / "ready").exists():
+                        start.assert_not_called()
+                    step()
+
+                with patch.object(collector.time, "sleep", side_effect=advance):
+                    with self.assertRaises(KeyboardInterrupt):
+                        collector.watch_jobs(root, executable)
+                start.assert_called_once_with([str(executable), str(project)], cwd=root)
