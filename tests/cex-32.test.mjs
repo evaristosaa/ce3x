@@ -14,7 +14,7 @@ export function loadHelpers() {
   let app=readFileSync(new URL('../app/app.js',import.meta.url),'utf8');
   for(const call of ['cleanupLocalDataStorage();','renderTabs();','renderStorageMode();','loadRecords();']) app=app.replace(call,'');
   const source = ['cex-import.js','cex-32.js','estimation-model.js','review-model.js','solar-tables.js','solar-model.js','window-model.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
-  vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml,estimationGroups,estimationStore,estimationRequest,estimationSignature,copySectionsData,copySectionPaths,cex32ReferenceList,cex32SetReferences,recordReferences,recordsMatchingReference,recordSearchText,cex32NewEquipmentIssue};',context);
+  vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml,estimationGroups,estimationStore,estimationRequest,estimationSignature,copySectionsData,copySectionPaths,cex32ReferenceList,cex32SetReferences,recordReferences,recordsMatchingReference,recordSearchText,cex32NewEquipmentIssue,sectionCompletion};',context);
   vm.runInContext('Object.assign(globalThis.h,{reviewStamp,reviewStatus,reviewCheck,reviewUncheck,reviewDigest,prepareReviewWrite,cex32BridgeOrigins,setReviewState:(records)=>{state.records=records;state.config.apiUrl="";},setReviewTransport:(transport)=>{api=transport;state.config.apiUrl="https://example.test/exec";}});',context);
   vm.runInContext('Object.assign(globalThis.h,{solarCalculate,solarApply,solarBlank,solarNativeSettings,solarRowSettings,cexWallOrientation,windowCalculate,windowStore,windowApply,windowRowSettings});',context);
   return context.h;
@@ -849,4 +849,19 @@ test('protocol-0 string roundtrip is lossless for newlines, backslashes and Unic
 });
 test('3.2 adapter rejects unsupported Python classes without executing them',()=>{
   const h=loadHelpers();assert.throws(()=>h.cex32Serialize({__cexClass:'os.system',__args:['anything']}));
+});
+
+test('installation completeness allows missing services and validates declared equipment', () => {
+  const h = loadHelpers();
+  assert.equal(h.sectionCompletion({data: {}}, 'instalaciones').done, true);
+  const data = h.parseCexRecordData(nativeFixture(h));
+  for (const service of ['acs', 'calefaccion', 'refrigeracion', 'contribuciones']) {
+    data['instalaciones.' + service + '.items'] = [];
+  }
+  assert.equal(h.sectionCompletion({data}, 'instalaciones').done, true);
+  assert.doesNotThrow(() => h.buildCex32(template, {data}));
+  data['instalaciones.refrigeracion.items'] = [{nombre: 'Prueba', modoDefinicion: 'Por defecto'}];
+  const status = h.sectionCompletion({data}, 'instalaciones');
+  assert.equal(status.done, false);
+  assert.match(status.issue, /Refrigeración · Prueba/);
 });

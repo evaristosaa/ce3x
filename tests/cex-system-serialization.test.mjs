@@ -587,7 +587,8 @@ test('reports critical CE3X gaps before export', () => {
 
   assert.ok(issues.includes('Tipo de edificio'));
   assert.ok(issues.includes('Envolvente: cerramientos'));
-  assert.ok(issues.includes('Instalaciones: equipo ACS'));
+  assert.ok(!issues.some(issue => issue.startsWith('Instalaciones:')));
+
 });
 
 test('applies the CE3X normative rule from the construction year', () => {
