@@ -205,7 +205,7 @@ const SECTIONS = [
     ]),
   ]),
   section('instalaciones', 'Instalaciones', [
-    group('acs', 'Equipos de ACS', ['items'], [
+    group('acs', 'Equipos de ACS', [], [
       field('items', 'Equipos de ACS', 'table', {
         columns: [
           col('nombre', 'Nombre'),
@@ -221,7 +221,7 @@ const SECTIONS = [
         ],
       }),
     ]),
-    group('calefaccion', 'Equipos de calefacción', ['items'], [
+    group('calefaccion', 'Equipos de calefacción', [], [
       field('items', 'Equipos de calefacción', 'table', {
         columns: [
           col('nombre', 'Nombre'),
@@ -236,7 +236,7 @@ const SECTIONS = [
         ],
       }),
     ]),
-    group('refrigeracion', 'Equipos de refrigeración', ['items'], [
+    group('refrigeracion', 'Equipos de refrigeración', [], [
       field('items', 'Equipos de refrigeración', 'table', {
         columns: [
           col('nombre', 'Nombre'),
@@ -251,7 +251,7 @@ const SECTIONS = [
         ],
       }),
     ]),
-    group('contribuciones', 'Contribuciones energéticas', ['items'], [
+    group('contribuciones', 'Contribuciones energéticas', [], [
       field('items', 'Contribuciones energéticas', 'table', {
         columns: [
           col('nombre', 'Nombre'),
@@ -880,7 +880,7 @@ function renderDetail() {
   }
   if(sectionItem.id==='instalaciones') {
     const tools=document.createElement('div');tools.className='estimation-tools';
-    tools.innerHTML='<button type="button" class="secondary" data-open-estimation>Revisar rendimiento de equipos</button><p>Ajusta los datos técnicos de los equipos y recalcula su rendimiento estacional cuando esté disponible el módulo local.</p>';
+    tools.innerHTML='<button type="button" class="secondary" data-open-estimation>Revisar rendimiento de equipos</button><p>Incluye solo los equipos y contribuciones que existan. Puedes dejar un servicio sin equipos. Revisa el rendimiento estacional de los equipos declarados.</p>';
     sectionFields.appendChild(tools);
   }
   const groups = sectionItem.groups.filter(groupItem =>
@@ -2733,7 +2733,7 @@ function sectionCompletion(record, sectionId) {
     }
   }
   const done = completed === requiredPaths.length && !issue;
-  const stateName = done ? 'done' : completed > 0 ? 'partial' : 'missing';
+  const stateName = done ? 'done' : completed > 0 || issue ? 'partial' : 'missing';
   return { completed, total: requiredPaths.length, done, state: stateName, issue };
 }
 
@@ -3185,10 +3185,6 @@ function criticalCexIssues(record) {
   if (!tableHasRows(data['envolvente.cerramientos.items'])) issues.push('Envolvente: cerramientos');
   if (!tableHasRows(data['envolvente.huecos.items'])) issues.push('Envolvente: huecos');
   if (!tableHasRows(data['envolvente.puentesTermicos.items'])) issues.push('Envolvente: puentes térmicos');
-  if (!tableHasRows(data['instalaciones.acs.items'])) issues.push('Instalaciones: equipo ACS');
-  if (!tableHasRows(data['instalaciones.calefaccion.items']) && !tableHasRows(data['instalaciones.refrigeracion.items'])) {
-    issues.push('Instalaciones: calefacción o refrigeración');
-  }
   return issues;
 }
 
