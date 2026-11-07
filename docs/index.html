@@ -128,6 +128,12 @@
     </section>
   </main>
 
+  <dialog id="operationDialog" aria-labelledby="operationTitle" aria-describedby="operationMessage">
+    <h2 id="operationTitle"></h2>
+    <p id="operationMessage" role="status" aria-live="polite"></p>
+    <div class="form-actions"><button id="closeOperationBtn" type="button" hidden>Aceptar</button></div>
+  </dialog>
+
   <dialog id="configDialog">
     <form method="dialog" id="configForm">
       <h2>Configuracion</h2>
@@ -295,7 +301,7 @@
   <script src="estimation-model.js?v=20261106-window"></script>
   <script src="review-model.js?v=20261106-window"></script>
   <script src="workspace.js?v=20261107-issue-status"></script>
-  <script src="app.js?v=20261107-renewable-export"></script>
+  <script src="app.js?v=20261107-operation-dialog"></script>
   <script src="estimation-ui.js?v=20261106-window"></script>
   <script src="references-ui.js?v=20261106-window"></script>
   <script src="review-ui.js?v=20261106-window"></script>

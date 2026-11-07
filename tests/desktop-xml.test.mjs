@@ -15,6 +15,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
   const pdf = new Blob(['%PDF-1.7']);
   const reference = '00000000000000000000';
   const results = new Map();
+  const operationMessages = [];
   let firstRead = true;
   const job = {
     async getFileHandle(name, options) {
@@ -43,6 +44,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
     selectedRecordWithCurrentFormData: () => ({id:'example',data:{'admin.localizacion.referenciaCatastral': reference,'admin.informe.fechaVisita':'2026-11-05','admin.informe.observaciones':'Prueba'}}),
     criticalCexIssues: () => [], missingSections: () => [], renderRecords() {},
     desktopXmlButton: button, issueDesktopReportBtn: {}, issueWithoutImprovements: {},
+    showOperation: (title, message, busy = true) => operationMessages.push({title, message, busy}),
     desktopReportResults: results, selectedRecord: () => null,
     location: {hostname: 'evaristosaa.github.io'}, state: {config: {pdfKey: 'test'}},
     generateCertificatePdf: async file => { assert.equal(file, xml); return pdf; },
@@ -50,7 +52,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
       constructor(type, {detail}) { Object.assign(this, {type, detail}); }
     },
     document: {
-      querySelector: selector => selector === '#desktopXmlStatus' ? status : {},
+      querySelector: selector => selector === '#desktopXmlStatus' ? status : {close() {}},
       dispatchEvent(event) {
         assert.equal(event.type, 'ce3x:xml-collected');
         assert.equal(event.detail, xml);
@@ -99,6 +101,8 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
     'closed', 'ready', 'example.xml', 'example.xml',
     ...(issue ? ['example.pdf', pdf, 'closed'] : ['download:example.xml', 'prepare:pdf'])]);
   assert.equal(button.disabled, false);
+  assert.equal(operationMessages[0].busy, true);
+  if (issue) assert.equal(operationMessages.at(-1).busy, false);
   assert.equal(results.get('example').rating[0].value, '58.03');
   assert.equal(results.get('example').rating[0].grade, 'E');
   assert.match(status.textContent, issue ? /CEX, XML y PDF guardados/ : /XML recogido/);
