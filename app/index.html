@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store">
   <title>CE3X Captura</title>
-  <link rel="stylesheet" href="styles.css?v=20261107-issue-status">
+  <link rel="stylesheet" href="styles.css?v=20261107-report-layout">
   <link rel="stylesheet" href="workspace.css?v=20261103-ce3x32">
 </head>
 <body>
@@ -107,7 +107,7 @@
           </div>
         </div>
         <p id="detailSaveStatus" class="export-note" role="status"></p>
-        <label class="report-no-improvements"><input id="issueWithoutImprovements" type="checkbox"> Confirmo que esta emisión no incluye conjuntos de mejora</label>
+        <label class="report-no-improvements" hidden><input id="issueWithoutImprovements" type="checkbox"> Confirmo que esta emisión no incluye conjuntos de mejora</label>
         <p id="desktopReportFlow" class="export-note" aria-live="polite" hidden></p>
         <p id="desktopXmlStatus" class="export-note" role="status" hidden></p>
 
@@ -136,7 +136,7 @@
       <label>Clave de Render para PDF<input name="pdfKey" type="password" autocomplete="off"></label>
       <button type="button" class="secondary" id="chooseXmlFolderBtn">Elegir carpeta del asistente CE³X</button>
       <p id="xmlFolderConfigStatus" role="status"></p>
-      <p class="dialog-help">Elige la carpeta donde se ejecuta el asistente local. Cada referencia tendrá su carpeta de expediente con los archivos de cada emisión.</p>
+      <p class="dialog-help">Elige la carpeta donde se ejecuta el asistente local. Cada expediente tendrá una carpeta con su nombre y referencia. Dentro se guardan el CEX, el XML y el PDF de cada emisión.</p>
       <fieldset><legend>Técnico certificador por defecto</legend><div id="technicianConfigFields"></div>
       </fieldset>
       <p id="sharedConfigStatus" role="status"></p>
@@ -295,7 +295,7 @@
   <script src="estimation-model.js?v=20261106-window"></script>
   <script src="review-model.js?v=20261106-window"></script>
   <script src="workspace.js?v=20261107-issue-status"></script>
-  <script src="app.js?v=20261107-renewable-flags"></script>
+  <script src="app.js?v=20261107-renewable-export"></script>
   <script src="estimation-ui.js?v=20261106-window"></script>
   <script src="references-ui.js?v=20261106-window"></script>
   <script src="review-ui.js?v=20261106-window"></script>

@@ -347,6 +347,7 @@ const activeRecordText = document.querySelector('#activeRecordText');
 const sectionTabs = document.querySelector('#sectionTabs');
 const detailForm = document.querySelector('#detailForm');
 const sectionFields = document.querySelector('#sectionFields');
+const issueWithoutImprovements = document.querySelector('#issueWithoutImprovements');
 const recordTitle = document.querySelector('#recordTitle');
 const recordSubtitle = document.querySelector('#recordSubtitle');
 const recordBadge = document.querySelector('#recordBadge');
@@ -889,16 +890,29 @@ function renderDetail() {
     const fieldset = document.createElement('fieldset');
     if (groupItem.fields.some(item => item.type === 'table')) fieldset.classList.add('table-fieldset');
     fieldset.innerHTML = `<legend>${escapeHtml(groupItem.label)}</legend>`;
+    const isReport = groupItem.id === 'informe';
+    const reportText = isReport ? document.createElement('div') : null;
+    const reportDates = isReport ? document.createElement('div') : null;
+    if (isReport) {
+      fieldset.classList.add('report-settings');
+      reportText.className = 'report-settings-column';
+      reportDates.className = 'report-settings-column';
+      fieldset.append(reportText, reportDates);
+    }
     groupItem.fields.forEach(item => {
       const path = `${sectionItem.id}.${groupItem.id}.${item.id}`;
       const wrapper = document.createElement('label');
       wrapper.className = item.type === 'table' ? 'table-label' : '';
       const value = data[path];
       wrapper.innerHTML = `<span>${escapeHtml(item.label)}</span>${inputHtml(item, path, value)}`;
-      fieldset.appendChild(wrapper);
+      const container = isReport ? (item.type === 'date' ? reportDates : reportText) : fieldset;
+      container.appendChild(wrapper);
     });
     sectionFields.appendChild(fieldset);
-    if (groupItem.id === 'informe') {
+    if (isReport) {
+      const confirmation = issueWithoutImprovements.parentElement;
+      confirmation.hidden = false;
+      reportDates.appendChild(confirmation);
       const note = document.createElement('p');
       note.textContent = 'Los conjuntos de mejora calculados y su orden se revisan en CE³X antes de emitir.';
       sectionFields.append(note);
@@ -1214,8 +1228,7 @@ function getFilteredRecords() {
 }
 
 function selectRecord(record, options = {}) {
-  const noImprovements = document.querySelector('#issueWithoutImprovements');
-  if (record?.id !== state.selectedId && noImprovements) noImprovements.checked = false;
+  if (record?.id !== state.selectedId && issueWithoutImprovements) issueWithoutImprovements.checked = false;
   if (!record) {
     state.selectedId = '';
     state.draft = null;
@@ -3083,11 +3096,12 @@ async function collectDesktopXml(issuePdf = false) {
       throw new Error('Inicia el asistente con --watch y --auto-rate en la carpeta XML configurada.');
     });
     const jobName = 'CE3X-' + crypto.randomUUID();
-    const archive = issuePdf ? await folder.getDirectoryHandle(reference, {create: true}) : null;
+    const name = fileSafe(recordLabel(record)).slice(0, 80);
+    const archiveName = name + ' [' + reference + ']';
+    const archive = issuePdf ? await folder.getDirectoryHandle(archiveName, {create: true}) : null;
     const job = await (archive || folder).getDirectoryHandle(jobName, { create: true });
     progress('Preparando CEX');
     const text = normalizeCexLineEndings(buildCex32(await loadCex32Template(), record));
-    const name = fileSafe(recordLabel(record));
     const cex = await job.getFileHandle(name + '.cex', { create: true });
     const writer = await cex.createWritable();
     await writer.write(latin1Encode(text));
@@ -3101,10 +3115,10 @@ async function collectDesktopXml(issuePdf = false) {
       recommendations: record.data?.['admin.informe.recomendacionesUso'] || '',
       documentation: record.data?.['admin.informe.documentacion'] || '',
       autoSubmit: issuePdf,
-      acceptNoImprovements: issuePdf && Boolean(document.querySelector('#issueWithoutImprovements')?.checked)
+      acceptNoImprovements: issuePdf && Boolean(issueWithoutImprovements?.checked)
     }));
     await reportWriter.close();
-    if (issuePdf) document.querySelector('#issueWithoutImprovements').checked = false;
+    if (issuePdf && issueWithoutImprovements) issueWithoutImprovements.checked = false;
     if (issuePdf) {
       for (const [key, label] of [['imagenEdificio', 'fachada'], ['planoSituacion', 'plano']]) {
         const image = record.data?.['generales.definicion.' + key];
@@ -3129,7 +3143,7 @@ async function collectDesktopXml(issuePdf = false) {
         const documentXml = new DOMParser().parseFromString(await file.text(), 'application/xml');
         if (documentXml.documentElement.localName === 'DatosEnergeticosDelEdificio' &&
             !documentXml.doctype && !documentXml.getElementsByTagName('parsererror').length) {
-          downloadBlob(file, name + '.xml');
+          if (!issuePdf) downloadBlob(file, name + '.xml');
           status.textContent = 'XML recogido de CE³X. También está disponible junto al CEX.';
           result.rating = readDesktopRating(documentXml);
           const child = (parent, name) => Array.from(parent?.children || []).find(node => node.localName === name);
@@ -3144,9 +3158,8 @@ async function collectDesktopXml(issuePdf = false) {
             const stream = await handle.createWritable();
             await stream.write(pdf);
             await stream.close();
-            downloadBlob(pdf, name + '.pdf');
             progress('XML y PDF disponibles', 'CERTIFICADO_GENERADO');
-            status.textContent = 'XML y PDF guardados en ' + reference + ' / ' + jobName + '.';
+            status.textContent = 'CEX, XML y PDF guardados en ' + archiveName + ' / ' + jobName + '.';
           } else {
             document.dispatchEvent(new CustomEvent('ce3x:xml-collected', {detail: file}));
           }

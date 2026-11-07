@@ -213,7 +213,10 @@ def job_directories(folder):
     for entry in folder.iterdir():
         if JOB_DIRECTORY.fullmatch(entry.name):
             yield entry
-        elif re.fullmatch(r"[A-Z0-9]{20}", entry.name) and entry.is_dir() and entry.resolve().parent == folder:
+        elif (re.fullmatch(r"[A-Z0-9]{20}", entry.name)
+              or re.fullmatch(r"[A-Za-z0-9_-]{1,80} \[[A-Z0-9]{20}\]", entry.name)):
+            if not entry.is_dir() or entry.resolve() != entry:
+                continue
             yield from (job for job in entry.iterdir() if JOB_DIRECTORY.fullmatch(job.name))
 
 
