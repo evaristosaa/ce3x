@@ -2947,6 +2947,7 @@ async function collectDesktopXml() {
             !documentXml.doctype && !documentXml.getElementsByTagName('parsererror').length) {
           downloadBlob(file, name + '.xml');
           status.textContent = 'XML recogido de CE³X. También está disponible junto al CEX.';
+          document.dispatchEvent(new CustomEvent('ce3x:xml-collected', {detail: file}));
           return;
         }
       } catch (error) {

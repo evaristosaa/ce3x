@@ -40,7 +40,17 @@ test('desktop XML handoff publishes readiness after writing the CEX and download
     selectedRecordWithCurrentFormData: () => ({}),
     criticalCexIssues: () => [],
     desktopXmlButton: button,
-    document: {querySelector: () => status},
+    CustomEvent: class {
+      constructor(type, {detail}) { Object.assign(this, {type, detail}); }
+    },
+    document: {
+      querySelector: () => status,
+      dispatchEvent(event) {
+        assert.equal(event.type, 'ce3x:xml-collected');
+        assert.equal(event.detail, xml);
+        calls.push('prepare:pdf');
+      }
+    },
     xmlFolderSetting: async () => ({
       queryPermission: async () => 'granted',
       getFileHandle: async name => assert.equal(name, '.ce3x-xml-bridge'),
@@ -67,7 +77,7 @@ test('desktop XML handoff publishes readiness after writing the CEX and download
     },
     setTimeout: callback => callback()
   });
-  assert.deepEqual(calls, ['example.cex', 'cex bytes', 'closed', 'ready', 'example.xml', 'example.xml', 'download:example.xml']);
+  assert.deepEqual(calls, ['example.cex', 'cex bytes', 'closed', 'ready', 'example.xml', 'example.xml', 'download:example.xml', 'prepare:pdf']);
   assert.equal(button.disabled, false);
   assert.match(status.textContent, /XML recogido/);
 });
