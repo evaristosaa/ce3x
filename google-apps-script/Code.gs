@@ -213,6 +213,11 @@ function handle_(e) {
     assertAuthorized_(request);
 
     const action = request.action || 'list';
+    if (action === 'getTechnicianConfig') return response_(request, {ok: true, technician: technicianConfig_()});
+    if (action === 'saveTechnicianConfig') {
+      if (!e || !e.postData) throw new Error('El perfil solo se guarda por POST.');
+      return response_(request, {ok: true, technician: technicianConfig_(request.technician || {})});
+    }
     if (action === 'list') return response_(request, { ok: true, items: listRecords_() });
     if (action === 'get') return response_(request, { ok: true, item: getRecord_(request.id) });
     if (action === 'save') return response_(request, { ok: true, item: saveRecord_(request.item || {}) });
@@ -286,6 +291,33 @@ function assertAuthorized_(request) {
   if (request.secret !== APP_SECRET) {
     throw new Error('No autorizado');
   }
+}
+
+function technicianConfig_(profile) {
+  const book = SpreadsheetApp.getActiveSpreadsheet();
+  const name = 'Configuración CE3X';
+  if (profile === undefined) {
+    const sheet = book.getSheetByName(name);
+    const stored = sheet && sheet.getRange('B2').getValue();
+    return stored ? JSON.parse(stored) : null;
+  }
+  const fields = ['nombre', 'nif', 'razonSocial', 'cif', 'direccion', 'provincia',
+    'localidad', 'codigoPostal', 'telefono', 'email', 'titulacion'];
+  const cleaned = {};
+  fields.forEach(function(field) {
+    const path = 'admin.tecnico.' + field;
+    if (typeof profile[path] === 'string') cleaned[path] = profile[path].trim().slice(0, 500);
+  });
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = book.getSheetByName(name) || book.insertSheet(name);
+    sheet.getRange('A1:B2').setValues([['Configuración', 'Valor'], ['Técnico por defecto', JSON.stringify(cleaned)]]);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  return cleaned;
 }
 
 function getSheet_() {

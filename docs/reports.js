@@ -7,25 +7,40 @@ document.addEventListener('DOMContentLoaded', () => {
   let busy = false;
   const staticSite = location.hostname === 'evaristosaa.github.io';
   const cloudEndpoint = 'https://ce3x-pdf-prueba.onrender.com/api/report';
-  document.getElementById('reportBtn').addEventListener('click', async () => {
-    form.reset(); submit.disabled = true; status.textContent = 'Comprobando el generador…'; dialog.showModal();
+  let reportSession = 0;
+  async function openReport(file) {
+    if (dialog.open || busy) return;
+    const session = ++reportSession;
+    form.reset();
+    if (file) {
+      const selection = new DataTransfer();
+      selection.items.add(file);
+      form.elements.xmlFile.files = selection.files;
+    }
+    submit.disabled = true;
+    status.textContent = 'Comprobando el generador…';
+    dialog.showModal();
     document.getElementById('cloudReportLink').hidden = !staticSite;
     document.getElementById('cloudReportHelp').hidden = !staticSite;
-    document.getElementById('cloudReportKey').hidden = !staticSite;
-    form.elements.accessKey.required = staticSite;
     if (staticSite) {
-      status.textContent = 'Selecciona el XML e introduce la clave para generar el PDF.';
-      submit.disabled = false;
+      submit.disabled = !state.config.pdfKey;
+      status.textContent = submit.disabled ? 'Guarda la clave de Render en Configuración.' : file ? 'XML de CE³X listo. Pulsa Generar y descargar PDF.' : 'Selecciona el XML para generar el PDF.';
       return;
     }
     try {
       const response = await fetch('/api/report/status');
       if (!response.ok) throw new Error('Para generar el PDF, abre la app con su servidor local. Esta función no está disponible en la web estática.');
-      const result = await response.json(); status.textContent = result.message;
+      const result = await response.json();
+      if (session !== reportSession) return;
+      status.textContent = result.available && file ? 'XML de CE³X listo. Pulsa Generar y descargar PDF.' : result.message;
       submit.disabled = !result.available;
-    } catch (error) { status.textContent = error.message; }
-  });
-  dialog.addEventListener('close', () => { form.elements.accessKey.value = ''; });
+    } catch (error) {
+      if (session === reportSession) status.textContent = error.message;
+    }
+  }
+  dialog.addEventListener('close', () => { reportSession++; });
+  document.getElementById('reportBtn').addEventListener('click', () => openReport());
+  document.addEventListener('ce3x:xml-collected', event => openReport(event.detail));
   close.addEventListener('click', () => dialog.close());
   dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
   form.addEventListener('submit', async event => {
@@ -37,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     status.textContent = 'Validando el XML y generando el PDF. Puede tardar hasta dos minutos…';
     try {
       const headers = {'Content-Type': 'application/xml'};
-      if (staticSite) headers.Authorization = 'Bearer ' + form.elements.accessKey.value.trim();
+      if (staticSite) headers.Authorization = 'Bearer ' + state.config.pdfKey;
       const response = await fetch(staticSite ? cloudEndpoint : '/api/report', {
         method: 'POST', headers, body: file, redirect: 'error',
         signal: AbortSignal.timeout(240000)
