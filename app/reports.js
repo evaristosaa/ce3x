@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const close = document.getElementById('closeReportBtn');
   let busy = false;
   const staticSite = location.hostname === 'evaristosaa.github.io';
-  const cloudEndpoint = 'https://ce3x-pdf-prueba.onrender.com/api/report';
   let reportSession = 0;
   async function openReport(file) {
     if (dialog.open || busy) return;
@@ -51,21 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     busy = true; submit.disabled = true; close.disabled = true;
     status.textContent = 'Validando el XML y generando el PDF. Puede tardar hasta dos minutos…';
     try {
-      const headers = {'Content-Type': 'application/xml'};
-      if (staticSite) headers.Authorization = 'Bearer ' + state.config.pdfKey;
-      const response = await fetch(staticSite ? cloudEndpoint : '/api/report', {
-        method: 'POST', headers, body: file, redirect: 'error',
-        signal: AbortSignal.timeout(240000)
-      });
-      if (!response.ok) {
-        let message = 'No se ha podido generar el informe.';
-        try { message = (await response.json()).error || message; } catch {}
-        throw new Error(message);
-      }
-      const pdf = await response.blob();
-      if (await pdf.slice(0, 5).text() !== '%PDF-') {
-        throw new Error('El generador no ha devuelto un PDF válido.');
-      }
+      const pdf = await generateCertificatePdf(file);
       const name = file.name.replace(/\.xml$/i,'') + '.pdf';
       downloadBlob(pdf,name);
       status.textContent = 'PDF generado y descargado: ' + name + '. Se ha utilizado el módulo oficial de CE3X.';
@@ -77,3 +62,23 @@ document.addEventListener('DOMContentLoaded', () => {
     finally { busy = false; submit.disabled = false; close.disabled = false; }
   });
 });
+
+async function generateCertificatePdf(file) {
+  const cloud = location.hostname === 'evaristosaa.github.io';
+  const headers = {'Content-Type': 'application/xml'};
+  if (cloud) {
+    if (!state.config.pdfKey) throw new Error('Guarda la clave de Render en Configuración.');
+    headers.Authorization = 'Bearer ' + state.config.pdfKey;
+  }
+  const response = await fetch(cloud ? 'https://ce3x-pdf-prueba.onrender.com/api/report' : '/api/report', {
+    method: 'POST', headers, body: file, redirect: 'error', signal: AbortSignal.timeout(240000)
+  });
+  if (!response.ok) {
+    let message = 'No se ha podido generar el informe.';
+    try { message = (await response.json()).error || message; } catch {}
+    throw new Error(message);
+  }
+  const pdf = await response.blob();
+  if (await pdf.slice(0, 5).text() !== '%PDF-') throw new Error('El generador no ha devuelto un PDF válido.');
+  return pdf;
+}

@@ -115,6 +115,8 @@ def fill_report_options(user, callback, process, project):
 
     dialogs = []
     controls = {}
+    auto_submit = report.get("autoSubmit") is True and {140, 141, 142, 117} <= values.keys()
+    expected_controls = values.keys() | ({121} if auto_submit else set())
 
     @callback
     def find_dialog(hwnd, _):
@@ -130,7 +132,7 @@ def fill_report_options(user, callback, process, project):
     @callback
     def find_control(hwnd, _):
         key = user.GetDlgCtrlID(hwnd)
-        if key in values:
+        if key in expected_controls:
             controls.setdefault(key, hwnd)  # The first ID 117 is the inspection notes.
         return True
 
@@ -141,7 +143,7 @@ def fill_report_options(user, callback, process, project):
         if len(dialogs) == 1:
             controls.clear()
             user.EnumChildWindows(dialogs[0], find_control, 0)
-            if controls.keys() == values.keys():
+            if controls.keys() == expected_controls:
                 for key, value in values.items():
                     text = ctypes.create_unicode_buffer(value)
                     result = ctypes.c_size_t()
@@ -150,9 +152,19 @@ def fill_report_options(user, callback, process, project):
                     if not sent or not result.value:
                         raise ValueError("CE³X no confirmó el cambio de un campo.")
                 print("Datos de visita y observaciones enviados al diálogo XML.", flush=True)
+                if auto_submit and not user.PostMessageW(controls[121], 0x00F5, 0, 0):
+                    raise ValueError("No se pudo solicitar Generar XML.")
                 return
         time.sleep(0.2)
     raise ValueError("No se encontraron los campos del diálogo XML.")
+
+
+def job_directories(folder):
+    for entry in folder.iterdir():
+        if JOB_DIRECTORY.fullmatch(entry.name):
+            yield entry
+        elif re.fullmatch(r"[A-Z0-9]{20}", entry.name) and entry.is_dir() and entry.resolve().parent == folder:
+            yield from (job for job in entry.iterdir() if JOB_DIRECTORY.fullmatch(job.name))
 
 
 def watch_jobs(folder, executable, auto_rate=False):
@@ -161,13 +173,13 @@ def watch_jobs(folder, executable, auto_rate=False):
         raise ValueError("Selecciona una carpeta de trabajo existente y una instalación de CE³X 3.2.")
     if auto_rate:
         (folder / ".ce3x-xml-bridge").touch()
-    seen = set(folder.iterdir())
+    seen = set(job_directories(folder))
     print("Esperando nuevas exportaciones de la app. Pulsa Ctrl+C para detener.", flush=True)
     while True:
-        for job in sorted(folder.iterdir()):
+        for job in sorted(job_directories(folder)):
             if job in seen or not JOB_DIRECTORY.fullmatch(job.name):
                 continue
-            if not job.is_dir() or job.resolve().parent != folder:
+            if not job.is_dir() or job.resolve().parent != job.parent:
                 continue
             if not (job / "ready").is_file():
                 continue

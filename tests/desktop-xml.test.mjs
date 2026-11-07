@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 test('desktop XML handoff publishes readiness after writing the CEX and downloads the new XML', async () => {
   const source = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
-  const start = source.indexOf('async function collectDesktopXml()');
+  const start = source.indexOf('function renderDesktopReportFlow(');
   const end = source.indexOf('async function loadCex32Template()', start);
   assert.ok(start >= 0 && end > start);
   const calls = [];
@@ -37,14 +37,15 @@ test('desktop XML handoff publishes readiness after writing the CEX and download
     }
   };
   await vm.runInNewContext(source.slice(start, end) + '\ncollectDesktopXml()', {
-    selectedRecordWithCurrentFormData: () => ({data:{'admin.informe.fechaVisita':'2026-11-05','admin.informe.observaciones':'Prueba'}}),
+    selectedRecordWithCurrentFormData: () => ({id:'example',data:{'admin.informe.fechaVisita':'2026-11-05','admin.informe.observaciones':'Prueba'}}),
     criticalCexIssues: () => [],
-    desktopXmlButton: button,
+    desktopXmlButton: button, issueDesktopReportBtn: {},
+    desktopReportResults: new Map(), selectedRecord: () => null,
     CustomEvent: class {
       constructor(type, {detail}) { Object.assign(this, {type, detail}); }
     },
     document: {
-      querySelector: () => status,
+      querySelector: selector => selector === '#desktopXmlStatus' ? status : {},
       dispatchEvent(event) {
         assert.equal(event.type, 'ce3x:xml-collected');
         assert.equal(event.detail, xml);
@@ -77,7 +78,9 @@ test('desktop XML handoff publishes readiness after writing the CEX and download
     },
     setTimeout: callback => callback()
   });
-  assert.deepEqual(calls, ['example.cex', 'cex bytes', 'closed', 'report.json', '{"visitDate":"2026-11-05","observations":"Prueba"}', 'closed', 'ready', 'example.xml', 'example.xml', 'download:example.xml', 'prepare:pdf']);
+  assert.deepEqual(calls, ['example.cex', 'cex bytes', 'closed', 'report.json', '{"visitDate":"2026-11-05","observations":"Prueba","autoSubmit":false}', 'closed', 'ready', 'example.xml', 'example.xml', 'download:example.xml', 'prepare:pdf']);
   assert.equal(button.disabled, false);
   assert.match(status.textContent, /XML recogido/);
 });
+
+

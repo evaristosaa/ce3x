@@ -381,7 +381,11 @@ document.querySelector('#downloadJsonBtn').addEventListener('click', downloadJso
 document.querySelector('#downloadCexBtn').addEventListener('click', downloadCex);
 const desktopXmlButton = document.querySelector('#collectDesktopXmlBtn');
 desktopXmlButton.hidden = typeof window.showDirectoryPicker !== 'function';
-desktopXmlButton.addEventListener('click', collectDesktopXml);
+const issueDesktopReportBtn = document.querySelector('#issueDesktopReportBtn');
+issueDesktopReportBtn.hidden = desktopXmlButton.hidden;
+const desktopReportResults = new Map();
+desktopXmlButton.addEventListener('click', () => collectDesktopXml());
+issueDesktopReportBtn.addEventListener('click', () => collectDesktopXml(true));
 
 backToListBtn.addEventListener('click', showListView);
 chatForm.addEventListener('submit', handleChatSubmit);
@@ -785,7 +789,7 @@ function renderSectionStatus(record) {
 
 function renderTabs() {
   sectionTabs.innerHTML = '';
-  SECTIONS.forEach(sectionItem => {
+  [...SECTIONS, {id:'rating',label:'Calificación energética'}].forEach(sectionItem => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'tab' + (sectionItem.id === state.activeSection ? ' active' : '');
@@ -819,6 +823,29 @@ function renderDetail() {
     : 'Falta una referencia catastral válida';
 
   sectionFields.innerHTML = '';
+  renderDesktopReportFlow(record?.id);
+  if (state.activeSection === 'rating') {
+    const result = desktopReportResults.get(record?.id);
+    const title = document.createElement('h3');
+    title.textContent = 'Calificación energética · CE³X 3.2';
+    sectionFields.append(title);
+    if (!result?.rating?.length) {
+      const message = document.createElement('p');
+      message.textContent = 'La calificación aparecerá al recoger el XML de CE³X.';
+      sectionFields.append(message);
+      return;
+    }
+    const list = document.createElement('dl');
+    for (const {label, value, grade, unit} of result.rating) {
+      const name = document.createElement('dt');
+      const detail = document.createElement('dd');
+      name.textContent = label;
+      detail.textContent = [value, unit, grade && '· ' + grade].filter(Boolean).join(' ');
+      list.append(name, detail);
+    }
+    sectionFields.append(list);
+    return;
+  }
   if(sectionItem.id==='instalaciones') {
     const tools=document.createElement('div');tools.className='estimation-tools';
     tools.innerHTML='<button type="button" class="secondary" data-open-estimation>Parámetros y rendimiento</button><p>Revisa los parámetros de los equipos importados y recalcula su rendimiento con el módulo local de CE³X 3.2.</p>';
@@ -2909,7 +2936,36 @@ async function downloadCex() {
   }
 }
 
-async function collectDesktopXml() {
+function renderDesktopReportFlow(id) {
+  const node = document.querySelector('#desktopReportFlow');
+  const result = desktopReportResults.get(id);
+  node.hidden = !id;
+  node.textContent = result
+    ? 'Informe · ' + result.stage
+    : 'Expediente → Revisión técnica → Cálculo CE³X → XML → PDF';
+}
+
+function readDesktopRating(xml) {
+  const metrics = [
+    ['Demanda de calefacción', 'Demanda', 'Cal', 'kWh/m²·año'],
+    ['Demanda de refrigeración', 'Demanda', 'Ref', 'kWh/m²·año'],
+    ['Energía primaria no renovable', 'EnergiaPrimariaNoRenovable', 'Tot', 'kWh/m²·año'],
+    ['Emisiones globales', 'Emisiones', 'Tot', 'kg CO₂/m²·año'],
+    ['Emisiones de calefacción', 'Emisiones', 'Cal', 'kg CO₂/m²·año'],
+    ['Emisiones de refrigeración', 'Emisiones', 'Ref', 'kg CO₂/m²·año'],
+    ['Emisiones de ACS', 'Emisiones', 'Acs', 'kg CO₂/m²·año']
+  ];
+  const child = (parent, name) => Array.from(parent?.children || []).find(node => node.localName === name);
+  const indicators = child(xml.documentElement, 'Indicadores');
+  const grades = child(xml.documentElement, 'Calificacion');
+  return metrics.flatMap(([label, group, key, unit]) => {
+    const value = child(child(indicators, group), key)?.textContent.trim();
+    const grade = child(child(grades, group), key)?.textContent.trim();
+    return value ? [{label, value, grade, unit}] : [];
+  });
+}
+
+async function collectDesktopXml(issuePdf = false) {
   const record = selectedRecordWithCurrentFormData();
   if (!record) return;
   const status = document.querySelector('#desktopXmlStatus');
@@ -2920,7 +2976,24 @@ async function collectDesktopXml() {
     return;
   }
 
+  const reference = String(record.data?.['admin.localizacion.referenciaCatastral'] || '').trim().toUpperCase();
+  if (issuePdf && (!/^[A-Z0-9]{20}$/.test(reference) ||
+      !record.data?.['admin.informe.fechaVisita'] || !record.data?.['admin.informe.observaciones']?.trim())) {
+    status.textContent = 'Completa la referencia catastral, la fecha de visita y las observaciones del informe.';
+    return;
+  }
+  if (issuePdf && location.hostname === 'evaristosaa.github.io' && !state.config.pdfKey) {
+    status.textContent = 'Guarda la clave de Render en Configuración.';
+    return;
+  }
+  const result = {stage: 'Preparando CEX'};
+  const progress = stage => {
+    result.stage = stage;
+    desktopReportResults.set(record.id, result);
+    renderDesktopReportFlow(selectedRecord()?.id);
+  };
   desktopXmlButton.disabled = true;
+  issueDesktopReportBtn.disabled = true;
   try {
     const folder = await xmlFolderSetting();
     if (!folder || await folder.queryPermission({ mode: 'readwrite' }) !== 'granted') {
@@ -2930,7 +3003,9 @@ async function collectDesktopXml() {
       throw new Error('Inicia el asistente con --watch y --auto-rate en la carpeta XML configurada.');
     });
     const jobName = 'CE3X-' + crypto.randomUUID();
-    const job = await folder.getDirectoryHandle(jobName, { create: true });
+    const archive = issuePdf ? await folder.getDirectoryHandle(reference, {create: true}) : null;
+    const job = await (archive || folder).getDirectoryHandle(jobName, { create: true });
+    progress('Preparando CEX');
     const text = normalizeCexLineEndings(buildCex32(await loadCex32Template(), record));
     const name = fileSafe(recordLabel(record));
     const cex = await job.getFileHandle(name + '.cex', { create: true });
@@ -2941,10 +3016,23 @@ async function collectDesktopXml() {
     const reportWriter = await report.createWritable();
     await reportWriter.write(JSON.stringify({
       visitDate: record.data?.['admin.informe.fechaVisita'] || '',
-      observations: record.data?.['admin.informe.observaciones'] || ''
+      observations: record.data?.['admin.informe.observaciones'] || '',
+      autoSubmit: issuePdf
     }));
     await reportWriter.close();
+    if (issuePdf) {
+      for (const [key, label] of [['imagenEdificio', 'fachada'], ['planoSituacion', 'plano']]) {
+        const image = record.data?.['generales.definicion.' + key];
+        if (typeof image !== 'string' || !/^data:image\/(png|jpeg);base64,/i.test(image)) continue;
+        const blob = await (await fetch(image)).blob();
+        const handle = await job.getFileHandle(label + (blob.type === 'image/png' ? '.png' : '.jpg'), {create: true});
+        const stream = await handle.createWritable();
+        await stream.write(blob);
+        await stream.close();
+      }
+    }
     await job.getFileHandle("ready", { create: true });
+    progress('CEX preparado · esperando cálculo y XML');
     status.textContent = 'CEX preparado en ' + jobName + '. El asistente abrirá CE³X. Confirma allí las opciones del informe; la app espera hasta cinco minutos.';
 
     const deadline = Date.now() + 300000;
@@ -2958,7 +3046,22 @@ async function collectDesktopXml() {
             !documentXml.doctype && !documentXml.getElementsByTagName('parsererror').length) {
           downloadBlob(file, name + '.xml');
           status.textContent = 'XML recogido de CE³X. También está disponible junto al CEX.';
-          document.dispatchEvent(new CustomEvent('ce3x:xml-collected', {detail: file}));
+          result.rating = readDesktopRating(documentXml);
+          if (selectedRecord()?.id === record.id && state.activeSection === 'rating') renderDetail();
+          progress('XML recibido');
+          if (issuePdf) {
+            progress('XML recibido · generando PDF');
+            const pdf = await generateCertificatePdf(file);
+            const handle = await job.getFileHandle(name + '.pdf', {create: true});
+            const stream = await handle.createWritable();
+            await stream.write(pdf);
+            await stream.close();
+            downloadBlob(pdf, name + '.pdf');
+            progress('XML y PDF disponibles');
+            status.textContent = 'XML y PDF guardados en ' + reference + ' / ' + jobName + '.';
+          } else {
+            document.dispatchEvent(new CustomEvent('ce3x:xml-collected', {detail: file}));
+          }
           return;
         }
       } catch (error) {
@@ -2966,11 +3069,14 @@ async function collectDesktopXml() {
       }
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
+    progress('Tiempo de espera agotado');
     status.textContent = 'Terminó la espera. Si exportas el XML después, estará junto al CEX en ' + jobName + '.';
   } catch (error) {
+    progress(result.rating ? 'XML recibido · PDF pendiente' : 'Trabajo pendiente');
     status.textContent = error.name === 'AbortError' ? 'Selección de carpeta cancelada.' : error.message;
   } finally {
     desktopXmlButton.disabled = false;
+    issueDesktopReportBtn.disabled = false;
   }
 }
 
