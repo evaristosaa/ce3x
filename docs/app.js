@@ -801,7 +801,7 @@ function renderTabs() {
     if (SECTIONS.includes(sectionItem) && selectedRecord()) {
       const completion = sectionCompletion(selectedRecord(), sectionItem.id);
       button.dataset.completion = completion.state;
-      button.title = completionLabel(completion) + ' · ' + completion.completed + '/' + completion.total;
+      button.title = completion.issue || completionLabel(completion) + ' · ' + completion.completed + '/' + completion.total;
     }
     button.addEventListener('click', () => {
       state.activeSection = sectionItem.id;
@@ -2724,9 +2724,17 @@ function sectionCompletion(record, sectionId) {
   const sectionItem = SECTIONS.find(item => item.id === sectionId);
   const requiredPaths = sectionItem.groups.flatMap(groupItem => groupItem.required.map(id => `${sectionItem.id}.${groupItem.id}.${id}`));
   const completed = requiredPaths.filter(path => hasValue(record?.data?.[path])).length;
-  const done = completed === requiredPaths.length;
+  let issue = '';
+  if (sectionId === 'instalaciones' && record && completed === requiredPaths.length) {
+    try {
+      issue = cex32NewEquipmentIssue(record);
+    } catch {
+      issue = 'No se pudo comprobar la correspondencia con los equipos originales del CEX.';
+    }
+  }
+  const done = completed === requiredPaths.length && !issue;
   const stateName = done ? 'done' : completed > 0 ? 'partial' : 'missing';
-  return { completed, total: requiredPaths.length, done, state: stateName };
+  return { completed, total: requiredPaths.length, done, state: stateName, issue };
 }
 
 function completionLabel(status) {
@@ -2975,7 +2983,8 @@ async function downloadCex() {
   if (!record) return;
   const incomplete = missingSections(record);
   if (incomplete.length) {
-    document.querySelector('#detailSaveStatus').textContent = 'Completa antes de exportar: ' + incomplete.join(', ') + '.';
+    document.querySelector('#detailSaveStatus').textContent = sectionCompletion(record, 'instalaciones').issue ||
+      'Completa antes de exportar: ' + incomplete.join(', ') + '.';
     return;
   }
   const criticalIssues = criticalCexIssues(record);
@@ -3035,7 +3044,8 @@ async function collectDesktopXml(issuePdf = false) {
   if (issuePdf) {
     const incomplete = missingSections(record);
     if (incomplete.length) {
-      status.textContent = 'Completa antes de generar: ' + incomplete.join(', ') + '.';
+      status.textContent = sectionCompletion(record, 'instalaciones').issue ||
+        'Completa antes de generar: ' + incomplete.join(', ') + '.';
       return;
     }
   }
