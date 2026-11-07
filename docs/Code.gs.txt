@@ -24,7 +24,8 @@ const LEGACY_RAW_JSON_HEADERS = [
   'rawJson19',
   'rawJson20',
 ];
-const REPORT_DATA_PATHS = ['admin.informe.fechaVisita', 'admin.informe.observaciones'];
+const REPORT_DATA_PATHS = ['admin.informe.fechaVisita', 'admin.informe.observaciones',
+  'admin.informe.fechaEmision', 'admin.informe.recomendacionesUso', 'admin.informe.documentacion'];
 const SCALAR_DATA_PATHS = [
   'cex.sourceVersion',
   'cex.nativeInputs',

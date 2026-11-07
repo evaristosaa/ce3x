@@ -100,9 +100,11 @@
             <button id="deleteRecordBtn" type="button" class="danger">Eliminar expediente</button>
             <button id="downloadJsonBtn" type="button" class="secondary" hidden>Descargar JSON</button>
             <button id="downloadCexBtn" type="button" class="secondary">Exportar a CE³X 3.2</button>
+            <button id="issueDesktopReportBtn" type="button" hidden>Generar XML y PDF</button>
             <button id="collectDesktopXmlBtn" type="button" class="secondary" hidden>Recoger XML de CE³X</button>
           </div>
         </div>
+        <p id="desktopReportFlow" class="export-note" aria-live="polite" hidden></p>
         <p id="desktopXmlStatus" class="export-note" role="status" hidden></p>
 
         <div class="record-head">
@@ -281,14 +283,14 @@
   <script src="window-model.js?v=20261106-window"></script>
   <script src="solar-tables.js?v=20261106-window"></script>
   <script src="solar-model.js?v=20261106-window"></script>
-  <script src="reports.js?v=20261107-xml-pdf"></script>
+  <script src="reports.js?v=20261107-issue-flow"></script>
   <script src="cex-import.js?v=20261106-window"></script>
   <script src="ce3x-locations.js?v=20261106-window"></script>
   <script src="cex-32.js?v=20261106-individual"></script>
   <script src="estimation-model.js?v=20261106-window"></script>
   <script src="review-model.js?v=20261106-window"></script>
   <script src="workspace.js?v=20261106-window"></script>
-  <script src="app.js?v=20261107-patch-confirmation"></script>
+  <script src="app.js?v=20261107-report-tab"></script>
   <script src="estimation-ui.js?v=20261106-window"></script>
   <script src="references-ui.js?v=20261106-window"></script>
   <script src="review-ui.js?v=20261106-window"></script>

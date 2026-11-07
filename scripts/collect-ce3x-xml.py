@@ -105,16 +105,21 @@ def fill_report_options(user, callback, process, project):
         return
     report = json.loads(sidecar.read_text(encoding="utf-8"))
     values = {}
-    if report.get("visitDate"):
-        visit = datetime.date.fromisoformat(report["visitDate"])
-        values.update({140: f"{visit.day:02}", 141: f"{visit.month:02}", 142: str(visit.year)})
-    if report.get("observations"):
-        values[117] = report["observations"]
+    for field, first_id in (("issueDate", 134), ("visitDate", 140)):
+        if report.get(field):
+            date = datetime.date.fromisoformat(report[field])
+            values.update({first_id: f"{date.day:02}", first_id + 1: f"{date.month:02}",
+                           first_id + 2: str(date.year)})
+    for field, control in (("observations", 117), ("recommendations", (117, 1)), ("documentation", 120)):
+        if report.get(field):
+            values[control] = report[field]
     if not values:
         return
 
     dialogs = []
     controls = {}
+    auto_submit = report.get("autoSubmit") is True and {140, 141, 142, 117} <= values.keys()
+    expected_controls = values.keys() | ({121} if auto_submit else set())
 
     @callback
     def find_dialog(hwnd, _):
@@ -130,8 +135,11 @@ def fill_report_options(user, callback, process, project):
     @callback
     def find_control(hwnd, _):
         key = user.GetDlgCtrlID(hwnd)
-        if key in values:
-            controls.setdefault(key, hwnd)  # The first ID 117 is the inspection notes.
+        if key == 117:
+            # CE³X uses ID 117 twice, in inspection/recommendation order.
+            key = 117 if 117 not in controls else (117, 1)
+        if key in expected_controls or (key == 117 and (117, 1) in expected_controls):
+            controls.setdefault(key, hwnd)
         return True
 
     deadline = time.monotonic() + 10
@@ -141,7 +149,7 @@ def fill_report_options(user, callback, process, project):
         if len(dialogs) == 1:
             controls.clear()
             user.EnumChildWindows(dialogs[0], find_control, 0)
-            if controls.keys() == values.keys():
+            if expected_controls <= controls.keys():
                 for key, value in values.items():
                     text = ctypes.create_unicode_buffer(value)
                     result = ctypes.c_size_t()
@@ -149,10 +157,20 @@ def fill_report_options(user, callback, process, project):
                         ctypes.addressof(text), 2, 1000, ctypes.byref(result))
                     if not sent or not result.value:
                         raise ValueError("CE³X no confirmó el cambio de un campo.")
-                print("Datos de visita y observaciones enviados al diálogo XML.", flush=True)
+                print("Datos del informe enviados al diálogo XML.", flush=True)
+                if auto_submit and not user.PostMessageW(controls[121], 0x00F5, 0, 0):
+                    raise ValueError("No se pudo solicitar Generar XML.")
                 return
         time.sleep(0.2)
     raise ValueError("No se encontraron los campos del diálogo XML.")
+
+
+def job_directories(folder):
+    for entry in folder.iterdir():
+        if JOB_DIRECTORY.fullmatch(entry.name):
+            yield entry
+        elif re.fullmatch(r"[A-Z0-9]{20}", entry.name) and entry.is_dir() and entry.resolve().parent == folder:
+            yield from (job for job in entry.iterdir() if JOB_DIRECTORY.fullmatch(job.name))
 
 
 def watch_jobs(folder, executable, auto_rate=False):
@@ -161,13 +179,13 @@ def watch_jobs(folder, executable, auto_rate=False):
         raise ValueError("Selecciona una carpeta de trabajo existente y una instalación de CE³X 3.2.")
     if auto_rate:
         (folder / ".ce3x-xml-bridge").touch()
-    seen = set(folder.iterdir())
+    seen = set(job_directories(folder))
     print("Esperando nuevas exportaciones de la app. Pulsa Ctrl+C para detener.", flush=True)
     while True:
-        for job in sorted(folder.iterdir()):
+        for job in sorted(job_directories(folder)):
             if job in seen or not JOB_DIRECTORY.fullmatch(job.name):
                 continue
-            if not job.is_dir() or job.resolve().parent != folder:
+            if not job.is_dir() or job.resolve().parent != job.parent:
                 continue
             if not (job / "ready").is_file():
                 continue
