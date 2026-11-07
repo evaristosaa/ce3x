@@ -160,9 +160,53 @@ def fill_report_options(user, callback, process, project):
                 print("Datos del informe enviados al diálogo XML.", flush=True)
                 if auto_submit and not user.PostMessageW(controls[121], 0x00F5, 0, 0):
                     raise ValueError("No se pudo solicitar Generar XML.")
+                if auto_submit and report.get("acceptNoImprovements") is True:
+                    accept_missing_improvements(user, callback, process, project)
                 return
         time.sleep(0.2)
     raise ValueError("No se encontraron los campos del diálogo XML.")
+
+
+def accept_missing_improvements(user, callback, process, project):
+    notice = ("No ha seleccionado ningún conjunto de mejoras para su edificio. "
+              "Si no rellena quiere decir que considera que no hay mejora.")
+    matches = []
+    buttons = []
+
+    @callback
+    def inspect_child(hwnd, _):
+        text = ctypes.create_unicode_buffer(512)
+        result = ctypes.c_size_t()
+        user.SendMessageTimeoutW(hwnd, 0x000D, len(text), ctypes.addressof(text), 2, 250,
+                                 ctypes.byref(result))
+        if text.value == notice:
+            matches.append(hwnd)
+        if text.value == "OK":
+            buttons.append(hwnd)
+        return True
+
+    @callback
+    def inspect_window(hwnd, _):
+        pid = wintypes.DWORD()
+        user.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if pid.value != process.pid:
+            return True
+        title = ctypes.create_unicode_buffer(128)
+        user.GetWindowTextW(hwnd, title, len(title))
+        if title.value != "Aviso":
+            return True
+        matches.clear()
+        buttons.clear()
+        user.EnumChildWindows(hwnd, inspect_child, 0)
+        if len(matches) == 1 and len(buttons) == 1 and user.PostMessageW(buttons[0], 0x00F5, 0, 0):
+            return False
+        return True
+
+    deadline = time.monotonic() + 5
+    while process.poll() is None and time.monotonic() < deadline:
+        if project.with_suffix(".xml").exists() or not user.EnumWindows(inspect_window, 0):
+            return
+        time.sleep(0.2)
 
 
 def job_directories(folder):

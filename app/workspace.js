@@ -1,8 +1,8 @@
 /* Workspace navigation stays independent of capture/export logic. */
 function updateWorkspaceSummary(records) {
-  const counts = {all:records.length,BORRADOR:0,PENDIENTE_DATOS:0,COMPLETA:0};
-  records.forEach(record => { const status = inferStatus(record); counts[status] = (counts[status] || 0) + 1; });
-  for (const [id, key] of Object.entries({totalCount:'all',draftCount:'BORRADOR',progressCount:'PENDIENTE_DATOS',completeCount:'COMPLETA'})) {
+  const counts = {all:records.length,BORRADOR:0,PENDIENTE_DATOS:0,COMPLETA:0,CEX_GENERADO:0,XML_GENERADO:0,CERTIFICADO_GENERADO:0};
+  records.forEach(record => { const status = displayRecordStatus(record); counts[status] = (counts[status] || 0) + 1; });
+  for (const [id, key] of Object.entries({totalCount:'all',draftCount:'BORRADOR',progressCount:'PENDIENTE_DATOS',completeCount:'COMPLETA',cexCount:'CEX_GENERADO',xmlCount:'XML_GENERADO',pdfCount:'CERTIFICADO_GENERADO'})) {
     const element = document.getElementById(id); if (element) element.textContent = counts[key];
   }
 }

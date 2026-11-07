@@ -41,7 +41,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
   };
   await vm.runInNewContext(source.slice(start, end) + '\ncollectDesktopXml(' + issue + ')', {
     selectedRecordWithCurrentFormData: () => ({id:'example',data:{'admin.localizacion.referenciaCatastral': reference,'admin.informe.fechaVisita':'2026-11-05','admin.informe.observaciones':'Prueba'}}),
-    criticalCexIssues: () => [],
+    criticalCexIssues: () => [], missingSections: () => [], renderRecords() {},
     desktopXmlButton: button, issueDesktopReportBtn: {},
     desktopReportResults: results, selectedRecord: () => null,
     location: {hostname: 'evaristosaa.github.io'}, state: {config: {pdfKey: 'test'}},
@@ -95,7 +95,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
     setTimeout: callback => callback()
   });
   assert.deepEqual(calls, ['example.cex', 'cex bytes', 'closed', 'report.json',
-    JSON.stringify({issueDate: '', visitDate: '2026-11-05', observations: 'Prueba', recommendations: '', documentation: '', autoSubmit: issue}),
+    JSON.stringify({issueDate: '', visitDate: '2026-11-05', observations: 'Prueba', recommendations: '', documentation: '', autoSubmit: issue, acceptNoImprovements: false}),
     'closed', 'ready', 'example.xml', 'example.xml', 'download:example.xml',
     ...(issue ? ['example.pdf', pdf, 'closed', 'download:example.pdf'] : ['prepare:pdf'])]);
   assert.equal(button.disabled, false);
