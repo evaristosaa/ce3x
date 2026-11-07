@@ -4309,6 +4309,22 @@ async function apiWithConfig(config, payload) {
 
   if (request.action === 'saveTechnicianConfig') return postAppsScript(config.apiUrl, request);
 
+  if (request.action === 'patch') {
+    if (shouldPreferFormTransport(request)) {
+      try {
+        return await formMessageAppsScript(config.apiUrl, request, 30000);
+      } catch (error) {
+        return await recoverConfirmedWrite(config.apiUrl, request, error);
+      }
+    }
+    try {
+      return await postAppsScript(config.apiUrl, request);
+    } catch (error) {
+      if (error.name !== 'TimeoutError' && !isNetworkFetchError(error)) throw error;
+      return await recoverConfirmedWrite(config.apiUrl, request, error);
+    }
+  }
+
   if (request.action === 'save') {
     try {
       return await postAppsScript(config.apiUrl, request);
@@ -4327,13 +4343,6 @@ async function apiWithConfig(config, payload) {
   }
 
   if (WRITE_ACTIONS.includes(request.action)) {
-    if (shouldPreferFormTransport(request)) {
-      try {
-        return await formMessageAppsScript(config.apiUrl, request, 30000);
-      } catch (formError) {
-        return await jsonpAppsScript(config.apiUrl, request);
-      }
-    }
     try {
       return await jsonpAppsScript(config.apiUrl, request);
     } catch (jsonpError) {
@@ -4353,21 +4362,28 @@ async function apiWithConfig(config, payload) {
 }
 
 function shouldPreferFormTransport(request) {
-  if (request?.action !== 'patch') return false;
-  return JSON.stringify(request).length > 50000;
+  return request?.action === 'patch' && JSON.stringify(request).length > 50000;
 }
 
 async function recoverConfirmedWrite(apiUrl, request, originalError) {
-  if (request.action !== 'save' || !request.item || !request.item.id) throw originalError;
+  const isPatch = request.action === 'patch';
+  const id = isPatch ? request.id : request.item?.id;
+  if (!id || (!isPatch && request.action !== 'save')) throw originalError;
   for (let attempt = 0; attempt < 8; attempt += 1) {
     if (attempt > 0) await sleep(750);
     const response = await jsonpAppsScript(apiUrl, {
       action: 'get',
       secret: request.secret,
-      id: request.item.id,
+      id,
     });
     const item = response.item;
-    if (item && item.id === request.item.id &&
+    if (isPatch) {
+      const changes = Object.entries(request.dataPatch || {});
+      if (item?.id === id && changes.length && changes.every(([path, value]) =>
+        sameStoredValue(storedValueForPatchPath(item, path), value))) return response;
+      continue;
+    }
+    if (item && item.id === id &&
         (String(item.updatedAt || '') === String(request.item.updatedAt || '') ||
          (item.createdAt === request.item.createdAt &&
           Object.entries(request.item.data || {}).every(([path, value]) =>
