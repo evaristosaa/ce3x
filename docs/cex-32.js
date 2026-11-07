@@ -399,11 +399,33 @@ function cex32PatchNativeSystems(systems, sourceData, currentTables, approvedEst
   for(let group=0;group<7;group++) systems[group]=(systems[group]||[]).filter((row,index)=>retained.has(group+':'+index)).concat(additions[group]);
 }
 
+function cex32NewEquipmentIssue(record) {
+  const data = record.data || {};
+  const snapshot = data[CEX32_INPUT_KEY] ? JSON.parse(data[CEX32_INPUT_KEY]) : null;
+  const original = snapshot ? cex32ImportedTables(snapshot.inputs) : {};
+  for (const [index, service] of ['acs', 'calefaccion', 'refrigeracion'].entries()) {
+    const path = 'instalaciones.' + service + '.items';
+    for (const row of cex32Table(record, path)) {
+      if (cex32FindOriginal(row, original[path] || [])) continue;
+      try {
+        cex32KnownSystem(row, index);
+      } catch (error) {
+        return error.message;
+      }
+    }
+  }
+  return '';
+}
+
 function cex32KnownSystem(row,service) {
-  if (!/^conocido/i.test(String(row.modoDefinicion || ''))) throw new Error('Los equipos nuevos requieren un rendimiento conocido y justificado. Para usar valores estimados, completa sus parámetros en CE3X.');
+  const label = ['ACS', 'Calefacción', 'Refrigeración'][service] + ' · ' + (row.nombre || 'Equipo sin nombre');
+  if (!/^conocido/i.test(String(row.modoDefinicion || ''))) {
+    throw new Error(label + ': el modo «' + (row.modoDefinicion || 'sin indicar') +
+      '» requiere parámetros nativos de CE³X. Usa «Conocido» solo si tienes un rendimiento estacional justificado.');
+  }
   if (/^(s[ií]|true|1)$/i.test(String(row.acumulacion))) throw new Error('Completa los parámetros de acumulación de ACS en CE3X antes de exportar.');
   const value=Number(String(row.rendimientoEstacional || '').replace(',','.'));
-  if(!Number.isFinite(value) || value<=0) throw new Error('Completa un rendimiento estacional conocido mayor que cero.');
+  if(!Number.isFinite(value) || value<=0) throw new Error(label + ': indica un rendimiento estacional conocido mayor que cero.');
   const performance=['','',''], coverage=[['',''],['',''],['','']], parameters=['','',''];
   performance[service]=value;
   coverage[service]=[String(row.m2Cubiertos||''),String(row.demandaCubierta||'')];
