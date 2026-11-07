@@ -1274,6 +1274,18 @@ function selectInitialChatRecord() {
   state.activeChatId = state.records[0]?.id || '';
 }
 
+function showOperation(title, message, busy = true) {
+  const dialog = document.querySelector('#operationDialog');
+  const close = document.querySelector('#closeOperationBtn');
+  document.querySelector('#operationTitle').textContent = title;
+  document.querySelector('#operationMessage').textContent = message;
+  close.hidden = busy;
+  close.onclick = () => dialog.close();
+  dialog.oncancel = event => { if (busy) event.preventDefault(); };
+  if (!dialog.open) dialog.showModal();
+  if (!busy) close.focus();
+}
+
 async function saveDetail(event) {
   event.preventDefault();
   const record = selectedRecord();
@@ -1286,12 +1298,15 @@ async function saveDetail(event) {
   collectTables(data);
   const feedback = document.querySelector('#detailSaveStatus');
   feedback.textContent = 'Guardando expediente…';
+  showOperation('Guardando expediente…', 'Espera a que termine el guardado.');
   try {
     const saved = await persistRecordPatch(Object.assign({}, record, { data }), activeSectionPaths());
     if (selectedRecord()?.id === record.id) feedback.textContent = 'Expediente guardado.';
+    showOperation('Expediente guardado', recordLabel(saved), false);
     addChatMessage('assistant', `Guardado ${recordLabel(saved)}.`);
   } catch (error) {
     feedback.textContent = 'No se pudo confirmar el guardado.';
+    showOperation('Guardado sin confirmar', sheetErrorHelp(error), false);
     showSyncAlert(sheetErrorHelp(error));
     addChatMessage('assistant', 'No he podido guardar: ' + sheetErrorHelp(error));
   }
@@ -2996,8 +3011,8 @@ async function downloadCex() {
   if (!record) return;
   const incomplete = missingSections(record);
   if (incomplete.length) {
-    document.querySelector('#detailSaveStatus').textContent = sectionCompletion(record, 'instalaciones').issue ||
-      'Completa antes de exportar: ' + incomplete.join(', ') + '.';
+    showOperation('No se puede exportar el CEX', sectionCompletion(record, 'instalaciones').issue ||
+      'Completa antes de exportar: ' + incomplete.join(', ') + '.', false);
     return;
   }
   const criticalIssues = criticalCexIssues(record);
@@ -3006,6 +3021,7 @@ async function downloadCex() {
     return;
   }
 
+  showOperation('Generando CEX…', 'Preparando el archivo del expediente.');
   try {
     let text = buildCex32(await loadCex32Template(), record);
     text = normalizeCexLineEndings(text);
@@ -3014,8 +3030,9 @@ async function downloadCex() {
     desktopReportResults.set(record.id, {stage: 'CEX descargado', output: 'CEX_GENERADO'});
     renderDesktopReportFlow(record.id);
     renderRecords();
+    showOperation('CEX preparado', filename, false);
   } catch (error) {
-    alert('Generación .cex pendiente: ' + error.message);
+    showOperation('No se pudo generar el CEX', error.message, false);
   }
 }
 
@@ -3054,11 +3071,16 @@ async function collectDesktopXml(issuePdf = false) {
   const status = document.querySelector('#desktopXmlStatus');
   const issues = criticalCexIssues(record);
   status.hidden = false;
+  const operationTitle = issuePdf ? 'Generando CEX, XML y PDF…' : 'Recogiendo XML…';
+  const stop = message => {
+    status.textContent = message;
+    showOperation('No se puede iniciar la generación', message, false);
+  };
   if (issuePdf) {
     const incomplete = missingSections(record);
     if (incomplete.length) {
-      status.textContent = sectionCompletion(record, 'instalaciones').issue ||
-        'Completa antes de generar: ' + incomplete.join(', ') + '.';
+      stop(sectionCompletion(record, 'instalaciones').issue ||
+        'Completa antes de generar: ' + incomplete.join(', ') + '.');
       return;
     }
   }
@@ -3070,11 +3092,11 @@ async function collectDesktopXml(issuePdf = false) {
   const reference = String(record.data?.['admin.localizacion.referenciaCatastral'] || '').trim().toUpperCase();
   if (issuePdf && (!/^[A-Z0-9]{20}$/.test(reference) ||
       !record.data?.['admin.informe.fechaVisita'] || !record.data?.['admin.informe.observaciones']?.trim())) {
-    status.textContent = 'Completa la referencia catastral, la fecha de visita y las observaciones del informe.';
+    stop('Completa la referencia catastral, la fecha de visita y las observaciones del informe.');
     return;
   }
   if (issuePdf && location.hostname === 'evaristosaa.github.io' && !state.config.pdfKey) {
-    status.textContent = 'Guarda la clave de Render en Configuración.';
+    stop('Guarda la clave de Render en Configuración.');
     return;
   }
   const result = {stage: 'Preparando CEX'};
@@ -3087,6 +3109,7 @@ async function collectDesktopXml(issuePdf = false) {
   };
   desktopXmlButton.disabled = true;
   issueDesktopReportBtn.disabled = true;
+  showOperation(operationTitle, 'Preparando el CEX del expediente.');
   try {
     const folder = await xmlFolderSetting();
     if (!folder || await folder.queryPermission({ mode: 'readwrite' }) !== 'granted') {
@@ -3134,6 +3157,7 @@ async function collectDesktopXml(issuePdf = false) {
     progress('Generando XML y PDF · esperando a CE³X', 'CEX_GENERADO');
     status.textContent = 'CEX preparado en ' + jobName + '. El asistente abrirá CE³X. Confirma allí las opciones del informe; la app espera hasta cinco minutos.';
 
+    showOperation(operationTitle, 'Esperando el XML de CE³X. Si aparece un aviso en CE³X, revísalo allí.');
     const deadline = Date.now() + 300000;
     while (Date.now() < deadline) {
       try {
@@ -3153,6 +3177,7 @@ async function collectDesktopXml(issuePdf = false) {
           progress('XML recibido', 'XML_GENERADO');
           if (issuePdf) {
             progress('XML recibido · generando PDF');
+            showOperation(operationTitle, 'XML recibido. Generando y guardando el PDF.');
             const pdf = await generateCertificatePdf(file);
             const handle = await job.getFileHandle(name + '.pdf', {create: true});
             const stream = await handle.createWritable();
@@ -3160,7 +3185,9 @@ async function collectDesktopXml(issuePdf = false) {
             await stream.close();
             progress('XML y PDF disponibles', 'CERTIFICADO_GENERADO');
             status.textContent = 'CEX, XML y PDF guardados en ' + archiveName + ' / ' + jobName + '.';
+            showOperation('CEX, XML y PDF guardados', status.textContent, false);
           } else {
+            document.querySelector('#operationDialog').close();
             document.dispatchEvent(new CustomEvent('ce3x:xml-collected', {detail: file}));
           }
           return;
@@ -3172,9 +3199,11 @@ async function collectDesktopXml(issuePdf = false) {
     }
     progress('Tiempo de espera agotado');
     status.textContent = 'Terminó la espera. Si exportas el XML después, estará junto al CEX en ' + jobName + '.';
+    showOperation('CE³X no ha devuelto el XML a tiempo', status.textContent, false);
   } catch (error) {
     progress(result.rating ? 'XML recibido · PDF pendiente' : 'Trabajo pendiente');
     status.textContent = error.name === 'AbortError' ? 'Selección de carpeta cancelada.' : error.message;
+    showOperation('Generación interrumpida', status.textContent, false);
   } finally {
     desktopXmlButton.disabled = false;
     issueDesktopReportBtn.disabled = false;
