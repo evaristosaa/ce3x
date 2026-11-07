@@ -42,7 +42,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
   await vm.runInNewContext(source.slice(start, end) + '\ncollectDesktopXml(' + issue + ')', {
     selectedRecordWithCurrentFormData: () => ({id:'example',data:{'admin.localizacion.referenciaCatastral': reference,'admin.informe.fechaVisita':'2026-11-05','admin.informe.observaciones':'Prueba'}}),
     criticalCexIssues: () => [], missingSections: () => [], renderRecords() {},
-    desktopXmlButton: button, issueDesktopReportBtn: {},
+    desktopXmlButton: button, issueDesktopReportBtn: {}, issueWithoutImprovements: {},
     desktopReportResults: results, selectedRecord: () => null,
     location: {hostname: 'evaristosaa.github.io'}, state: {config: {pdfKey: 'test'}},
     generateCertificatePdf: async file => { assert.equal(file, xml); return pdf; },

@@ -347,6 +347,7 @@ const activeRecordText = document.querySelector('#activeRecordText');
 const sectionTabs = document.querySelector('#sectionTabs');
 const detailForm = document.querySelector('#detailForm');
 const sectionFields = document.querySelector('#sectionFields');
+const issueWithoutImprovements = document.querySelector('#issueWithoutImprovements');
 const recordTitle = document.querySelector('#recordTitle');
 const recordSubtitle = document.querySelector('#recordSubtitle');
 const recordBadge = document.querySelector('#recordBadge');
@@ -889,16 +890,29 @@ function renderDetail() {
     const fieldset = document.createElement('fieldset');
     if (groupItem.fields.some(item => item.type === 'table')) fieldset.classList.add('table-fieldset');
     fieldset.innerHTML = `<legend>${escapeHtml(groupItem.label)}</legend>`;
+    const isReport = groupItem.id === 'informe';
+    const reportText = isReport ? document.createElement('div') : null;
+    const reportDates = isReport ? document.createElement('div') : null;
+    if (isReport) {
+      fieldset.classList.add('report-settings');
+      reportText.className = 'report-settings-column';
+      reportDates.className = 'report-settings-column';
+      fieldset.append(reportText, reportDates);
+    }
     groupItem.fields.forEach(item => {
       const path = `${sectionItem.id}.${groupItem.id}.${item.id}`;
       const wrapper = document.createElement('label');
       wrapper.className = item.type === 'table' ? 'table-label' : '';
       const value = data[path];
       wrapper.innerHTML = `<span>${escapeHtml(item.label)}</span>${inputHtml(item, path, value)}`;
-      fieldset.appendChild(wrapper);
+      const container = isReport ? (item.type === 'date' ? reportDates : reportText) : fieldset;
+      container.appendChild(wrapper);
     });
     sectionFields.appendChild(fieldset);
-    if (groupItem.id === 'informe') {
+    if (isReport) {
+      const confirmation = issueWithoutImprovements.parentElement;
+      confirmation.hidden = false;
+      reportDates.appendChild(confirmation);
       const note = document.createElement('p');
       note.textContent = 'Los conjuntos de mejora calculados y su orden se revisan en CE³X antes de emitir.';
       sectionFields.append(note);
@@ -1214,8 +1228,7 @@ function getFilteredRecords() {
 }
 
 function selectRecord(record, options = {}) {
-  const noImprovements = document.querySelector('#issueWithoutImprovements');
-  if (record?.id !== state.selectedId && noImprovements) noImprovements.checked = false;
+  if (record?.id !== state.selectedId && issueWithoutImprovements) issueWithoutImprovements.checked = false;
   if (!record) {
     state.selectedId = '';
     state.draft = null;
@@ -3102,10 +3115,10 @@ async function collectDesktopXml(issuePdf = false) {
       recommendations: record.data?.['admin.informe.recomendacionesUso'] || '',
       documentation: record.data?.['admin.informe.documentacion'] || '',
       autoSubmit: issuePdf,
-      acceptNoImprovements: issuePdf && Boolean(document.querySelector('#issueWithoutImprovements')?.checked)
+      acceptNoImprovements: issuePdf && Boolean(issueWithoutImprovements?.checked)
     }));
     await reportWriter.close();
-    if (issuePdf) document.querySelector('#issueWithoutImprovements').checked = false;
+    if (issuePdf && issueWithoutImprovements) issueWithoutImprovements.checked = false;
     if (issuePdf) {
       for (const [key, label] of [['imagenEdificio', 'fachada'], ['planoSituacion', 'plano']]) {
         const image = record.data?.['generales.definicion.' + key];
