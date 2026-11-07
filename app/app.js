@@ -4281,6 +4281,23 @@ async function apiWithConfig(config, payload) {
     if (!canUseDirectAppsScriptFallback(proxyError)) throw proxyError;
   }
 
+  if (request.action === 'save') {
+    try {
+      return await postAppsScript(config.apiUrl, request);
+    } catch (error) {
+      if (error.name !== 'TimeoutError' && !isNetworkFetchError(error)) throw error;
+      try {
+        return await recoverConfirmedWrite(config.apiUrl, request, error);
+      } catch {
+        try {
+          return await formMessageAppsScript(config.apiUrl, request, 30000);
+        } catch (formError) {
+          return await recoverConfirmedWrite(config.apiUrl, request, formError);
+        }
+      }
+    }
+  }
+
   if (WRITE_ACTIONS.includes(request.action)) {
     if (shouldPreferFormTransport(request)) {
       try {
@@ -4322,7 +4339,11 @@ async function recoverConfirmedWrite(apiUrl, request, originalError) {
       id: request.item.id,
     });
     const item = response.item;
-    if (item && String(item.updatedAt || '') === String(request.item.updatedAt || '')) {
+    if (item && item.id === request.item.id &&
+        (String(item.updatedAt || '') === String(request.item.updatedAt || '') ||
+         (item.createdAt === request.item.createdAt &&
+          Object.entries(request.item.data || {}).every(([path, value]) =>
+            JSON.stringify(item.data?.[path]) === JSON.stringify(value))))) {
       return response;
     }
   }
