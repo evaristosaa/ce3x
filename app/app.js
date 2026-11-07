@@ -123,6 +123,10 @@ const SECTIONS = [
       field('email', 'E-mail'),
       field('titulacion', 'Titulación habilitante según normativa vigente'),
     ]),
+    group('informe', 'Datos del informe', [], [
+      field('fechaVisita', 'Fecha de visita', 'date'),
+      field('observaciones', 'Pruebas, comprobaciones y observaciones', 'textarea'),
+    ]),
   ]),
   section('generales', 'Datos generales', [
     group('datos', 'Datos generales', ['normativaVigente', 'anioConstruccion', 'tipoEdificio', 'provincia', 'localidad', 'zonaClimaticaHE1', 'zonaClimaticaHE4'], [
@@ -2933,6 +2937,13 @@ async function collectDesktopXml() {
     const writer = await cex.createWritable();
     await writer.write(latin1Encode(text));
     await writer.close();
+    const report = await job.getFileHandle('report.json', { create: true });
+    const reportWriter = await report.createWritable();
+    await reportWriter.write(JSON.stringify({
+      visitDate: record.data?.['admin.informe.fechaVisita'] || '',
+      observations: record.data?.['admin.informe.observaciones'] || ''
+    }));
+    await reportWriter.close();
     await job.getFileHandle("ready", { create: true });
     status.textContent = 'CEX preparado en ' + jobName + '. El asistente abrirá CE³X. Confirma allí las opciones del informe; la app espera hasta cinco minutos.';
 
