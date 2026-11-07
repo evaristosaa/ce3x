@@ -95,7 +95,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
     setTimeout: callback => callback()
   });
   assert.deepEqual(calls, ['example.cex', 'cex bytes', 'closed', 'report.json',
-    JSON.stringify({visitDate: '2026-11-05', observations: 'Prueba', autoSubmit: issue}),
+    JSON.stringify({issueDate: '', visitDate: '2026-11-05', observations: 'Prueba', recommendations: '', documentation: '', autoSubmit: issue}),
     'closed', 'ready', 'example.xml', 'example.xml', 'download:example.xml',
     ...(issue ? ['example.pdf', pdf, 'closed', 'download:example.pdf'] : ['prepare:pdf'])]);
   assert.equal(button.disabled, false);

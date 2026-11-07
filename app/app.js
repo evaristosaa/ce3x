@@ -124,8 +124,11 @@ const SECTIONS = [
       field('titulacion', 'Titulación habilitante según normativa vigente'),
     ]),
     group('informe', 'Datos del informe', [], [
+      field('fechaEmision', 'Fecha de emisión', 'date'),
       field('fechaVisita', 'Fecha de visita', 'date'),
-      field('observaciones', 'Pruebas, comprobaciones y observaciones', 'textarea'),
+      field('observaciones', 'Pruebas, comprobaciones e inspecciones', 'textarea'),
+      field('recomendacionesUso', 'Recomendaciones para un uso eficiente', 'textarea'),
+      field('documentacion', 'Documentación', 'textarea'),
     ]),
   ]),
   section('generales', 'Datos generales', [
@@ -271,8 +274,8 @@ const COPY_SECTION_IDS = ['envolvente', 'instalaciones'];
 
 const FLAT_FIELDS = SECTIONS.flatMap(sectionItem => sectionItem.groups.flatMap(groupItem => {
   return groupItem.fields.map(item => Object.assign({}, item, {
-    sectionId: sectionItem.id,
-    sectionLabel: sectionItem.label,
+    sectionId: groupItem.id === 'informe' ? 'report' : sectionItem.id,
+    sectionLabel: groupItem.id === 'informe' ? 'Configuración del informe' : sectionItem.label,
     groupId: groupItem.id,
     groupLabel: groupItem.label,
     path: `${sectionItem.id}.${groupItem.id}.${item.id}`,
@@ -789,7 +792,7 @@ function renderSectionStatus(record) {
 
 function renderTabs() {
   sectionTabs.innerHTML = '';
-  [...SECTIONS, {id:'rating',label:'Calificación energética'}].forEach(sectionItem => {
+  [...SECTIONS, {id:'report',label:'Configuración del informe'}, {id:'rating',label:'Calificación energética'}].forEach(sectionItem => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'tab' + (sectionItem.id === state.activeSection ? ' active' : '');
@@ -851,7 +854,9 @@ function renderDetail() {
     tools.innerHTML='<button type="button" class="secondary" data-open-estimation>Parámetros y rendimiento</button><p>Revisa los parámetros de los equipos importados y recalcula su rendimiento con el módulo local de CE³X 3.2.</p>';
     sectionFields.appendChild(tools);
   }
-  sectionItem.groups.forEach(groupItem => {
+  const groups = sectionItem.groups.filter(groupItem =>
+    (groupItem.id === 'informe') === (state.activeSection === 'report'));
+  groups.forEach(groupItem => {
     const fieldset = document.createElement('fieldset');
     if (groupItem.fields.some(item => item.type === 'table')) fieldset.classList.add('table-fieldset');
     fieldset.innerHTML = `<legend>${escapeHtml(groupItem.label)}</legend>`;
@@ -864,6 +869,11 @@ function renderDetail() {
       fieldset.appendChild(wrapper);
     });
     sectionFields.appendChild(fieldset);
+    if (groupItem.id === 'informe') {
+      const note = document.createElement('p');
+      note.textContent = 'Los conjuntos de mejora calculados y su orden se revisan en CE³X antes de emitir.';
+      sectionFields.append(note);
+    }
     if(sectionItem.id==='admin'&&groupItem.id==='localizacion') {
       const tools=document.createElement('div');tools.className='reference-tools';
       let count=0;
@@ -3015,8 +3025,11 @@ async function collectDesktopXml(issuePdf = false) {
     const report = await job.getFileHandle('report.json', { create: true });
     const reportWriter = await report.createWritable();
     await reportWriter.write(JSON.stringify({
+      issueDate: record.data?.['admin.informe.fechaEmision'] || '',
       visitDate: record.data?.['admin.informe.fechaVisita'] || '',
       observations: record.data?.['admin.informe.observaciones'] || '',
+      recommendations: record.data?.['admin.informe.recomendacionesUso'] || '',
+      documentation: record.data?.['admin.informe.documentacion'] || '',
       autoSubmit: issuePdf
     }));
     await reportWriter.close();
