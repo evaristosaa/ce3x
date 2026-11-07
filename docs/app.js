@@ -3083,11 +3083,12 @@ async function collectDesktopXml(issuePdf = false) {
       throw new Error('Inicia el asistente con --watch y --auto-rate en la carpeta XML configurada.');
     });
     const jobName = 'CE3X-' + crypto.randomUUID();
-    const archive = issuePdf ? await folder.getDirectoryHandle(reference, {create: true}) : null;
+    const name = fileSafe(recordLabel(record)).slice(0, 80);
+    const archiveName = name + ' [' + reference + ']';
+    const archive = issuePdf ? await folder.getDirectoryHandle(archiveName, {create: true}) : null;
     const job = await (archive || folder).getDirectoryHandle(jobName, { create: true });
     progress('Preparando CEX');
     const text = normalizeCexLineEndings(buildCex32(await loadCex32Template(), record));
-    const name = fileSafe(recordLabel(record));
     const cex = await job.getFileHandle(name + '.cex', { create: true });
     const writer = await cex.createWritable();
     await writer.write(latin1Encode(text));
@@ -3129,7 +3130,7 @@ async function collectDesktopXml(issuePdf = false) {
         const documentXml = new DOMParser().parseFromString(await file.text(), 'application/xml');
         if (documentXml.documentElement.localName === 'DatosEnergeticosDelEdificio' &&
             !documentXml.doctype && !documentXml.getElementsByTagName('parsererror').length) {
-          downloadBlob(file, name + '.xml');
+          if (!issuePdf) downloadBlob(file, name + '.xml');
           status.textContent = 'XML recogido de CE³X. También está disponible junto al CEX.';
           result.rating = readDesktopRating(documentXml);
           const child = (parent, name) => Array.from(parent?.children || []).find(node => node.localName === name);
@@ -3144,9 +3145,8 @@ async function collectDesktopXml(issuePdf = false) {
             const stream = await handle.createWritable();
             await stream.write(pdf);
             await stream.close();
-            downloadBlob(pdf, name + '.pdf');
             progress('XML y PDF disponibles', 'CERTIFICADO_GENERADO');
-            status.textContent = 'XML y PDF guardados en ' + reference + ' / ' + jobName + '.';
+            status.textContent = 'CEX, XML y PDF guardados en ' + archiveName + ' / ' + jobName + '.';
           } else {
             document.dispatchEvent(new CustomEvent('ce3x:xml-collected', {detail: file}));
           }
