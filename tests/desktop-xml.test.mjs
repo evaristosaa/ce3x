@@ -42,7 +42,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
   await vm.runInNewContext(source.slice(start, end) + '\ncollectDesktopXml(' + issue + ')', {
     selectedRecordWithCurrentFormData: () => ({id:'example',data:{'admin.localizacion.referenciaCatastral': reference,'admin.informe.fechaVisita':'2026-11-05','admin.informe.observaciones':'Prueba'}}),
     criticalCexIssues: () => [], missingSections: () => [], renderRecords() {},
-    desktopXmlButton: button, issueDesktopReportBtn: {},
+    desktopXmlButton: button, issueDesktopReportBtn: {}, issueWithoutImprovements: {},
     desktopReportResults: results, selectedRecord: () => null,
     location: {hostname: 'evaristosaa.github.io'}, state: {config: {pdfKey: 'test'}},
     generateCertificatePdf: async file => { assert.equal(file, xml); return pdf; },
@@ -62,7 +62,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
       getFileHandle: async name => assert.equal(name, '.ce3x-xml-bridge'),
       getDirectoryHandle: async name => {
         if (issue) {
-          assert.equal(name, reference);
+          assert.equal(name, 'example [' + reference + ']');
           return {getDirectoryHandle: async nested => {
             assert.equal(nested, 'CE3X-unique');
             return job;
@@ -96,10 +96,10 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
   });
   assert.deepEqual(calls, ['example.cex', 'cex bytes', 'closed', 'report.json',
     JSON.stringify({issueDate: '', visitDate: '2026-11-05', observations: 'Prueba', recommendations: '', documentation: '', autoSubmit: issue, acceptNoImprovements: false}),
-    'closed', 'ready', 'example.xml', 'example.xml', 'download:example.xml',
-    ...(issue ? ['example.pdf', pdf, 'closed', 'download:example.pdf'] : ['prepare:pdf'])]);
+    'closed', 'ready', 'example.xml', 'example.xml',
+    ...(issue ? ['example.pdf', pdf, 'closed'] : ['download:example.xml', 'prepare:pdf'])]);
   assert.equal(button.disabled, false);
   assert.equal(results.get('example').rating[0].value, '58.03');
   assert.equal(results.get('example').rating[0].grade, 'E');
-  assert.match(status.textContent, issue ? /XML y PDF guardados/ : /XML recogido/);
+  assert.match(status.textContent, issue ? /CEX, XML y PDF guardados/ : /XML recogido/);
 });

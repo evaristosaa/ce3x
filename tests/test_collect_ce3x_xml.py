@@ -52,7 +52,9 @@ class CollectXmlTest(unittest.TestCase):
             old.mkdir()
             (old / "old.cex").write_bytes(b"old")
             (old / "ready").touch()
-            job = root / "CE3X-00000000-0000-4000-8000-000000000001"
+            archive = root / "Zaragoza [2344201XK3724S0001LD]"
+            archive.mkdir()
+            job = archive / "CE3X-00000000-0000-4000-8000-000000000001"
             project = job / "new.cex"
 
             def create_job():
