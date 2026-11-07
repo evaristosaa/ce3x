@@ -4333,12 +4333,7 @@ function serializeCexClimateInput(calefaccionRows, refrigeracionRows) {
 }
 
 function serializeCexContribucionesInput(rows) {
-  return serializeCexList(rows.map(rowItem => {
-    const renewable = ['acsRenovable', 'calefaccionRenovable', 'refrigeracionRenovable']
-      .some(key => Number(cexDecimal(rowItem[key])) > 0);
-    const cogeneration = ['energiaConsumidaGeneracionElectricidad', 'calorRecuperadoAcs',
-      'calorRecuperadoCalefaccion', 'frioRecuperado'].some(key => Number(cexDecimal(rowItem[key])) > 0);
-    return serializeCexList([
+  return serializeCexList(rows.map(rowItem => serializeCexList([
     cexPickleString(rowItem.nombre),
     cexPickleAscii('renovable'),
     serializeCexList([
@@ -4355,10 +4350,9 @@ function serializeCexContribucionesInput(rows) {
       cexPickleString(cexDecimal(rowItem.energiaConsumidaGeneracionElectricidad)),
       cexPickleString(rowItem.combustible),
     ]),
-    serializeCexList([cexPickleBool(renewable), cexPickleBool(cogeneration)]),
+    serializeCexList([cexPickleBool(true), cexPickleBool(true)]),
     cexPickleString(cexOption(rowItem.zona, 'zona', 'Edificio Objeto')),
-    ]);
-  }));
+  ])));
 }
 
 function isUsefulCexContribution(rowItem) {

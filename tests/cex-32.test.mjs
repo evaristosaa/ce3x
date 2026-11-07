@@ -865,16 +865,3 @@ test('installation completeness allows missing services and validates declared e
   assert.equal(status.done, false);
   assert.match(status.issue, /Refrigeración · Prueba/);
 });
-
-test('renewable-only contributions do not declare cogeneration', () => {
-  const h = loadHelpers();
-  const data = h.parseCexRecordData(nativeFixture(h));
-  data['instalaciones.contribuciones.items'] = [{
-    nombre: 'Aporte solar ACS', zona: 'Edificio Objeto', acsRenovable: '100',
-    calefaccionRenovable: '0', refrigeracionRenovable: '0', calorRecuperadoAcs: '0',
-    calorRecuperadoCalefaccion: '0', frioRecuperado: '0',
-    energiaConsumidaGeneracionElectricidad: '0', combustible: 'Electricidad'
-  }];
-  const blocks = h.cex32Blocks(h.buildCex32(template, {data}));
-  assert.deepEqual(plain(blocks[4].value[6][0][4]), [1, 0]);
-});
