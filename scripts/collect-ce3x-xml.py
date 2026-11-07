@@ -1,6 +1,8 @@
 """Open a trusted local CEX in CE3X and collect its newly exported XML."""
 import argparse
 import ctypes
+import datetime
+import json
 from ctypes import wintypes
 import re
 import shutil
@@ -56,6 +58,8 @@ def request_xml_options(process, project):
     user.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.DWORD))
     user.GetWindowTextW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
     user.EnumWindows.argtypes = (callback, wintypes.LPARAM)
+    user.EnumChildWindows.argtypes = (wintypes.HWND, callback, wintypes.LPARAM)
+    user.GetDlgCtrlID.argtypes = (wintypes.HWND,)
     user.SendMessageTimeoutW.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM, wintypes.UINT, wintypes.UINT, ctypes.POINTER(ctypes.c_size_t))
     user.SendMessageTimeoutW.restype = wintypes.LPARAM
     user.IsWindowEnabled.argtypes = (wintypes.HWND,)
@@ -83,10 +87,72 @@ def request_xml_options(process, project):
             result = ctypes.c_size_t()
             calculated = user.SendMessageTimeoutW(window, 0x0111, 3195, 0, 2, 120000, ctypes.byref(result))
             if calculated and user.IsWindowEnabled(window):
-                return bool(user.PostMessageW(window, 0x0111, 3200, 0))
+                if not user.PostMessageW(window, 0x0111, 3200, 0):
+                    return False
+                try:
+                    fill_report_options(user, callback, process, project)
+                except (OSError, ValueError) as error:
+                    print(f"No se pudieron rellenar las opciones XML: {error}", flush=True)
+                return True
             return False
         time.sleep(0.5)
     return False
+
+
+def fill_report_options(user, callback, process, project):
+    sidecar = project.with_name("report.json")
+    if not sidecar.is_file():
+        return
+    report = json.loads(sidecar.read_text(encoding="utf-8"))
+    values = {}
+    if report.get("visitDate"):
+        visit = datetime.date.fromisoformat(report["visitDate"])
+        values.update({140: f"{visit.day:02}", 141: f"{visit.month:02}", 142: str(visit.year)})
+    if report.get("observations"):
+        values[117] = report["observations"]
+    if not values:
+        return
+
+    dialogs = []
+    controls = {}
+
+    @callback
+    def find_dialog(hwnd, _):
+        pid = wintypes.DWORD()
+        user.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        title = ctypes.create_unicode_buffer(128)
+        if pid.value == process.pid:
+            user.GetWindowTextW(hwnd, title, len(title))
+            if title.value == "Opciones del Informe":
+                dialogs.append(hwnd)
+        return True
+
+    @callback
+    def find_control(hwnd, _):
+        key = user.GetDlgCtrlID(hwnd)
+        if key in values:
+            controls.setdefault(key, hwnd)  # The first ID 117 is the inspection notes.
+        return True
+
+    deadline = time.monotonic() + 10
+    while process.poll() is None and time.monotonic() < deadline:
+        dialogs.clear()
+        user.EnumWindows(find_dialog, 0)
+        if len(dialogs) == 1:
+            controls.clear()
+            user.EnumChildWindows(dialogs[0], find_control, 0)
+            if controls.keys() == values.keys():
+                for key, value in values.items():
+                    text = ctypes.create_unicode_buffer(value)
+                    result = ctypes.c_size_t()
+                    sent = user.SendMessageTimeoutW(controls[key], 0x000C, 0,
+                        ctypes.addressof(text), 2, 1000, ctypes.byref(result))
+                    if not sent or not result.value:
+                        raise ValueError("CE³X no confirmó el cambio de un campo.")
+                print("Datos de visita y observaciones enviados al diálogo XML.", flush=True)
+                return
+        time.sleep(0.2)
+    raise ValueError("No se encontraron los campos del diálogo XML.")
 
 
 def watch_jobs(folder, executable, auto_rate=False):

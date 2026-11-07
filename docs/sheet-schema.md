@@ -9,6 +9,8 @@ La migración `migrateSchema32()` añade columnas sin reescribir expedientes y
 crea un respaldo. `verifySchema32()` comprueba el esquema y la fragmentación.
 Extensión de revisión (6 noviembre 2026): columna 104, CZ `revision.campos`. Las 103 columnas anteriores conservan su posición. `migrateSchema32()` crea una copia antes de añadirla. Apps Script privado: versión 27, misma URL de conexión, con señales `referenceWriteVersion: 1` y `reviewWriteVersion: 1`.
 
+Datos del informe (7 noviembre 2026): columnas 105 y 106 para fecha de visita y observaciones. Antes de publicar la app, actualiza el Apps Script privado, ejecuta `migrateSchema32()` para añadirlas con copia previa y actualiza la implementación web existente. Reinicia el asistente local para que lea los datos del informe de los trabajos nuevos.
+
 Validación de integración: CEX sintético importado por la app; NIF cambiado y
 guardado; recarga recuperada desde Google y comprobación de las columnas nuevas.
 Esto valida captura y persistencia; no sustituye el cálculo energético.

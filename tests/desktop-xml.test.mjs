@@ -16,7 +16,7 @@ test('desktop XML handoff publishes readiness after writing the CEX and download
   const job = {
     async getFileHandle(name, options) {
       calls.push(name);
-      if (name === 'example.cex') {
+      if (name === 'example.cex' || name === 'report.json') {
         assert.equal(options.create, true);
         return {createWritable: async () => ({
           write: async content => calls.push(content),
@@ -37,7 +37,7 @@ test('desktop XML handoff publishes readiness after writing the CEX and download
     }
   };
   await vm.runInNewContext(source.slice(start, end) + '\ncollectDesktopXml()', {
-    selectedRecordWithCurrentFormData: () => ({}),
+    selectedRecordWithCurrentFormData: () => ({data:{'admin.informe.fechaVisita':'2026-11-05','admin.informe.observaciones':'Prueba'}}),
     criticalCexIssues: () => [],
     desktopXmlButton: button,
     CustomEvent: class {
@@ -77,7 +77,7 @@ test('desktop XML handoff publishes readiness after writing the CEX and download
     },
     setTimeout: callback => callback()
   });
-  assert.deepEqual(calls, ['example.cex', 'cex bytes', 'closed', 'ready', 'example.xml', 'example.xml', 'download:example.xml', 'prepare:pdf']);
+  assert.deepEqual(calls, ['example.cex', 'cex bytes', 'closed', 'report.json', '{"visitDate":"2026-11-05","observations":"Prueba"}', 'closed', 'ready', 'example.xml', 'example.xml', 'download:example.xml', 'prepare:pdf']);
   assert.equal(button.disabled, false);
   assert.match(status.textContent, /XML recogido/);
 });

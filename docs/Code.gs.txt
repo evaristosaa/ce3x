@@ -24,6 +24,7 @@ const LEGACY_RAW_JSON_HEADERS = [
   'rawJson19',
   'rawJson20',
 ];
+const REPORT_DATA_PATHS = ['admin.informe.fechaVisita', 'admin.informe.observaciones'];
 const SCALAR_DATA_PATHS = [
   'cex.sourceVersion',
   'cex.nativeInputs',
@@ -78,7 +79,7 @@ const SCALAR_DATA_PATHS = [
   'catastro.superficiePlantaMayor',
   'catastro.parcelasColindantes',
   'catastro.fachadasExpuestas',
-];
+].concat(REPORT_DATA_PATHS);
 const JSON_DATA_PATHS = [
   'revision.campos',
   'envolvente.cerramientos.items',
@@ -132,12 +133,13 @@ const BASE_HEADERS = [
 const CEX32_DATA_PATHS = ['cex.sourceVersion', 'cex.nativeInputs',
   'admin.localizacion.gradoProteccion', 'admin.localizacion.usoEdificio', 'admin.cliente.nif'];
 const HEADERS = BASE_HEADERS.concat(
-  SCALAR_DATA_PATHS.filter(path => CEX32_DATA_PATHS.indexOf(path) < 0),
+  SCALAR_DATA_PATHS.filter(path => !CEX32_DATA_PATHS.includes(path) && !REPORT_DATA_PATHS.includes(path)),
   JSON_DATA_PATHS.filter(path=>path!=='revision.campos'),
   LONG_TEXT_CHUNK_HEADERS.filter(path => path.indexOf('cex.nativeInputs#') !== 0),
   CEX32_DATA_PATHS,
   LONG_TEXT_CHUNK_HEADERS.filter(path => path.indexOf('cex.nativeInputs#') === 0),
-  ['revision.campos']
+  ['revision.campos'],
+  REPORT_DATA_PATHS
 );
 
 function setup() {
