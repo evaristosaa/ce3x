@@ -1,8 +1,10 @@
 """Open a trusted local CEX in CE3X and collect its newly exported XML."""
 import argparse
+import base64
 import ctypes
 import datetime
 import json
+import os
 from ctypes import wintypes
 import re
 import shutil
@@ -161,54 +163,88 @@ def fill_report_options(user, callback, process, project):
                 if auto_submit and not user.PostMessageW(controls[121], 0x00F5, 0, 0):
                     raise ValueError("No se pudo solicitar Generar XML.")
                 if auto_submit and report.get("acceptNoImprovements") is True:
-                    accept_missing_improvements(user, callback, process, project)
+                    accept_missing_improvements(process, project)
                 return
         time.sleep(0.2)
     raise ValueError("No se encontraron los campos del diálogo XML.")
 
 
-def accept_missing_improvements(user, callback, process, project):
-    notice = ("No ha seleccionado ningún conjunto de mejoras para su edificio. "
-              "Si no rellena quiere decir que considera que no hay mejora.")
-    matches = []
-    buttons = []
-
-    @callback
-    def inspect_child(hwnd, _):
-        text = ctypes.create_unicode_buffer(512)
-        result = ctypes.c_size_t()
-        user.SendMessageTimeoutW(hwnd, 0x000D, len(text), ctypes.addressof(text), 2, 250,
-                                 ctypes.byref(result))
-        normalized = " ".join(text.value.split())
-        if normalized == notice:
-            matches.append(hwnd)
-        if normalized in ("OK", "Aceptar"):
-            buttons.append(hwnd)
-        return True
-
-    @callback
-    def inspect_window(hwnd, _):
-        pid = wintypes.DWORD()
-        user.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-        if pid.value != process.pid:
-            return True
-        title = ctypes.create_unicode_buffer(128)
-        user.GetWindowTextW(hwnd, title, len(title))
-        if title.value != "Aviso":
-            return True
-        matches.clear()
-        buttons.clear()
-        user.EnumChildWindows(hwnd, inspect_child, 0)
-        if len(matches) == 1 and len(buttons) == 1 and user.PostMessageW(buttons[0], 0x00F5, 0, 0):
-            print("Aviso de conjuntos de mejora aceptado según la confirmación de la app.", flush=True)
-            return False
-        return True
-
-    deadline = time.monotonic() + 120
-    while process.poll() is None and time.monotonic() < deadline:
-        if project.with_suffix(".xml").exists() or not user.EnumWindows(inspect_window, 0):
-            return
-        time.sleep(0.2)
+def accept_missing_improvements(process, project):
+    # CE³X uses a Windows Task Dialog. Its content and button can be virtual
+    # accessibility elements rather than child HWNDs.
+    script = r"""
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+$root = [System.Windows.Automation.AutomationElement]::RootElement
+$scope = [System.Windows.Automation.TreeScope]
+$element = [System.Windows.Automation.AutomationElement]
+$condition = [System.Windows.Automation.Condition]::TrueCondition
+$pidFilter = [System.Windows.Automation.PropertyCondition]::new($element::ProcessIdProperty, [int]$env:CE3X_NOTICE_PID)
+$noticeFilter = [System.Windows.Automation.AndCondition]::new(
+    [System.Windows.Automation.PropertyCondition]::new($element::NameProperty, 'Aviso'),
+    [System.Windows.Automation.PropertyCondition]::new($element::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
+)
+$notice = 'No ha seleccionado ningún conjunto de mejoras para su edificio. Si no rellena quiere decir que considera que no hay mejora.'
+$deadline = [DateTime]::UtcNow.AddSeconds(120)
+while ([DateTime]::UtcNow -lt $deadline -and !(Test-Path -LiteralPath $env:CE3X_NOTICE_XML)) {
+    $dialogs = foreach ($window in $root.FindAll($scope::Children, $pidFilter)) {
+        if ($window.Current.Name -eq 'Aviso') { $window }
+        else { $window.FindAll($scope::Descendants, $noticeFilter) }
+    }
+    foreach ($dialog in $dialogs) {
+        try {
+            if ($dialog.Current.Name -ne 'Aviso') { continue }
+            $children = $dialog.FindAll($scope::Descendants, $condition)
+            $message = @($children | Where-Object { $_.Current.AutomationId -eq 'ContentText' -and ($_.Current.Name -replace '\s+', ' ').Trim() -ceq $notice })
+            $buttons = @($children | Where-Object {
+                $_.Current.AutomationId -eq 'CommandButton_2' -and
+                $_.Current.Name -cin @('OK', 'Aceptar') -and $_.Current.IsEnabled
+            })
+            if ($message.Count -eq 1 -and $buttons.Count -eq 1) {
+                $pattern = $null
+                if ($buttons[0].TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
+                    $pattern.Invoke()
+                    exit 0
+                }
+                if ($buttons[0].Current.NativeWindowHandle -ne 0) {
+                    $buttons[0].Current.NativeWindowHandle
+                    exit 2
+                }
+            }
+        } catch [System.Windows.Automation.ElementNotAvailableException] {}
+    }
+    Start-Sleep -Milliseconds 300
+}
+exit 1
+"""
+    env = dict(os.environ, CE3X_NOTICE_PID=str(process.pid),
+               CE3X_NOTICE_XML=str(project.with_suffix(".xml")))
+    command = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+    try:
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", command],
+            env=env, capture_output=True, timeout=125, creationflags=subprocess.CREATE_NO_WINDOW,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        print(f"No se pudo comprobar el aviso de mejoras: {error}", flush=True)
+        return
+    accepted = result.returncode == 0
+    if result.returncode == 2:
+        try:
+            button = int(result.stdout.strip())
+            user = ctypes.WinDLL("user32", use_last_error=True)
+            user.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.DWORD))
+            user.PostMessageW.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+            pid = wintypes.DWORD()
+            user.GetWindowThreadProcessId(button, ctypes.byref(pid))
+            accepted = pid.value == process.pid and bool(user.PostMessageW(button, 0x00F5, 0, 0))
+        except ValueError:
+            pass
+    if accepted:
+        print("Aviso de conjuntos de mejora aceptado según la confirmación de la app.", flush=True)
+    elif not project.with_suffix(".xml").exists():
+        print("CE³X no confirmó el aviso automáticamente. Revisa su ventana.", flush=True)
 
 
 def job_directories(folder):
