@@ -82,6 +82,7 @@ const SCALAR_DATA_PATHS = [
   'catastro.fachadasExpuestas',
 ].concat(REPORT_DATA_PATHS);
 const JSON_DATA_PATHS = [
+  'informe.ultimaEmision',
   'revision.campos',
   'envolvente.cerramientos.items',
   'envolvente.huecos.items',
@@ -135,12 +136,13 @@ const CEX32_DATA_PATHS = ['cex.sourceVersion', 'cex.nativeInputs',
   'admin.localizacion.gradoProteccion', 'admin.localizacion.usoEdificio', 'admin.cliente.nif'];
 const HEADERS = BASE_HEADERS.concat(
   SCALAR_DATA_PATHS.filter(path => !CEX32_DATA_PATHS.includes(path) && !REPORT_DATA_PATHS.includes(path)),
-  JSON_DATA_PATHS.filter(path=>path!=='revision.campos'),
+  JSON_DATA_PATHS.filter(path=>!['revision.campos','informe.ultimaEmision'].includes(path)),
   LONG_TEXT_CHUNK_HEADERS.filter(path => path.indexOf('cex.nativeInputs#') !== 0),
   CEX32_DATA_PATHS,
   LONG_TEXT_CHUNK_HEADERS.filter(path => path.indexOf('cex.nativeInputs#') === 0),
   ['revision.campos'],
-  REPORT_DATA_PATHS
+  REPORT_DATA_PATHS,
+  ['informe.ultimaEmision']
 );
 
 function setup() {

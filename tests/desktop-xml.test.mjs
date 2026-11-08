@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 for (const issue of [false, true]) test(issue ? 'issue files are archived under the reference and XML supplies the rating' : 'desktop XML handoff publishes readiness and downloads the new XML', async () => {
   const source = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
-  const start = source.indexOf('function renderDesktopReportFlow(');
+  const start = source.indexOf('function certificateResult(');
   const end = source.indexOf('async function loadCex32Template()', start);
   assert.ok(start >= 0 && end > start);
   const calls = [];
@@ -15,25 +15,30 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
   const pdf = new Blob(['%PDF-1.7']);
   const reference = '00000000000000000000';
   const results = new Map();
+  const stem = issue ? 'example_1970-01-01-00-00-00_CE3X-unique' : 'example';
+  const sidecar = issue ? stem + '.report.json' : 'report.json';
+  const ready = issue ? stem + '.ready' : 'ready';
+  let saved;
+  const record = {id:'example',data:{'admin.localizacion.referenciaCatastral': reference,'admin.informe.fechaVisita':'2026-11-05','admin.informe.observaciones':'Prueba'}};
   const operationMessages = [];
   let firstRead = true;
   let elapsed = 0;
   const job = {
     async getFileHandle(name, options) {
       calls.push(name);
-      if (name === 'example.cex' || name === 'report.json' || name === 'example.pdf') {
+      if (name === stem + '.cex' || name === sidecar || name === stem + '.pdf') {
         assert.equal(options.create, true);
         return {createWritable: async () => ({
           write: async content => calls.push(content),
           close: async () => calls.push('closed')
         })};
       }
-      if (name === 'ready') {
+      if (name === ready) {
         assert.equal(options.create, true);
         assert.equal(calls.at(-2), 'closed');
         return {};
       }
-      assert.equal(name, 'example.xml');
+      assert.equal(name, stem + '.xml');
       if (firstRead) {
         firstRead = false;
         throw Object.assign(new Error(), {name: 'NotFoundError'});
@@ -42,12 +47,14 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
     }
   };
   await vm.runInNewContext(source.slice(start, end) + '\ncollectDesktopXml(' + issue + ')', {
-    selectedRecordWithCurrentFormData: () => ({id:'example',data:{'admin.localizacion.referenciaCatastral': reference,'admin.informe.fechaVisita':'2026-11-05','admin.informe.observaciones':'Prueba'}}),
+    selectedRecordWithCurrentFormData: () => record,
+    renderDetail() {},
+    saveLocalWorkspace: next => { saved = next; },
     criticalCexIssues: () => [], missingSections: () => [], renderRecords() {},
     desktopXmlButton: button, issueDesktopReportBtn: {}, issueWithoutImprovements: {},
     showOperation: (title, message, busy = true) => operationMessages.push({title, message, busy}),
     desktopReportResults: results, selectedRecord: () => null,
-    location: {hostname: 'evaristosaa.github.io'}, state: {config: {pdfKey: 'test'}},
+    location: {hostname: 'evaristosaa.github.io'}, state: {config: {pdfKey: 'test'}, records: [record]},
     generateCertificatePdf: async file => { assert.equal(file, xml); return pdf; },
     CustomEvent: class {
       constructor(type, {detail}) { Object.assign(this, {type, detail}); }
@@ -62,14 +69,11 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
     },
     xmlFolderSetting: async () => ({
       queryPermission: async () => 'granted',
-      getFileHandle: async name => assert.equal(name, '.ce3x-xml-bridge'),
+      getFileHandle: async name => assert.equal(name, issue ? '.ce3x-xml-bridge-v2' : '.ce3x-xml-bridge'),
       getDirectoryHandle: async name => {
         if (issue) {
           assert.equal(name, 'example [' + reference + ']');
-          return {getDirectoryHandle: async nested => {
-            assert.equal(nested, 'CE3X-unique');
-            return job;
-          }};
+          return job;
         }
         assert.equal(name, 'CE3X-unique');
         return job;
@@ -95,13 +99,19 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
       assert.equal(file, name.endsWith('.pdf') ? pdf : xml);
       calls.push('download:' + name);
     },
-    Date: {now: () => elapsed},
+    Date: Object.assign(class extends Date {}, {now: () => elapsed}),
     setTimeout: callback => { elapsed += 7 * 60 * 1000; callback(); }
   });
-  assert.deepEqual(calls, ['example.cex', 'cex bytes', 'closed', 'report.json',
+  assert.deepEqual(calls, [stem + '.cex', 'cex bytes', 'closed', sidecar,
     JSON.stringify({issueDate: '', visitDate: '2026-11-05', observations: 'Prueba', recommendations: '', documentation: '', autoSubmit: issue, acceptNoImprovements: false}),
-    'closed', 'ready', 'example.xml', 'example.xml',
-    ...(issue ? ['example.pdf', pdf, 'closed'] : ['download:example.xml', 'prepare:pdf'])]);
+    'closed', ready, stem + '.xml', stem + '.xml',
+    ...(issue ? [stem + '.pdf', pdf, 'closed'] : ['download:example.xml', 'prepare:pdf'])]);
+  if (issue) {
+    const latest = saved.data['informe.ultimaEmision'];
+    assert.equal(latest.name, stem);
+    assert.equal(latest.folder, 'example [' + reference + ']');
+    assert.equal(latest.rating[0].grade, 'E');
+  }
   assert.equal(button.disabled, false);
   assert.equal(elapsed, 7 * 60 * 1000);
   assert.equal(operationMessages[0].busy, true);
@@ -109,4 +119,19 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
   assert.equal(results.get('example').rating[0].value, '58.03');
   assert.equal(results.get('example').rating[0].grade, 'E');
   assert.match(status.textContent, issue ? /CEX, XML y PDF guardados/ : /XML recogido/);
+});
+
+
+test('home state uses the persisted certificate after reload', () => {
+  const source = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
+  const getFunction = (name, next) => source.slice(source.indexOf('function ' + name + '('), source.indexOf(next));
+  const context = vm.createContext({inferStatus: record => record.estado});
+  vm.runInContext(getFunction('displayRecordStatus', 'function inferStatus(')
+    + getFunction('certificateResult', 'async function openCertificateFolder('), context);
+  const persisted = {estado: 'COMPLETA', data: {
+    'informe.ultimaEmision': {folder: 'Zaragoza', name: 'Zaragoza_v2', rating: []}
+  }};
+  assert.equal(context.displayRecordStatus(JSON.parse(JSON.stringify(persisted))), 'CERTIFICADO_GENERADO');
+  assert.equal(context.displayRecordStatus({estado: 'COMPLETA'}), 'COMPLETA');
+  assert.equal(context.displayRecordStatus({estado: 'BORRADOR'}), 'PENDIENTE_DATOS');
 });

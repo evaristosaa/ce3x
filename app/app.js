@@ -630,7 +630,7 @@ function normalizeRecord(record) {
   const normativa = normativaVigenteDesdeAnio(data['generales.datos.anioConstruccion']);
   if (normativa) data['generales.datos.normativaVigente'] = normativa;
   const next = Object.assign({}, record, { data });
-  next.estado = inferStatus(next);
+  next.estado = certificateResult(next) ? "CERTIFICADO_GENERADO" : inferStatus(next);
   return next;
 }
 
@@ -835,7 +835,7 @@ function renderDetail() {
   sectionFields.innerHTML = '';
   renderDesktopReportFlow(record?.id);
   if (state.activeSection === 'rating') {
-    const result = desktopReportResults.get(record?.id);
+    const result = certificateResult(record) || desktopReportResults.get(record?.id);
     const title = document.createElement('h3');
     title.textContent = 'Calificación energética · CE³X 3.2';
     sectionFields.append(title);
@@ -1915,7 +1915,7 @@ async function persistRecord(record,options={}) {
   next.id = next.id || createId();
   next.createdAt = next.createdAt || now;
   next.updatedAt = now;
-  next.estado = inferStatus(next);
+  next.estado = certificateResult(next) ? "CERTIFICADO_GENERADO" : inferStatus(next);
   addSummaryFields(next);
 
   await prepareReviewWrite(next,FLAT_FIELDS.map(item=>item.path),options,now);
@@ -1939,7 +1939,7 @@ async function persistRecordPatch(record, changedPaths, options = {}) {
   next.id = next.id || createId();
   next.createdAt = next.createdAt || now;
   next.updatedAt = now;
-  next.estado = inferStatus(next);
+  next.estado = certificateResult(next) ? "CERTIFICADO_GENERADO" : inferStatus(next);
   addSummaryFields(next);
 
   changedPaths=await prepareReviewWrite(next,changedPaths,options,now);
@@ -2772,12 +2772,9 @@ function completionLabel(status) {
 }
 
 function statusLabel(status) {
-  if (status === 'CERTIFICADO_GENERADO') return 'XML y PDF disponibles';
-  if (status === 'XML_GENERADO') return 'XML disponible';
-  if (status === 'CEX_GENERADO') return 'CEX preparado';
+  if (status === 'CERTIFICADO_GENERADO') return 'CEX, XML y PDF disponibles';
   if (status === 'COMPLETA') return 'Datos completos';
-  if (status === 'PENDIENTE_DATOS') return 'En curso';
-  return 'Pendiente';
+  return 'En curso';
 }
 
 function missingSections(record) {
@@ -2785,8 +2782,8 @@ function missingSections(record) {
 }
 
 function displayRecordStatus(record) {
-  const result = desktopReportResults.get(record.id);
-  return result?.output || inferStatus(record);
+  if (certificateResult(record)) return 'CERTIFICADO_GENERADO';
+  return inferStatus(record) === 'COMPLETA' ? 'COMPLETA' : 'PENDIENTE_DATOS';
 }
 
 function inferStatus(record) {
@@ -3036,12 +3033,67 @@ async function downloadCex() {
   }
 }
 
+function certificateResult(record) {
+  const result = record?.data?.['informe.ultimaEmision'];
+  return result?.folder && result?.name && Array.isArray(result.rating) ? result : null;
+}
+
+async function openCertificateFolder() {
+  const result = certificateResult(selectedRecord());
+  if (!result) return;
+  const dialog = document.querySelector('#certificateFolderDialog');
+  const files = document.querySelector('#certificateFolderFiles');
+  document.querySelector('#certificateFolderPath').textContent = result.folder;
+  files.replaceChildren();
+  dialog.showModal();
+  try {
+    const root = await xmlFolderSetting();
+    if (!root || await root.requestPermission({mode: 'read'}) !== 'granted') {
+      throw new Error('Autoriza la carpeta de trabajo en Configuración.');
+    }
+    const folder = await root.getDirectoryHandle(result.folder);
+    for (const extension of ['cex', 'xml', 'pdf']) {
+      const name = result.name + '.' + extension;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = 'Descargar ' + extension.toUpperCase();
+      button.onclick = async () => {
+        try {
+          const file = await (await folder.getFileHandle(name)).getFile();
+          downloadBlob(file, name);
+        } catch {
+          showOperation('Archivo no disponible', 'Comprueba que ' + name + ' sigue en la carpeta del expediente.', false);
+        }
+      };
+      files.append(button, ' ');
+    }
+  } catch (error) {
+    files.textContent = error.name === 'NotFoundError'
+      ? 'Esta carpeta no está en la ubicación configurada en este equipo.'
+      : error.message;
+  }
+}
+
+async function saveCertificateResult(record, result) {
+  const dataPatch = {'informe.ultimaEmision': result};
+  if (!state.config.apiUrl) {
+    const current = state.records.find(item => item.id === record.id) || record;
+    saveLocalWorkspace({...current, estado: 'CERTIFICADO_GENERADO', data: {...current.data, ...dataPatch}});
+    return;
+  }
+  await api({action: 'patch', id: record.id, dataPatch, item: {estado: 'CERTIFICADO_GENERADO'}});
+  upsertRecord(await verifyPatchSaved(record.id, dataPatch));
+}
+
 function renderDesktopReportFlow(id) {
   const node = document.querySelector('#desktopReportFlow');
   const result = desktopReportResults.get(id);
+  const saved = certificateResult(selectedRecord());
+  document.querySelector('#openCertificateFolder').hidden = !saved;
   node.hidden = !id;
   node.textContent = result
     ? 'Informe · ' + result.stage
+    : saved ? 'Informe · CEX, XML y PDF disponibles'
     : 'Expediente → Revisión técnica → Cálculo CE³X → XML → PDF';
 }
 
@@ -3105,7 +3157,14 @@ async function collectDesktopXml(issuePdf = false) {
     if (output) result.output = output;
     desktopReportResults.set(record.id, result);
     renderDesktopReportFlow(selectedRecord()?.id);
-    if (output) renderRecords();
+    if (output === 'CERTIFICADO_GENERADO') {
+      renderRecords();
+      const current = selectedRecord();
+      if (current?.id === record.id) {
+        recordBadge.textContent = statusLabel(output);
+        recordBadge.className = 'badge ' + output;
+      }
+    }
   };
   desktopXmlButton.disabled = true;
   issueDesktopReportBtn.disabled = true;
@@ -3115,21 +3174,25 @@ async function collectDesktopXml(issuePdf = false) {
     if (!folder || await folder.queryPermission({ mode: 'readwrite' }) !== 'granted') {
       throw new Error('Elige o vuelve a autorizar la carpeta XML en Configuración.');
     }
-    await folder.getFileHandle('.ce3x-xml-bridge').catch(() => {
-      throw new Error('Inicia el asistente con --watch y --auto-rate en la carpeta XML configurada.');
+    await folder.getFileHandle(issuePdf ? '.ce3x-xml-bridge-v2' : '.ce3x-xml-bridge').catch(() => {
+      throw new Error('Actualiza e inicia el asistente con --watch y --auto-rate en la carpeta XML configurada.');
     });
     const jobName = 'CE3X-' + crypto.randomUUID();
-    const name = fileSafe(recordLabel(record)).slice(0, 80);
-    const archiveName = name + ' [' + reference + ']';
+    const label = fileSafe(recordLabel(record)).slice(0, 80);
+    const archiveName = certificateResult(record)?.folder || label + ' [' + reference + ']';
+    const version = issuePdf ? new Date(Date.now()).toISOString().slice(0, 19).replace(/[:T]/g, '-') : '';
+    const name = issuePdf ? label.slice(0, 32) + '_' + version + '_' + jobName : label;
     const archive = issuePdf ? await folder.getDirectoryHandle(archiveName, {create: true}) : null;
-    const job = await (archive || folder).getDirectoryHandle(jobName, { create: true });
+    const job = archive || await folder.getDirectoryHandle(jobName, { create: true });
+    const sidecar = issuePdf ? name + '.report.json' : 'report.json';
+    const ready = issuePdf ? name + '.ready' : 'ready';
     progress('Preparando CEX');
     const text = normalizeCexLineEndings(buildCex32(await loadCex32Template(), record));
     const cex = await job.getFileHandle(name + '.cex', { create: true });
     const writer = await cex.createWritable();
     await writer.write(latin1Encode(text));
     await writer.close();
-    const report = await job.getFileHandle('report.json', { create: true });
+    const report = await job.getFileHandle(sidecar, { create: true });
     const reportWriter = await report.createWritable();
     await reportWriter.write(JSON.stringify({
       issueDate: record.data?.['admin.informe.fechaEmision'] || '',
@@ -3143,19 +3206,19 @@ async function collectDesktopXml(issuePdf = false) {
     await reportWriter.close();
     if (issuePdf && issueWithoutImprovements) issueWithoutImprovements.checked = false;
     if (issuePdf) {
-      for (const [key, label] of [['imagenEdificio', 'fachada'], ['planoSituacion', 'plano']]) {
+      for (const [key, imageLabel] of [['imagenEdificio', 'fachada'], ['planoSituacion', 'plano']]) {
         const image = record.data?.['generales.definicion.' + key];
         if (typeof image !== 'string' || !/^data:image\/(png|jpeg);base64,/i.test(image)) continue;
         const blob = await (await fetch(image)).blob();
-        const handle = await job.getFileHandle(label + (blob.type === 'image/png' ? '.png' : '.jpg'), {create: true});
+        const handle = await job.getFileHandle(name + '_' + imageLabel + (blob.type === 'image/png' ? '.png' : '.jpg'), {create: true});
         const stream = await handle.createWritable();
         await stream.write(blob);
         await stream.close();
       }
     }
-    await job.getFileHandle("ready", { create: true });
+    await job.getFileHandle(ready, { create: true });
     progress('Generando XML y PDF · esperando a CE³X', 'CEX_GENERADO');
-    status.textContent = 'CEX preparado en ' + jobName + '. El asistente abrirá CE³X. Confirma allí las opciones del informe; la app espera hasta veinte minutos.';
+    status.textContent = 'CEX preparado en ' + (issuePdf ? archiveName : jobName) + '. El asistente abrirá CE³X. Confirma allí las opciones del informe; la app espera hasta veinte minutos.';
 
     showOperation(operationTitle, 'Esperando el XML de CE³X (hasta 20 minutos). Si CE³X muestra un aviso que requiere revisión, atiéndelo allí.');
     const deadline = Date.now() + 20 * 60 * 1000;
@@ -3183,8 +3246,18 @@ async function collectDesktopXml(issuePdf = false) {
             const stream = await handle.createWritable();
             await stream.write(pdf);
             await stream.close();
-            progress('XML y PDF disponibles', 'CERTIFICADO_GENERADO');
-            status.textContent = 'CEX, XML y PDF guardados en ' + archiveName + ' / ' + jobName + '.';
+            status.textContent = 'CEX, XML y PDF guardados en ' + archiveName + '.';
+            try {
+              await saveCertificateResult(record, {
+                folder: archiveName, name, rating: result.rating, scale: result.scale
+              });
+            } catch (error) {
+              progress('Archivos guardados; resultado sin confirmar');
+              showOperation('Archivos guardados', status.textContent + ' No se pudo confirmar el resultado en el expediente. ' + error.message, false);
+              return;
+            }
+            progress('CEX, XML y PDF disponibles', 'CERTIFICADO_GENERADO');
+            if (state.activeSection === 'rating') renderDetail();
             showOperation('CEX, XML y PDF guardados', status.textContent, false);
           } else {
             document.querySelector('#operationDialog').close();
@@ -3198,7 +3271,7 @@ async function collectDesktopXml(issuePdf = false) {
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
     progress('Tiempo de espera agotado');
-    status.textContent = 'Terminó la espera. Si exportas el XML después, estará junto al CEX en ' + jobName + '.';
+    status.textContent = 'Terminó la espera. Si exportas el XML después, estará junto al CEX en ' + (issuePdf ? archiveName : jobName) + '.';
     showOperation('CE³X no ha devuelto el XML a tiempo', status.textContent, false);
   } catch (error) {
     progress(result.rating ? 'XML recibido · PDF pendiente' : 'Trabajo pendiente');

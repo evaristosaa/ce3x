@@ -76,3 +76,18 @@ class CollectXmlTest(unittest.TestCase):
                     with self.assertRaises(KeyboardInterrupt):
                         collector.watch_jobs(root, executable)
                 start.assert_called_once_with([str(executable), str(project)], cwd=root)
+
+
+    def test_flat_jobs_use_versioned_markers_in_the_expedient_folder(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            archive = root / "Zaragoza [2344201XK3724S0001LD]"
+            archive.mkdir()
+            name = "Zaragoza_2026-11-08-10-45-00_CE3X-00000000-0000-4000-8000-000000000001"
+            project = archive / (name + ".cex")
+            project.write_bytes(b"project")
+            self.assertEqual(list(collector.flat_projects(root)), [])
+            project.with_suffix(".ready").touch()
+            self.assertEqual(list(collector.flat_projects(root)), [project])
+            (archive / "unrelated.ready").touch()
+            self.assertEqual(list(collector.flat_projects(root)), [project])
