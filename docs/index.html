@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Cache-Control" content="no-store">
   <title>CE3X Captura</title>
-  <link rel="stylesheet" href="styles.css?v=20261108-report-preflight">
+  <link rel="stylesheet" href="styles.css?v=20261108-acs-tank">
   <link rel="stylesheet" href="workspace.css?v=20261103-ce3x32">
 </head>
 <body>
@@ -260,7 +260,7 @@
       <span class="eyebrow">ENVOLVENTE TÉRMICA</span>
       <h2 id="solarTitle">Protecciones solares</h2>
       <p class="dialog-help">Edita voladizos y retranqueos. Los factores se calculan en el navegador y se incorporan al CEX. El cálculo energético completo del edificio sigue siendo necesario.</p>
-      <label>Hueco<select id="solarWindow"></select></label>
+      <label>Aplicar a<select id="solarWindow"></select></label>
       <p id="solarOrientation"></p>
       <p class="dialog-help">Medidas en metros: L es el vuelo horizontal; D, la separación vertical entre el hueco y el voladizo; H, la altura del hueco; W, su anchura; R, la profundidad del retranqueo. Si hay retranqueo, mide L desde el centro del acristalamiento.</p>
       <div id="solarFields"></div>
@@ -272,8 +272,8 @@
   <dialog id="windowDialog" aria-labelledby="windowTitle">
     <form id="windowForm" novalidate>
       <span class="eyebrow">ENVOLVENTE TÉRMICA</span>
-      <h2 id="windowTitle">Propiedades térmicas del hueco</h2>
-      <label>Hueco<select id="windowSelector"></select></label>
+      <h2 id="windowTitle">Propiedades térmicas de huecos</h2>
+      <label>Aplicar a<select id="windowSelector"></select></label>
       <label>Modo de definición<select id="windowMode"><option>Conocidas</option><option>Estimadas</option></select></label>
       <p class="dialog-help">Conocidas: introduce valores respaldados por documentación o ensayos. Estimadas: elige vidrio y marco para calcular sus valores. Completa el porcentaje de marco y su absortividad en la tabla.</p>
       <fieldset id="windowKnownFields"><legend>Valores de la ventana antes de añadir doble ventana</legend>
@@ -292,22 +292,22 @@
       <div class="form-actions"><button id="saveWindowBtn" type="submit">Guardar propiedades</button><button id="closeWindowBtn" type="button" class="secondary">Cerrar</button></div>
     </form>
   </dialog>
-  <script src="window-model.js?v=20261106-window"></script>
+  <script src="window-model.js?v=20261108-window-bulk"></script>
   <script src="solar-tables.js?v=20261106-window"></script>
-  <script src="solar-model.js?v=20261106-window"></script>
+  <script src="solar-model.js?v=20261108-solar-bulk"></script>
   <script src="reports.js?v=20261107-issue-flow"></script>
-  <script src="cex-import.js?v=20261106-window"></script>
+  <script src="cex-import.js?v=20261108-acs-tank"></script>
   <script src="ce3x-locations.js?v=20261106-window"></script>
-  <script src="cex-32.js?v=20261108-report-preflight"></script>
+  <script src="cex-32.js?v=20261108-acs-tank"></script>
   <script src="estimation-model.js?v=20261106-window"></script>
   <script src="review-model.js?v=20261106-window"></script>
   <script src="workspace.js?v=20261108-certificate-versions"></script>
-  <script src="app.js?v=20261108-report-preflight"></script>
+  <script src="app.js?v=20261108-solar-bulk"></script>
   <script src="estimation-ui.js?v=20261108-report-preflight"></script>
   <script src="references-ui.js?v=20261106-window"></script>
   <script src="review-ui.js?v=20261106-window"></script>
-  <script src="solar-ui.js?v=20261106-window"></script>
-  <script src="window-ui.js?v=20261106-window"></script>
+  <script src="solar-ui.js?v=20261108-solar-bulk"></script>
+  <script src="window-ui.js?v=20261108-solar-bulk"></script>
 </body>
 </html>
 

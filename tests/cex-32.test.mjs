@@ -16,7 +16,7 @@ export function loadHelpers() {
   const source = ['cex-import.js','cex-32.js','estimation-model.js','review-model.js','solar-tables.js','solar-model.js','window-model.js'].map(name=>readFileSync(new URL('../app/'+name,import.meta.url),'utf8')).join('\n');
   vm.runInContext(source+'\n'+app+'\nglobalThis.h={parseCexRecordData,buildCex32,cex32Blocks,cex32Serialize,normalizeRecord,cex32Snapshot,selectHtml,selectCellHtml,estimationGroups,estimationStore,estimationRequest,estimationSignature,copySectionsData,copySectionPaths,cex32ReferenceList,cex32SetReferences,recordReferences,recordsMatchingReference,recordSearchText,cex32NewEquipmentIssue,sectionCompletion};',context);
   vm.runInContext('Object.assign(globalThis.h,{reviewStamp,reviewStatus,reviewCheck,reviewUncheck,reviewDigest,prepareReviewWrite,cex32BridgeOrigins,setReviewState:(records)=>{state.records=records;state.config.apiUrl="";},setReviewTransport:(transport)=>{api=transport;state.config.apiUrl="https://example.test/exec";}});',context);
-  vm.runInContext('Object.assign(globalThis.h,{solarCalculate,solarApply,solarBlank,solarNativeSettings,solarRowSettings,cexWallOrientation,windowCalculate,windowStore,windowApply,windowRowSettings});',context);
+  vm.runInContext('Object.assign(globalThis.h,{solarCalculate,solarApply,solarStoreMany,solarBlank,solarNativeSettings,solarRowSettings,cexWallOrientation,windowCalculate,windowStore,windowStoreMany,windowApply,windowRowSettings});',context);
   return context.h;
 }
 
@@ -886,4 +886,67 @@ test('renewable-only contributions do not declare cogeneration', () => {
   }];
   const blocks = h.cex32Blocks(h.buildCex32(template, {data}));
   assert.deepEqual(plain(blocks[4].value[6][0][4]), [1, 0]);
+});
+
+
+test('ACS tank survives Sheets storage and CE3X export and import', () => {
+  const h=loadHelpers();
+  const {storage}=loadStorageWriteHelpers([]);
+  const path='instalaciones.acs.items';
+  const equipment={nombre:'ACS de prueba', tipoEquipo:'ACS', modoDefinicion:'Conocido',
+    tipoGenerador:'Caldera Estándar', combustible:'Gas Natural', rendimientoEstacional:'85',
+    acumulacion:'Sí', depositoVolumen:'120', depositoCantidad:'2', depositoTemperaturaAlta:'60',
+    depositoTemperaturaBaja:'50', depositoUA:'3,2'};
+  const item={id:'acs-test', data:{[path]:[equipment]}};
+  const restored=storage.rowToRecord_(storage.recordToRow_(item),storage.HEADERS);
+  assert.deepEqual(plain(restored.data[path][0]),equipment);
+  const cex=h.buildCex32(template,restored);
+  const nativeTank=h.cex32Blocks(cex)[4].value[0][0][8];
+  assert.deepEqual(plain(nativeTank),[1,'120','60','50','3.2','Conocido','2']);
+  const imported=h.parseCexRecordData(cex);
+  assert.equal(imported[path][0].depositoCantidad,'2');
+  assert.equal(imported[path][0].depositoUA,'3.2');
+  imported[path][0].depositoUA='4';
+  assert.equal(h.cex32Blocks(h.buildCex32(template,{data:imported}))[4].value[0][0][8][4],'4');
+  equipment.depositoTemperaturaAlta='40';
+  assert.match(h.cex32NewEquipmentIssue(item),/temperatura alta/);
+  equipment.acumulacion='No';
+  assert.deepEqual(plain(h.cex32Blocks(h.buildCex32(template,item))[4].value[0][0][8]),[0]);
+});
+
+
+test('bulk window settings affect only chosen rows and preserve each frame geometry', () => {
+  const h=loadHelpers(), path='envolvente.huecos.items';
+  const data={[path]:[
+    {nombre:'A',porcMarco:'20',absortividadMarco:'0.3'},
+    {nombre:'B',porcMarco:'40',absortividadMarco:'0.6'},
+    {nombre:'C',porcMarco:'30',absortividadMarco:'0.4'}
+  ]};
+  const settings={schema:1,mode:'Conocidas',dobleVentana:false,uVidrio:1.4,gVidrio:.52,uMarco:2.2};
+  const result=h.windowStoreMany(data,[0,2],settings);
+  assert.equal(result[path][0].uVidrio,'1.4');
+  assert.equal(result[path][2].uMarco,'2.2');
+  assert.equal(result[path][2].porcMarco,'30');
+  assert.equal(result[path][2].absortividadMarco,'0.4');
+  assert.deepEqual(result[path][1],data[path][1]);
+  data[path][2].porcMarco='';
+  assert.throws(()=>h.windowStoreMany(data,[0,2],settings));
+  assert.equal(data[path][0].propiedadesTermicas,undefined);
+});
+
+
+test('bulk solar settings preserve each orientation and validate all target rows', () => {
+  const h=loadHelpers(), path='envolvente.huecos.items';
+  const rows=[{nombre:'Sur',orientacion:'Sur'},{nombre:'Oeste',orientacion:'Oeste'},
+    {nombre:'Pendiente',orientacion:''}];
+  const settings=h.solarBlank();
+  settings.overhang={enabled:true,L:1,D:.2,H:1};
+  const data={[path]:rows};
+  const stored=h.solarStoreMany(data,rows,[0,1],settings);
+  assert.equal(stored[path][0].proteccionSolar,stored[path][1].proteccionSolar);
+  assert.notEqual(h.solarApply({},settings,stored[path][0].orientacion).correctorFSCTE,
+    h.solarApply({},settings,stored[path][1].orientacion).correctorFSCTE);
+  assert.equal(stored[path][2].proteccionSolar,undefined);
+  assert.throws(()=>h.solarStoreMany(data,rows,[0,2],settings),/Pendiente/);
+  assert.equal(rows[0].proteccionSolar,undefined);
 });

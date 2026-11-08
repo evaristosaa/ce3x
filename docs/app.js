@@ -218,6 +218,11 @@ const SECTIONS = [
           col('demandaCubierta', 'Demanda cubierta (%)'),
           col('zona', 'Zona', 'select', 'zona'),
           col('acumulacion', 'Acumulación', 'select', 'acumulacion'),
+          col('depositoVolumen', 'Volumen por depósito (l)', 'tank'),
+          col('depositoCantidad', 'Número de depósitos', 'tank'),
+          col('depositoTemperaturaAlta', 'Temperatura alta (°C)', 'tank'),
+          col('depositoTemperaturaBaja', 'Temperatura baja (°C)', 'tank'),
+          col('depositoUA', 'UA total (W/K)', 'tank'),
         ],
       }),
     ]),
@@ -1044,7 +1049,7 @@ function tableHtml(item, path, value) {
           <tr>
             <th><input type="checkbox" data-select-all-rows aria-label="Seleccionar todas las filas"></th>
             <th></th>
-            ${item.columns.map(column => `<th>${escapeHtml(column.label)}</th>`).join('')}
+            ${item.columns.filter(column => column.type !== 'tank').map(column => `<th>${escapeHtml(column.label)}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
@@ -1060,6 +1065,25 @@ function tableHtml(item, path, value) {
   `;
 }
 
+function setupWindowEditSelector(selector,button,rows) {
+  const table=button.closest('[data-table]');
+  const populated=Array.from(table.querySelectorAll('tbody tr')).filter(tr=>
+    Array.from(tr.querySelectorAll('[data-col]')).some(input=>input.value.trim()));
+  const checked=populated.flatMap((tr,index)=>tr.querySelector('[data-row-select]').checked ? [index] : []);
+  const options=rows.map((row,index)=>'<option value="'+index+'">'+escapeHtml(row.nombre||'Hueco '+(index+1))+'</option>');
+  if(checked.length)options.push('<option value="checked">Huecos seleccionados ('+checked.length+')</option>');
+  if(rows.length>1)options.push('<option value="all">Todos los huecos ('+rows.length+')</option>');
+  selector.innerHTML=options.join('');
+  if(checked.length)selector.value='checked';
+  return checked;
+}
+
+function windowEditTargets(scope,rows,checked) {
+  if(scope==='all')return rows.map((_,index)=>index);
+  if(scope==='checked')return checked;
+  return scope==='' ? [] : [Number(scope)];
+}
+
 function tableRowHtml(columns, rowItem, index) {
   return `<tr data-cex-source="${escapeHtml(rowItem.__cexSource || '')}" data-estimation="${escapeHtml(rowItem.estimacion || '')}" data-solar="${escapeHtml(rowItem.proteccionSolar || '')}" data-thermal="${escapeHtml(rowItem.propiedadesTermicas || '')}">
     <td><input type="checkbox" data-row-select aria-label="Seleccionar fila ${index + 1}"></td>
@@ -1067,6 +1091,15 @@ function tableRowHtml(columns, rowItem, index) {
     ${columns.map((column, colIndex) => {
     const value = rowItem[column.id] ?? rowItem.values?.[colIndex] ?? '';
     const name = `data-col="${escapeHtml(column.id)}"`;
+    if (column.type === 'tank') return '';
+    if (column.id === 'acumulacion') {
+      const inputs = columns.filter(item => item.type === 'tank').map(item =>
+        `<label>${escapeHtml(item.label)}<input data-col="${item.id}" inputmode="decimal" value="${escapeHtml(rowItem[item.id] ?? '')}"></label>`).join('');
+      return `<td>${selectCellHtml(name, value, SELECT_OPTIONS.acumulacion)}
+        <div class="acs-tank" data-acs-tank ${acsHasTank(value) ? '' : 'hidden'}>
+          <small>Al editar el depósito, indica el UA total conocido y justificado.</small>${inputs}
+        </div></td>`;
+    }
     if(columns.some(col=>col.id==='uVidrio')&&['uVidrio','gVidrio','uMarco','modoDefinicion'].includes(column.id))return `<td><input ${name} value="${escapeHtml(value)}" readonly title="Editar desde Propiedades térmicas" aria-label="${escapeHtml(column.label)}"></td>`;
     if (column.type === 'readonly') return `<td><input ${name} value="${escapeHtml(value)}" readonly aria-label="${escapeHtml(column.label)}"></td>`;
     if (column.type === 'select') return `<td>${selectCellHtml(name, value, SELECT_OPTIONS[column.optionsKey] || [])}</td>`;
@@ -1113,6 +1146,9 @@ sectionFields.addEventListener('click', event => {
 });
 
 sectionFields.addEventListener('change', event => {
+  if (event.target.matches('[data-col="acumulacion"]')) {
+    event.target.closest('td').querySelector('[data-acs-tank]').hidden = !acsHasTank(event.target.value);
+  }
   const provinceSelect = event.target.closest('select[name$=".provincia"]');
   if (provinceSelect) updateLocalitySelectForProvince(provinceSelect);
 

@@ -2,8 +2,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   const dialog=document.querySelector('#windowDialog'),form=document.querySelector('#windowForm'),selector=document.querySelector('#windowSelector');
   const mode=document.querySelector('#windowMode'),double=document.querySelector('#windowDouble'),status=document.querySelector('#windowStatus'),preview=document.querySelector('#windowPreview'),save=document.querySelector('#saveWindowBtn');
   const glass=document.querySelector('#windowGlass'),frame=document.querySelector('#windowFrame');
-  let current=null,rows=[],busy=false,supported=false;
-  const selected=()=>rows[Number(selector.value)];
+  let current=null,rows=[],checked=[],busy=false,supported=false;
+  const targets=()=>windowEditTargets(selector.value,rows,checked);
+  const selected=()=>rows[targets()[0]];
+  const rowLabel=index=>rows[index].nombre||'Hueco '+(index+1);
   glass.innerHTML='<option value="">Selecciona vidrio</option>'+Object.keys(WINDOW_GLASS).map(value=>'<option>'+escapeHtml(value)+'</option>').join('');
   frame.innerHTML='<option value="">Selecciona marco</option>'+Object.keys(WINDOW_FRAME).map(value=>'<option>'+escapeHtml(value)+'</option>').join('');
   function read() {
@@ -16,7 +18,18 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.querySelector('#windowKnownFields').hidden=mode.value!=='Conocidas';document.querySelector('#windowEstimatedFields').hidden=mode.value!=='Estimadas';
     if(!selected()){save.disabled=true;return;}
     try {
-      const v=windowCalculate(read(),selected().porcMarco,selected().absortividadMarco);
+      const indices=targets(),settings=read();
+      const values=indices.map(index=>{
+        const row=rows[index];
+        try {return windowCalculate(settings,row.porcMarco,row.absortividadMarco);}
+        catch(error) {throw new Error(rowLabel(index)+' / '+error.message);}
+      });
+      const v=values[0];
+      if(indices.length>1) {
+        preview.textContent='Se actualizarán '+indices.length+' huecos. Se conserva el porcentaje de marco y su absortividad en cada fila.';
+        save.disabled=busy;
+        return;
+      }
       preview.textContent='Valores efectivos: U vidrio '+v.uVidrio.toFixed(4)+' · g vidrio '+v.gVidrio.toFixed(4)+' · U marco '+v.uMarco.toFixed(4)+'. U del hueco '+v.uHueco.toFixed(4)+' W/m²K; factor solar del hueco sin protecciones '+v.fsHueco.toFixed(4)+'.';save.disabled=busy;
     }catch(error){preview.textContent=error.message;save.disabled=true;}
   }
@@ -32,10 +45,12 @@ document.addEventListener('DOMContentLoaded',()=>{
     }catch(error){preview.textContent=error.message;save.disabled=true;}
   }
   document.querySelector('#sectionFields').addEventListener('click',event=>{
-    if(!event.target.closest('[data-open-window]'))return;
+    const button=event.target.closest('[data-open-window]');
+    if(!button)return;
     try {
       current=selectedRecordWithCurrentFormData();if(!current)return;
-      rows=cex32Table(current,'envolvente.huecos.items');selector.innerHTML=rows.map((row,index)=>'<option value="'+index+'">'+escapeHtml(row.nombre||'Hueco '+(index+1))+'</option>').join('');
+      rows=cex32Table(current,'envolvente.huecos.items');
+      checked=setupWindowEditSelector(selector,button,rows);
       status.textContent='';show();dialog.showModal();
     }catch(error){alert(error.message);}
   });
@@ -58,11 +73,13 @@ document.addEventListener('DOMContentLoaded',()=>{
     event.preventDefault();if(busy||!selected()||!supported)return;
     let saved=false;
     try {
-      const data=windowStore(current.data,Number(selector.value),read());
+      const indices=targets();
+      const data=windowStoreMany(current.data,indices,read());
       if(selectedRecord()?.id!==current.id)throw new Error('El expediente ha cambiado. Vuelve a abrir sus propiedades térmicas.');
       busy=true;dialog.querySelectorAll('button,input,select').forEach(el=>{el.disabled=true;});status.textContent='Guardando propiedades…';
       current=await persistRecordPatch({...current,data},Array.from(new Set([...activeSectionPaths(),'envolvente.huecos.items'])));
-      rows=cex32Table(current,'envolvente.huecos.items');renderAll();saved=true;status.textContent='Propiedades guardadas. El CEX conservará el modo y sus parámetros de entrada.';
+      rows=cex32Table(current,'envolvente.huecos.items');renderAll();saved=true;status.textContent=indices.length===1 ? 'Propiedades guardadas en un hueco.'
+        : 'Propiedades guardadas en '+indices.length+' huecos.';
     }catch(error){status.textContent='No se ha confirmado el guardado: '+sheetErrorHelp(error);}
     finally{busy=false;dialog.querySelectorAll('button,input,select').forEach(el=>{el.disabled=false;});if(saved)show();else update();}
   });

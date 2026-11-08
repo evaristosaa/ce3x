@@ -783,3 +783,7 @@ dialog::backdrop {
 .report-no-improvements input { width: auto; }
 
 #operationMessage { white-space: pre-line; }
+
+.acs-tank { display: grid; gap: 6px; min-width: 190px; margin-top: 8px; }
+.acs-tank[hidden] { display: none; }
+.acs-tank label { display: grid; gap: 3px; }
