@@ -47,11 +47,22 @@ function windowApply(item,settings,row) {
   return next;
 }
 function windowStore(data,rowIndex,settings) {
-  const next=structuredClone(data),rows=cex32Table({data:next},'envolvente.huecos.items'),row=rows[rowIndex];
-  if(!row)throw new Error('No se puede identificar el hueco.');
-  const values=windowCalculate(settings,row.porcMarco,row.absortividadMarco);
-  Object.assign(row,{propiedadesTermicas:JSON.stringify(settings),modoDefinicion:settings.mode,uVidrio:String(values.uVidrio),gVidrio:String(values.gVidrio),uMarco:String(values.uMarco)});
-  next['envolvente.huecos.items']=rows;return next;
+  return windowStoreMany(data,[rowIndex],settings);
+}
+
+function windowStoreMany(data,indices,settings) {
+  const next=structuredClone(data);
+  const path='envolvente.huecos.items';
+  const rows=cex32Table({data:next},path);
+  for(const index of indices) {
+    const row=rows[index];
+    if(!row)throw new Error('No se puede identificar el hueco.');
+    const values=windowCalculate(settings,row.porcMarco,row.absortividadMarco);
+    Object.assign(row,{propiedadesTermicas:JSON.stringify(settings),modoDefinicion:settings.mode,
+      uVidrio:String(values.uVidrio),gVidrio:String(values.gVidrio),uMarco:String(values.uMarco)});
+  }
+  next[path]=rows;
+  return next;
 }
 function windowOverlay(data,items,rows,originals) {
   rows.forEach((row,index)=>{

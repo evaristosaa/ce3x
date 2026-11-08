@@ -2,8 +2,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   const dialog=document.querySelector('#solarDialog'),form=document.querySelector('#solarForm');
   const selector=document.querySelector('#solarWindow'),fields=document.querySelector('#solarFields');
   const status=document.querySelector('#solarStatus'),preview=document.querySelector('#solarPreview'),save=document.querySelector('#saveSolarBtn');
-  let current=null,rows=[],busy=false,supported=false;
-  const selected=()=>rows[Number(selector.value)];
+  let current=null,rows=[],checked=[],busy=false,supported=false;
+  const targets=()=>windowEditTargets(selector.value,rows,checked);
+  const selected=()=>rows[targets()[0]];
   function read() {
     const settings=solarBlank();
     for(const kind of ['overhang','recess']) {
@@ -19,15 +20,21 @@ document.addEventListener('DOMContentLoaded',()=>{
       fields.querySelectorAll('[data-kind="'+kind+'"]').forEach(input=>{input.disabled=!enabled;});
     }
     try {
-      const result=solarCalculate(read(),selected().orientacion);
-      preview.textContent='Factores solares: CTE '+result.cte.toFixed(4)+' · invierno '+result.winter.toFixed(4)+' · verano '+result.summer.toFixed(4);
+      const indices=targets(),settings=read();
+      const factors=indices.map(index=>solarTargetFactors(current.data,rows[index],settings));
+      const result=factors[0];
+      preview.textContent=indices.length>1
+        ? 'Se actualizarán '+indices.length+' huecos. La exportación calculará los factores según la orientación de cada uno.'
+        : 'Factores solares: CTE '+result.cte.toFixed(4)+' · invierno '+result.winter.toFixed(4)+' · verano '+result.summer.toFixed(4);
       save.disabled=busy;
     }catch(error){preview.textContent=error.message;save.disabled=true;}
   }
   function show() {
     fields.innerHTML='';preview.textContent='';supported=false;save.disabled=true;
     const row=selected();if(!row)return;
-    document.querySelector('#solarOrientation').textContent='Orientación: '+(cexWallOrientation(row.orientacion)||'pendiente de indicar en la tabla');
+    document.querySelector('#solarOrientation').textContent=targets().length>1
+      ? 'Los valores iniciales se toman de «'+(row.nombre||'primer hueco')+'».'
+      : 'Orientación: '+(cexWallOrientation(row.orientacion)||'pendiente de indicar en la tabla');
     try {
       const native=solarNativeItem(current.data,row);if(native)solarNativeSettings(native);
       const settings=solarRowSettings(current.data,row);
@@ -40,11 +47,12 @@ document.addEventListener('DOMContentLoaded',()=>{
     }catch(error){fields.textContent=error.message;}
   }
   document.querySelector('#sectionFields').addEventListener('click',event=>{
-    if(!event.target.closest('[data-open-solar]'))return;
+    const button=event.target.closest('[data-open-solar]');
+    if(!button)return;
     try {
       current=selectedRecordWithCurrentFormData();if(!current)return;
       rows=cex32Table(current,'envolvente.huecos.items');
-      selector.innerHTML=rows.map((row,index)=>'<option value="'+index+'">'+escapeHtml(row.nombre||'Hueco '+(index+1))+'</option>').join('');
+      checked=setupWindowEditSelector(selector,button,rows);
       status.textContent=rows.length?'':'Añade primero un hueco en la tabla.';show();dialog.showModal();
     }catch(error){alert(error.message);}
   });
@@ -52,14 +60,13 @@ document.addEventListener('DOMContentLoaded',()=>{
   form.addEventListener('submit',async event=>{
     event.preventDefault();if(busy||!supported)return;
     try {
-      const settings=read();solarCalculate(settings,selected().orientacion);
+      const indices=targets();
+      const data=solarStoreMany(current.data,rows,indices,read());
       if(selectedRecord()?.id!==current.id)throw new Error('El expediente ha cambiado. Vuelve a abrir las protecciones.');
       busy=true;dialog.querySelectorAll('button,input,select').forEach(el=>{el.disabled=true;});status.textContent='Guardando protecciones…';
-      const data=structuredClone(current.data),next=structuredClone(rows);
-      next[Number(selector.value)].proteccionSolar=JSON.stringify(settings);
-      data['envolvente.huecos.items']=next;
       current=await persistRecordPatch({...current,data},Array.from(new Set([...activeSectionPaths(),'envolvente.huecos.items'])));
-      rows=cex32Table(current,'envolvente.huecos.items');renderAll();status.textContent='Protecciones guardadas. Sus factores se aplicarán al exportar el CEX.';
+      rows=cex32Table(current,'envolvente.huecos.items');renderAll();status.textContent=indices.length===1 ? 'Protecciones guardadas en un hueco.'
+        : 'Protecciones guardadas en '+indices.length+' huecos.';
     }catch(error){status.textContent='No se ha confirmado el guardado: '+sheetErrorHelp(error);}
     finally{busy=false;dialog.querySelectorAll('button,input,select').forEach(el=>{el.disabled=false;});show();}
   });

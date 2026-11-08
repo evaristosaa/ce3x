@@ -78,6 +78,24 @@ function solarRowSettings(data,row) {
   return native?solarNativeSettings(native):solarBlank();
 }
 
+function solarTargetFactors(data,row,settings) {
+  try {
+    const native=solarNativeItem(data,row);
+    if(native)solarNativeSettings(native);
+    return solarCalculate(settings,row.orientacion);
+  }catch(error){
+    throw new Error((row.nombre||'Hueco sin nombre')+' / '+error.message);
+  }
+}
+
+function solarStoreMany(data,rows,indices,settings) {
+  for(const index of indices)solarTargetFactors(data,rows[index],settings);
+  const next=structuredClone(rows);
+  const value=JSON.stringify(settings);
+  for(const index of indices)next[index].proteccionSolar=value;
+  return {...data,'envolvente.huecos.items':next};
+}
+
 function solarApply(item,settings,orientation) {
   if(item.elementosProteccionSolar)solarNativeSettings(item);
   const factors=solarCalculate(settings,orientation),next=structuredClone(item);

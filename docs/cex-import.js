@@ -312,13 +312,26 @@ function envelopePuenteRows(rows) {
   })).filter(item => item.nombre || item.tipoPuenteTermico);
 }
 
+const ACS_TANK_FIELDS = ['depositoVolumen', 'depositoTemperaturaAlta', 'depositoTemperaturaBaja', 'depositoUA', 'depositoCantidad'];
+
+function acsHasTank(value) {
+  return /^(s[ií]|true|1)$/i.test(String(value));
+}
+
+function systemTankFields(tank) {
+  if (!tank?.[0]) return {acumulacion: 'No'};
+  const [volume, high, low, ua, count] = ACS_TANK_FIELDS;
+  return {acumulacion: 'Sí', [volume]: cexImportValue(tank[1]), [high]: cexImportValue(tank[2]),
+    [low]: cexImportValue(tank[3]), [ua]: cexImportValue(tank[4]), [count]: cexImportValue(tank.at(-1))};
+}
+
 function systemAcsRow(item) {
   return {
     nombre: cexImportValue(item?.[0]), tipoEquipo: 'ACS', modoDefinicion: cexImportValue(item?.[6]),
     tipoGenerador: cexImportValue(item?.[3]), combustible: cexImportValue(item?.[4]),
     rendimientoEstacional: cexImportValue(item?.[2]?.[0]), m2Cubiertos: cexImportValue(item?.[5]?.[0]?.[0]),
     demandaCubierta: cexImportValue(item?.[5]?.[0]?.[1]), zona: cexImportValue(item?.[9]),
-    acumulacion: item?.[8]?.[0] ? 'Sí' : 'No',
+    ...systemTankFields(item?.[8]),
   };
 }
 
@@ -358,11 +371,11 @@ function systemRows(stream) {
     push('refrigeracion',systemClimateRow(item,2,'Calefacción y refrigeración'),3,index,2);
   });
   (stream[4] || []).forEach((item,index) => {
-    push('acs',systemClimateRow(item,0,'ACS'),4,index,0);
+    push('acs',{...systemClimateRow(item,0,'ACS'), ...systemTankFields(item?.[8])},4,index,0);
     push('calefaccion',systemClimateRow(item,1,'Calefacción'),4,index,1);
   });
   (stream[5] || []).forEach((item,index) => {
-    push('acs',systemClimateRow(item,0,'ACS'),5,index,0);
+    push('acs',{...systemClimateRow(item,0,'ACS'), ...systemTankFields(item?.[8])},5,index,0);
     push('calefaccion',systemClimateRow(item,1,'Calefacción'),5,index,1);
     push('refrigeracion',systemClimateRow(item,2,'Refrigeración'),5,index,2);
   });

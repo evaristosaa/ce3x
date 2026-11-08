@@ -157,9 +157,6 @@ function cex32Inputs(template, record) {
   } else if (changed) {
     const [acs, heat, cool, contributions] = systemPaths.map(path => cex32Table(record,path));
     // Single-service systems stay independent: do not pair unrelated heating/cooling equipment.
-    if (acs.some(row => /^(s[ií]|true|1)$/i.test(String(row.acumulacion)))) {
-      throw new Error('La acumulación de ACS necesita sus parámetros nativos. Conserva la instalación importada o completa la acumulación en CE3X antes de exportar.');
-    }
     inputs[3] = Array.from({length:14},()=>[]);
     inputs[3][0] = acs.map(row=>cex32KnownSystem(row,0));
     inputs[3][1] = heat.map(row=>cex32KnownSystem(row,1));
@@ -296,6 +293,14 @@ function cex32HydrateSources(data) {
       if(row.values)return row;
       const matches = originals.filter(item => item.nombre === row.nombre);
       const next=row.__cexSource?row:matches.length === 1 ? {...row, __cexSource: matches[0].__cexSource} : row;
+      if(path==='instalaciones.acs.items') {
+        const original = originals.find(item => item.__cexSource === next.__cexSource);
+        if (original && acsHasTank(original.acumulacion) && (!next.acumulacion || acsHasTank(next.acumulacion))) {
+          const inherited = Object.fromEntries(['acumulacion', ...ACS_TANK_FIELDS]
+            .filter(key => !Object.hasOwn(next, key)).map(key => [key, original[key]]));
+          return {...next, ...inherited};
+        }
+      }
       if(path==='envolvente.puentesTermicos.items') {
         const original=originals.find(item=>item.__cexSource===next.__cexSource);
         return {...next,...cex32BridgeOrigins(next,original)};
@@ -386,7 +391,7 @@ function cex32PatchNativeSystems(systems, sourceData, currentTables, approvedEst
         if(part===1 && n>100) throw new Error('La demanda cubierta debe estar entre 0 y 100 %.');
         raw[5][slot][part]=String(row[key]);
       }
-      if(changed(row,{...before,acumulacion:before.acumulacion||''},'acumulacion')) throw new Error('El cambio de acumulación necesita sus parámetros nativos en CE3X.');
+      if (service === 0 && acsTankChanged(row, before)) raw[8] = cex32Tank(row);
     }
   }
   // Keep whole shared equipment or remove all its projections; never split it silently.
@@ -407,9 +412,10 @@ function cex32NewEquipmentIssue(record) {
   for (const [index, service] of ['acs', 'calefaccion', 'refrigeracion'].entries()) {
     const path = 'instalaciones.' + service + '.items';
     for (const row of cex32Table(record, path)) {
-      if (cex32FindOriginal(row, original[path] || [])) continue;
       try {
-        cex32KnownSystem(row, index);
+        const before = cex32FindOriginal(row, original[path] || []);
+        if (!before) cex32KnownSystem(row, index);
+        else if (index === 0 && acsTankChanged(row, before)) cex32Tank(row);
       } catch (error) {
         issues.push(error.message);
       }
@@ -418,20 +424,41 @@ function cex32NewEquipmentIssue(record) {
   return issues.join('\n');
 }
 
+function acsTankChanged(row, before) {
+  const hasTank = acsHasTank(row.acumulacion ?? before.acumulacion);
+  return hasTank !== acsHasTank(before.acumulacion) || (hasTank && ACS_TANK_FIELDS.some(key =>
+    Object.hasOwn(row, key) && String(row[key]) !== String(before[key] ?? '')));
+}
+
+function cex32Tank(row) {
+  if (!acsHasTank(row.acumulacion)) return [0];
+  const labels = ['volumen por depósito', 'temperatura alta', 'temperatura baja', 'UA total', 'número de depósitos'];
+  const values = ACS_TANK_FIELDS.map((key, index) => {
+    const text = String(row[key] ?? '').trim().replace(',', '.');
+    const value = Number(text);
+    if (!text || !Number.isFinite(value) || value <= 0 || (index === 4 && !Number.isSafeInteger(value))) {
+      throw new Error('ACS · ' + (row.nombre || 'Equipo sin nombre') + ': indica un valor válido para ' + labels[index] + '.');
+    }
+    return value;
+  });
+  const [volume, high, low, ua, count] = values;
+  if (high <= low) throw new Error('ACS · ' + (row.nombre || 'Equipo sin nombre') + ': la temperatura alta debe superar a la baja.');
+  return [1, String(volume), String(high), String(low), String(ua), 'Conocido', String(count)];
+}
+
 function cex32KnownSystem(row,service) {
   const label = ['ACS', 'Calefacción', 'Refrigeración'][service] + ' · ' + (row.nombre || 'Equipo sin nombre');
   if (!/^conocido/i.test(String(row.modoDefinicion || ''))) {
     throw new Error(label + ': el modo «' + (row.modoDefinicion || 'sin indicar') +
       '» requiere parámetros nativos de CE³X. Usa «Conocido» solo si tienes un rendimiento estacional justificado.');
   }
-  if (/^(s[ií]|true|1)$/i.test(String(row.acumulacion))) throw new Error('Completa los parámetros de acumulación de ACS en CE3X antes de exportar.');
   const value=Number(String(row.rendimientoEstacional || '').replace(',','.'));
   if(!Number.isFinite(value) || value<=0) throw new Error(label + ': indica un rendimiento estacional conocido mayor que cero.');
   const performance=['','',''], coverage=[['',''],['',''],['','']], parameters=['','',''];
   performance[service]=value;
   coverage[service]=[String(row.m2Cubiertos||''),String(row.demandaCubierta||'')];
   parameters[service]=String(row.rendimientoEstacional);
-  return [row.nombre,['ACS','calefaccion','refrigeracion'][service],performance,row.tipoGenerador,row.combustible,coverage,'Conocido (Ensayado/justificado)',parameters,service===0?[0]:['','',''],row.zona||'Edificio Objeto'];
+  return [row.nombre,['ACS','calefaccion','refrigeracion'][service],performance,row.tipoGenerador,row.combustible,coverage,'Conocido (Ensayado/justificado)',parameters,service===0?cex32Tank(row):['','',''],row.zona||'Edificio Objeto'];
 }
 
 function buildCex32(template, record) {
