@@ -57,8 +57,10 @@ document.addEventListener('DOMContentLoaded',()=>{
       groups=estimationGroups(current.data);available=false;
       selector.innerHTML=groups.map(group=>'<option value="'+escapeHtml(group.id)+'">'+escapeHtml(group.members[0].row.nombre||group.raw[0])+' · '+escapeHtml(group.raw[3])+'</option>').join('');
       status.textContent=groups.length?'Comprobando disponibilidad del módulo local…':'No hay equipos estimados importados. La creación de instalaciones estimadas nuevas aún requiere completar sus parámetros en CE³X.';
+      selector.disabled=!groups.length;
       showFields();dialog.showModal();
       const token=++revision;
+      if(!groups.length) return;
       try {
         const response=await fetch('/api/estimation/status');
         if(!response.ok) throw new Error('El recálculo requiere abrir la app con su servidor local de Windows y CE³X 3.2 instalado. Puedes guardar los parámetros como borrador.');

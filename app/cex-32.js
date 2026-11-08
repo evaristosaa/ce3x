@@ -400,6 +400,7 @@ function cex32PatchNativeSystems(systems, sourceData, currentTables, approvedEst
 }
 
 function cex32NewEquipmentIssue(record) {
+  const issues = [];
   const data = record.data || {};
   const snapshot = data[CEX32_INPUT_KEY] ? JSON.parse(data[CEX32_INPUT_KEY]) : null;
   const original = snapshot ? cex32ImportedTables(snapshot.inputs) : {};
@@ -410,11 +411,11 @@ function cex32NewEquipmentIssue(record) {
       try {
         cex32KnownSystem(row, index);
       } catch (error) {
-        return error.message;
+        issues.push(error.message);
       }
     }
   }
-  return '';
+  return issues.join('\n');
 }
 
 function cex32KnownSystem(row,service) {

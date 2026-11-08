@@ -802,7 +802,7 @@ function renderTabs() {
     if (SECTIONS.includes(sectionItem) && selectedRecord()) {
       const completion = sectionCompletion(selectedRecord(), sectionItem.id);
       button.dataset.completion = completion.state;
-      button.title = completion.issue || completionLabel(completion) + ' · ' + completion.completed + '/' + completion.total;
+      button.title = sectionCompletionMessage(completion) || completionLabel(completion) + ' · ' + completion.completed + '/' + completion.total;
     }
     button.addEventListener('click', () => {
       state.activeSection = sectionItem.id;
@@ -881,7 +881,7 @@ function renderDetail() {
   }
   if(sectionItem.id==='instalaciones') {
     const tools=document.createElement('div');tools.className='estimation-tools';
-    tools.innerHTML='<button type="button" class="secondary" data-open-estimation>Revisar rendimiento de equipos</button><p>Incluye solo los equipos y contribuciones que existan. Puedes dejar un servicio sin equipos. Revisa el rendimiento estacional de los equipos declarados.</p>';
+    tools.innerHTML='<button type="button" class="secondary" data-open-estimation>Revisar equipos estimados importados</button><p>Incluye solo los equipos y contribuciones que existan. Puedes dejar un servicio sin equipos. Revisa el rendimiento estacional de los equipos declarados.</p>';
     sectionFields.appendChild(tools);
   }
   const groups = sectionItem.groups.filter(groupItem =>
@@ -2750,19 +2750,34 @@ function compactPatch(patch) {
 
 function sectionCompletion(record, sectionId) {
   const sectionItem = SECTIONS.find(item => item.id === sectionId);
-  const requiredPaths = sectionItem.groups.flatMap(groupItem => groupItem.required.map(id => `${sectionItem.id}.${groupItem.id}.${id}`));
-  const completed = requiredPaths.filter(path => hasValue(record?.data?.[path])).length;
+  const required = sectionItem.groups.flatMap(groupItem => groupItem.required.map(id => ({
+    path: `${sectionItem.id}.${groupItem.id}.${id}`,
+    label: groupItem.label + ' / ' + groupItem.fields.find(item => item.id === id).label
+  })));
+  const missing = required.filter(item => !hasValue(record?.data?.[item.path])).map(item => item.label);
+  const completed = required.length - missing.length;
   let issue = '';
-  if (sectionId === 'instalaciones' && record && completed === requiredPaths.length) {
+  if (sectionId === 'instalaciones' && record && completed === required.length) {
     try {
       issue = cex32NewEquipmentIssue(record);
     } catch {
       issue = 'No se pudo comprobar la correspondencia con los equipos originales del CEX.';
     }
   }
-  const done = completed === requiredPaths.length && !issue;
+  const done = completed === required.length && !issue;
   const stateName = done ? 'done' : completed > 0 || issue ? 'partial' : 'missing';
-  return { completed, total: requiredPaths.length, done, state: stateName, issue };
+  return { completed, total: required.length, done, state: stateName, issue, missing };
+}
+
+function sectionCompletionMessage(completion) {
+  return [completion.missing.join(', '), completion.issue].filter(Boolean).join('\n');
+}
+
+function generationBlockers(record) {
+  return SECTIONS.flatMap(sectionItem => {
+    const message = sectionCompletionMessage(sectionCompletion(record, sectionItem.id));
+    return message ? [sectionItem.label + '\n' + message] : [];
+  }).join('\n\n');
 }
 
 function completionLabel(status) {
@@ -3006,10 +3021,9 @@ function downloadJson() {
 async function downloadCex() {
   const record = selectedRecordWithCurrentFormData();
   if (!record) return;
-  const incomplete = missingSections(record);
-  if (incomplete.length) {
-    showOperation('No se puede exportar el CEX', sectionCompletion(record, 'instalaciones').issue ||
-      'Completa antes de exportar: ' + incomplete.join(', ') + '.', false);
+  const blockers = generationBlockers(record);
+  if (blockers) {
+    showOperation('No se puede exportar el CEX', blockers, false);
     return;
   }
   const criticalIssues = criticalCexIssues(record);
@@ -3117,6 +3131,17 @@ function readDesktopRating(xml) {
   });
 }
 
+async function desktopReportFolder(issuePdf) {
+  const folder = await xmlFolderSetting();
+  if (!folder || await folder.queryPermission({ mode: 'readwrite' }) !== 'granted') {
+    throw new Error('Elige o vuelve a autorizar la carpeta de trabajo en Configuración.');
+  }
+  await folder.getFileHandle(issuePdf ? '.ce3x-xml-bridge-v2' : '.ce3x-xml-bridge').catch(() => {
+    throw new Error('Actualiza e inicia el asistente local en la carpeta de trabajo.');
+  });
+  return folder;
+}
+
 async function collectDesktopXml(issuePdf = false) {
   const record = selectedRecordWithCurrentFormData();
   if (!record) return;
@@ -3128,27 +3153,27 @@ async function collectDesktopXml(issuePdf = false) {
     status.textContent = message;
     showOperation('No se puede iniciar la generación', message, false);
   };
+  const reference = String(record.data?.['admin.localizacion.referenciaCatastral'] || '').trim().toUpperCase();
+  let folder;
   if (issuePdf) {
-    const incomplete = missingSections(record);
-    if (incomplete.length) {
-      stop(sectionCompletion(record, 'instalaciones').issue ||
-        'Completa antes de generar: ' + incomplete.join(', ') + '.');
+    const blockers = [generationBlockers(record)];
+    const data = record.data || {};
+    if (issues.length) blockers.push('Datos de cálculo: ' + issues.join(', ') + '.');
+    if (reference && !/^[A-Z0-9]{20}$/.test(reference)) blockers.push('Indica una referencia catastral válida de 20 caracteres.');
+    if (!data['admin.informe.fechaVisita']) blockers.push('Configuración del informe: indica la fecha de visita.');
+    if (!String(data['admin.informe.observaciones'] || '').trim()) blockers.push('Configuración del informe: indica las pruebas, comprobaciones e inspecciones.');
+    if (location.hostname === 'evaristosaa.github.io' && !state.config.pdfKey) blockers.push('Guarda la clave de Render en Configuración.');
+    try {
+      folder = await desktopReportFolder(true);
+    } catch (error) {
+      blockers.push(error.message);
+    }
+    if (blockers.some(Boolean)) {
+      stop(blockers.filter(Boolean).join('\n\n'));
       return;
     }
-  }
-  if (issues.length) {
-    status.textContent = 'Completa estos datos antes de calcular: ' + issues.join(', ');
-    return;
-  }
-
-  const reference = String(record.data?.['admin.localizacion.referenciaCatastral'] || '').trim().toUpperCase();
-  if (issuePdf && (!/^[A-Z0-9]{20}$/.test(reference) ||
-      !record.data?.['admin.informe.fechaVisita'] || !record.data?.['admin.informe.observaciones']?.trim())) {
-    stop('Completa la referencia catastral, la fecha de visita y las observaciones del informe.');
-    return;
-  }
-  if (issuePdf && location.hostname === 'evaristosaa.github.io' && !state.config.pdfKey) {
-    stop('Guarda la clave de Render en Configuración.');
+  } else if (issues.length) {
+    stop('Completa estos datos antes de calcular: ' + issues.join(', '));
     return;
   }
   const result = {stage: 'Preparando CEX'};
@@ -3170,13 +3195,8 @@ async function collectDesktopXml(issuePdf = false) {
   issueDesktopReportBtn.disabled = true;
   showOperation(operationTitle, 'Preparando el CEX del expediente.');
   try {
-    const folder = await xmlFolderSetting();
-    if (!folder || await folder.queryPermission({ mode: 'readwrite' }) !== 'granted') {
-      throw new Error('Elige o vuelve a autorizar la carpeta XML en Configuración.');
-    }
-    await folder.getFileHandle(issuePdf ? '.ce3x-xml-bridge-v2' : '.ce3x-xml-bridge').catch(() => {
-      throw new Error('Actualiza e inicia el asistente con --watch y --auto-rate en la carpeta XML configurada.');
-    });
+    folder ||= await desktopReportFolder(false);
+    const text = normalizeCexLineEndings(buildCex32(await loadCex32Template(), record));
     const jobName = 'CE3X-' + crypto.randomUUID();
     const label = fileSafe(recordLabel(record)).slice(0, 80);
     const archiveName = certificateResult(record)?.folder || label + ' [' + reference + ']';
@@ -3187,7 +3207,6 @@ async function collectDesktopXml(issuePdf = false) {
     const sidecar = issuePdf ? name + '.report.json' : 'report.json';
     const ready = issuePdf ? name + '.ready' : 'ready';
     progress('Preparando CEX');
-    const text = normalizeCexLineEndings(buildCex32(await loadCex32Template(), record));
     const cex = await job.getFileHandle(name + '.cex', { create: true });
     const writer = await cex.createWritable();
     await writer.write(latin1Encode(text));
