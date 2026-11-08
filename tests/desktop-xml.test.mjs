@@ -82,6 +82,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
     crypto: {randomUUID: () => 'unique'},
     normalizeCexLineEndings: value => value,
     buildCex32: () => 'cex bytes',
+    embeddedImageBase64: () => '',
     loadCex32Template: async () => '',
     fileSafe: value => value,
     recordLabel: () => 'example',
@@ -156,4 +157,30 @@ test('generation lists record, report and configuration blockers together', asyn
     'fecha de visita', 'comprobaciones', 'clave de Render', 'carpeta de trabajo']) {
     assert.ok(messages[0].includes(issue), issue);
   }
+});
+
+
+test('export converts and reduces JPEG images without changing the saved record', async () => {
+  const source = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
+  const path = 'generales.definicion.imagenEdificio';
+  const record = {data:{[path]:'/9j/example'}};
+  const prefix='data:image/png;base64,';
+  const sizes=[];
+  let closed=false;
+  const canvas={width:0,height:0,getContext:()=>({drawImage(){}}),toDataURL:()=>{
+    sizes.push(canvas.width);
+    return prefix + 'A'.repeat(canvas.width>500 ? 100000 : 100);
+  }};
+  const result=await vm.runInNewContext(source.slice(source.indexOf('async function buildCex32ForExport('),
+    source.indexOf('async function loadCex32Template(')) + '\nbuildCex32ForExport(record)', {
+    record, embeddedImageBase64:value=>value||'',
+    fetch:async url=>{assert.match(url,/^data:image\/jpeg/);return {blob:async()=>({})};},
+    createImageBitmap:async()=>({width:640,height:480,close(){closed=true;}}),
+    document:{createElement:()=>canvas},
+    loadCex32Template:async()=>'',buildCex32:(_,next)=>next
+  });
+  assert.deepEqual(sizes,[640,448]);
+  assert.equal(result.data[path],prefix+'A'.repeat(100));
+  assert.equal(record.data[path],'/9j/example');
+  assert.ok(closed);
 });

@@ -82,6 +82,7 @@ const SELECT_OPTIONS = {
   modoDefinicion: ['Por defecto', 'Estimadas', 'Estimado', 'Estimado según Instalación', 'Conocido'],
   patronSombras: ['Sin patrón'],
   tipoEquipo: ['ACS', 'Calefacción', 'Refrigeración', 'Calefacción y refrigeración'],
+  tipoIntercambioBdC: ['Aire-aire', 'Aire-agua', 'Otro', 'Agua-agua'],
   tipoGenerador: ['Caldera Estándar', 'Bomba de Calor', 'Efecto Joule', 'Equipo autónomo'],
   combustible: ['Electricidad', 'Gas Natural', 'Gasóleo-C', 'GLP', 'Biomasa'],
   zona: ['Edificio Objeto'],
@@ -227,6 +228,8 @@ const SECTIONS = [
           col('depositoTemperaturaAlta', 'Temperatura alta (°C)', 'tank'),
           col('depositoTemperaturaBaja', 'Temperatura baja (°C)', 'tank'),
           col('depositoUA', 'UA total (W/K)', 'tank'),
+          col('potenciaNominal', 'Potencia nominal (kW)'),
+          col('tipoIntercambioBdC', 'Intercambio de bomba de calor', 'select', 'tipoIntercambioBdC'),
         ],
       }),
     ]),
@@ -242,6 +245,8 @@ const SECTIONS = [
           col('m2Cubiertos', 'm2 cubiertos'),
           col('demandaCubierta', 'Demanda cubierta (%)'),
           col('zona', 'Zona', 'select', 'zona'),
+          col('potenciaNominal', 'Potencia nominal (kW)'),
+          col('tipoIntercambioBdC', 'Intercambio de bomba de calor', 'select', 'tipoIntercambioBdC'),
         ],
       }),
     ]),
@@ -257,6 +262,8 @@ const SECTIONS = [
           col('m2Cubiertos', 'm2 cubiertos'),
           col('demandaCubierta', 'Demanda cubierta (%)'),
           col('zona', 'Zona', 'select', 'zona'),
+          col('potenciaNominal', 'Potencia nominal (kW)'),
+          col('tipoIntercambioBdC', 'Intercambio de bomba de calor', 'select', 'tipoIntercambioBdC'),
         ],
       }),
     ]),
@@ -891,7 +898,7 @@ function renderDetail() {
   }
   if(sectionItem.id==='instalaciones') {
     const tools=document.createElement('div');tools.className='estimation-tools';
-    tools.innerHTML='<button type="button" class="secondary" data-open-estimation>Revisar equipos estimados importados</button><p>Incluye solo los equipos y contribuciones que existan. Puedes dejar un servicio sin equipos. Revisa el rendimiento estacional de los equipos declarados.</p>';
+    tools.innerHTML='<button type="button" class="secondary" data-open-estimation>Revisar equipos estimados importados</button><p>Incluye solo los equipos y contribuciones que existan. Puedes dejar un servicio sin equipos. Revisa el rendimiento y la potencia nominal. Si una bomba de calor en modo Conocido tiene el intercambio vacío, el CEX usará Aire-aire. Selecciona el tipo real si es distinto.</p>';
     sectionFields.appendChild(tools);
   }
   const groups = sectionItem.groups.filter(groupItem =>
@@ -2889,7 +2896,7 @@ function sectionCompletion(record, sectionId) {
   let issue = '';
   if (sectionId === 'instalaciones' && record && completed === required.length) {
     try {
-      issue = cex32NewEquipmentIssue(record);
+      issue = cex32NewEquipmentIssue(record) || cex32MissingPowerIssue(record);
     } catch {
       issue = 'No se pudo comprobar la correspondencia con los equipos originales del CEX.';
     }
@@ -3164,7 +3171,7 @@ async function downloadCex() {
 
   showOperation('Generando CEX…', 'Preparando el archivo del expediente.');
   try {
-    let text = buildCex32(await loadCex32Template(), record);
+    let text = await buildCex32ForExport(record);
     text = normalizeCexLineEndings(text);
     const filename = fileSafe(recordLabel(record)) + '.cex';
     downloadBlob(new Blob([latin1Encode(text)], { type: 'application/octet-stream' }), filename);
@@ -3326,7 +3333,7 @@ async function collectDesktopXml(issuePdf = false) {
   showOperation(operationTitle, 'Preparando el CEX del expediente.');
   try {
     folder ||= await desktopReportFolder(false);
-    const text = normalizeCexLineEndings(buildCex32(await loadCex32Template(), record));
+    const text = normalizeCexLineEndings(await buildCex32ForExport(record));
     const jobName = 'CE3X-' + crypto.randomUUID();
     const label = fileSafe(recordLabel(record)).slice(0, 80);
     const archiveName = certificateResult(record)?.folder || label + ' [' + reference + ']';
@@ -3430,6 +3437,37 @@ async function collectDesktopXml(issuePdf = false) {
     desktopXmlButton.disabled = false;
     issueDesktopReportBtn.disabled = false;
   }
+}
+
+async function buildCex32ForExport(record) {
+  const data = {...record.data};
+  for (const key of ['imagenEdificio', 'planoSituacion']) {
+    const path = 'generales.definicion.' + key;
+    const base64 = embeddedImageBase64(data[path]);
+    const jpeg = base64.startsWith('/9j/');
+    if (!base64 || (!jpeg && base64.length <= 95978)) continue;
+    try {
+      const blob = await (await fetch('data:image/' + (jpeg ? 'jpeg' : 'png') + ';base64,' + base64)).blob();
+      const bitmap = await createImageBitmap(blob);
+      try {
+        const canvas = document.createElement('canvas');
+        let scale = 1;
+        do {
+          canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+          canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+          canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          data[path] = canvas.toDataURL('image/png');
+          scale *= 0.7;
+        } while (data[path].length > 96000);
+        if (!data[path].startsWith('data:image/png;base64,')) throw new Error('PNG no disponible');
+      } finally {
+        bitmap.close();
+      }
+    } catch {
+      throw new Error('No se pudo convertir a PNG ' + (key === 'imagenEdificio' ? 'la foto del edificio.' : 'el plano de situación.'));
+    }
+  }
+  return buildCex32(await loadCex32Template(), {...record,data});
 }
 
 async function loadCex32Template() {

@@ -90,6 +90,7 @@ function cex32Inputs(template, record) {
   }
   const local = cexCompatibleLocality(admin[2], admin[3]);
   admin[4] = local === 'Otro' ? admin[2] : ''; admin[2] = local;
+  if (String(admin[20]).trim() === '.') admin[20] = '';
   if (!admin[26]) admin[26] = 'Ninguna';
   if (!admin[28]) admin[28] = 'ResidencialPrivado';
   assign(general, {0:'generales.datos.normativaVigente',1:'generales.datos.tipoEdificio',2:'generales.datos.provincia',3:'generales.datos.localidad',
@@ -162,7 +163,14 @@ function cex32Inputs(template, record) {
     inputs[3][0] = acs.map(row=>cex32KnownSystem(row,0));
     inputs[3][1] = heat.map(row=>cex32KnownSystem(row,1));
     inputs[3][2] = cool.map(row=>cex32KnownSystem(row,2));
-    inputs[3][6] = new CexPickleParser(serializeCexContribucionesInput(contributions)+'.',0).parse();
+    inputs[3][6] = new CexPickleParser(serializeCexContribucionesInput(contributions.filter(isUsefulCexContribution))+'.',0).parse();
+  }
+  for (const group of inputs[3].slice(0,6)) {
+    for (const row of group || []) {
+      if (cexKnownHeatPump(row[3], row[6]) && Array.isArray(row[7]) && (row[7][3] == null || row[7][3] === '')) {
+        row[7][3] = 0;
+      }
+    }
   }
   while (inputs[3].length < 14) inputs[3].push([]);
   if ((native?.sectionVersions?.systems || native?.version) === '2.3') {
@@ -302,7 +310,14 @@ function cex32HydrateSources(data) {
     data[path] = data[path].map(row => {
       if(row.values)return row;
       const matches = originals.filter(item => item.nombre === row.nombre);
-      const next=row.__cexSource?row:matches.length === 1 ? {...row, __cexSource: matches[0].__cexSource} : row;
+      const next={...row};
+      if (!next.__cexSource && matches.length === 1) next.__cexSource = matches[0].__cexSource;
+      if (/^instalaciones\.(acs|calefaccion|refrigeracion)\.items$/.test(path)) {
+        const original = originals.find(item => item.__cexSource === next.__cexSource);
+        for (const key of ['potenciaNominal','tipoIntercambioBdC']) {
+          if (!Object.hasOwn(next,key) && original?.[key]) next[key] = original[key];
+        }
+      }
       if(path==='instalaciones.acs.items') {
         const original = originals.find(item => item.__cexSource === next.__cexSource);
         if (original && acsHasTank(original.acumulacion) && (!next.acumulacion || acsHasTank(next.acumulacion))) {
@@ -356,6 +371,7 @@ function cex32PatchNativeSystems(systems, sourceData, currentTables, approvedEst
       const before = cex32FindOriginal(row,originals[table]);
       if (!before) {
         if (table === 3) {
+          if (!isUsefulCexContribution(row)) continue;
           additions[6].push(new CexPickleParser(serializeCexContribucionesInput([row])+'.',0).parse()[0]);
           continue;
         }
@@ -381,7 +397,7 @@ function cex32PatchNativeSystems(systems, sourceData, currentTables, approvedEst
       if (changed(row,before,'tipoEquipo')) throw new Error('El tipo de un equipo importado debe modificarse en CE3X.');
       if (changed(row,before,'modoDefinicion') && !(originalKnown && known(row.modoDefinicion))) throw new Error('El cambio de modo de definición requiere completar sus parámetros en CE3X.');
       for (const key of ['tipoGenerador','combustible']) if(changed(row,before,key) && !originalKnown) throw new Error('Para cambiar el generador o combustible de un equipo estimado, revisa sus parámetros en CE3X.');
-      for (const [key,slot] of Object.entries({nombre:0,tipoGenerador:3,combustible:4,zona:group===0?9:raw.length-1})) {
+      for (const [key,slot] of Object.entries({nombre:0,tipoGenerador:3,combustible:4,zona:raw.length-1})) {
         if(changed(row,before,key)) common(entity,key,row[key],()=>{raw[slot]=row[key];});
       }
       const legacy = group<3 && service>0 && String(raw[2]?.[service] ?? '')==='';
@@ -393,13 +409,27 @@ function cex32PatchNativeSystems(systems, sourceData, currentTables, approvedEst
         raw[2][slot]=value;
         if(originalKnown) {
           if(Array.isArray(raw[7][0])) raw[7][0][slot]=String(row.rendimientoEstacional);
-          else raw[7][slot]=String(row.rendimientoEstacional);
+          else raw[7][raw[7].length === 1 ? 0 : slot]=String(row.rendimientoEstacional);
         }
       }
       for(const [key,part] of [['m2Cubiertos',0],['demandaCubierta',1]]) if(changed(row,before,key)) {
         const n=number(row[key],key==='m2Cubiertos'?'superficie cubierta':'porcentaje de demanda');
         if(part===1 && n>100) throw new Error('La demanda cubierta debe estar entre 0 y 100 %.');
         raw[5][slot][part]=String(row[key]);
+      }
+      if (cexKnownHeatPump(raw[3],raw[6]) && changed(row,before,'tipoIntercambioBdC')) {
+        common(entity,'tipoIntercambioBdC',row.tipoIntercambioBdC,()=>{
+          raw[7][3] = cex32HeatPumpType(row.tipoIntercambioBdC);
+        });
+      }
+      if (changed(row,before,'potenciaNominal')) {
+        const power = cex32Power(row);
+        const powerSlot = cexSystemPowerSlot(group);
+        if (raw.length - 1 === powerSlot) raw.splice(powerSlot,0,['','','']);
+        if (!Array.isArray(raw[powerSlot]) || powerSlot >= raw.length - 1) {
+          throw new Error('La potencia de este equipo importado debe revisarse en CE3X.');
+        }
+        raw[powerSlot][service] = power;
       }
       if (service === 0 && acsTankChanged(row, before)) raw[8] = cex32Tank(row);
     }
@@ -456,6 +486,37 @@ function cex32Tank(row) {
   return [1, String(volume), String(high), String(low), String(ua), 'Conocido', String(count)];
 }
 
+function cex32Power(row) {
+  const text = String(row.potenciaNominal ?? '').trim().replace(',', '.');
+  if (!text) return '';
+  if (!/^\d+(?:\.\d+)?$/.test(text) || !Number.isFinite(Number(text)) || Number(text) <= 0) {
+    throw new Error((row.nombre || 'Equipo sin nombre') + ': indica una potencia nominal mayor que cero en kW.');
+  }
+  return text;
+}
+
+function cex32MissingPowerIssue(record) {
+  const snapshot = record.data?.[CEX32_INPUT_KEY];
+  const originals = snapshot ? cex32ImportedTables(JSON.parse(snapshot).inputs) : {};
+  const issues = [];
+  for (const [service,label] of [['acs','ACS'],['calefaccion','Calefacción'],['refrigeracion','Refrigeración']]) {
+    const path = 'instalaciones.' + service + '.items';
+    for (const row of cex32Table(record,path)) {
+      const original = cex32FindOriginal(row, originals[path] || []);
+      if (!cex32Power(row) && (!original || original.potenciaNominal)) {
+        issues.push(label + ' / ' + (row.nombre || 'Equipo sin nombre') + ': falta la potencia nominal (kW).');
+      }
+    }
+  }
+  return issues.join('\n');
+}
+
+function cex32HeatPumpType(value) {
+  const index = CEX_HEAT_PUMP_TYPES.indexOf(value || 'Aire-aire');
+  if (index < 0) throw new Error('Selecciona el intercambio de la bomba de calor.');
+  return index;
+}
+
 function cex32KnownSystem(row,service) {
   const label = ['ACS', 'Calefacción', 'Refrigeración'][service] + ' · ' + (row.nombre || 'Equipo sin nombre');
   if (!/^conocido/i.test(String(row.modoDefinicion || ''))) {
@@ -464,11 +525,16 @@ function cex32KnownSystem(row,service) {
   }
   const value=Number(String(row.rendimientoEstacional || '').replace(',','.'));
   if(!Number.isFinite(value) || value<=0) throw new Error(label + ': indica un rendimiento estacional conocido mayor que cero.');
-  const performance=['','',''], coverage=[['',''],['',''],['','']], parameters=['','',''];
+  const performance=['','',''], coverage=[['',''],['',''],['','']];
   performance[service]=value;
   coverage[service]=[String(row.m2Cubiertos||''),String(row.demandaCubierta||'')];
+  const parameters=['','',''];
   parameters[service]=String(row.rendimientoEstacional);
-  return [row.nombre,['ACS','calefaccion','refrigeracion'][service],performance,row.tipoGenerador,row.combustible,coverage,'Conocido (Ensayado/justificado)',parameters,service===0?cex32Tank(row):['','',''],row.zona||'Edificio Objeto'];
+  if (cexKnownHeatPump(row.tipoGenerador,row.modoDefinicion)) parameters.push(cex32HeatPumpType(row.tipoIntercambioBdC));
+  const power = ['','',''];
+  power[service] = cex32Power(row);
+  const tail = service === 0 ? [cex32Tank(row), ...(power[0] ? [power] : [])] : [power];
+  return [row.nombre,['ACS','calefaccion','refrigeracion'][service],performance,row.tipoGenerador,row.combustible,coverage,'Conocido (Ensayado/justificado)',parameters,...tail,row.zona||'Edificio Objeto'];
 }
 
 function buildCex32(template, record) {
