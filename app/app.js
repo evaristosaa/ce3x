@@ -2410,13 +2410,15 @@ async function loadCatastroForRecord(sourceRecord, options = {}) {
       if (panel && selectedRecord()?.id === record.id) panel.replaceWith(renderCertificateCatastroProposal(record));
       return record;
     }
-    const completedPatch = catastroAutocompletionPatch(record.data, catastroPatch);
-    const data = Object.assign({}, record.data, completedPatch);
-    const paths = [...new Set([
-      ...Object.keys(catastroPatch),
-      ...envelopeDataPaths(),
-      ...systemsDataPaths(),
-    ])];
+    const estimates = catastroAutocompletionPatch(record.data, catastroPatch);
+    const missingTables = [...envelopeDataPaths(), ...systemsDataPaths()]
+      .filter(path => !Object.hasOwn(record.data, path));
+    const completedPatch = {...catastroPatch};
+    for (const path of missingTables) {
+      if (Object.hasOwn(estimates, path)) completedPatch[path] = estimates[path];
+    }
+    const data = {...record.data, ...completedPatch};
+    const paths = Object.keys(completedPatch);
     const saved = await persistAutocompletePatch(
       record,
       data,
