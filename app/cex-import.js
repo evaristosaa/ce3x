@@ -1,3 +1,10 @@
+const CEX32_CERTIFICATE_FIELDS = {
+  22: 'generales.definicion.superficieUtilCertificada',
+  23: 'generales.definicion.numeroViviendas',
+  24: 'generales.definicion.plantasBajoRasante',
+  25: 'generales.definicion.plantasSobreRasante',
+};
+
 /* Minimal protocol-0 pickle reader for the text streams used by CE3X 2.3 and 3.2. */
 function parseCexRecordData(text) {
   const source = String(text || '').replace(/\r\n/g, '\n');
@@ -64,6 +71,7 @@ function parseCexRecordData(text) {
   set('generales.definicion.planoSituacion', importedImageData(general[18]));
   set('generales.definicion.ventilacionInmueble', general[16]);
   set('generales.datos.anioConstruccion', general[19]);
+  if (version[2]) Object.entries(CEX32_CERTIFICATE_FIELDS).forEach(([index, path]) => set(path, general[index]));
 
   data['envolvente.cerramientos.items'] = envelopeRows(envelope[0]);
   data['envolvente.huecos.items'] = envelopeHuecoRows(envelope[1]);

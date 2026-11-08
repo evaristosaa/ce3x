@@ -145,6 +145,10 @@ const SECTIONS = [
       field('superficieUtilHabitable', 'Superficie útil habitable', 'number', { unit: 'm2' }),
       field('alturaLibrePlanta', 'Altura libre de planta', 'number', { unit: 'm' }),
       field('numeroPlantasHabitables', 'Número de plantas habitables', 'number'),
+      field('superficieUtilCertificada', 'Superficie útil para el certificado', 'number', {unit: 'm2'}),
+      field('numeroViviendas', 'Número de viviendas', 'number'),
+      field('plantasBajoRasante', 'Plantas bajo rasante', 'number'),
+      field('plantasSobreRasante', 'Plantas sobre rasante', 'number'),
       field('ventilacionInmueble', 'Ventilación del inmueble', 'number', { unit: 'ren/h' }),
       field('demandaDiariaACS', 'Demanda diaria de ACS', 'number', { unit: 'l/día' }),
       field('masaParticionesInternas', 'Masa de las particiones internas', 'select', { optionsKey: 'masaParticionesInternas' }),
@@ -394,6 +398,7 @@ const issueDesktopReportBtn = document.querySelector('#issueDesktopReportBtn');
 issueDesktopReportBtn.hidden = desktopXmlButton.hidden;
 desktopXmlButton.hidden = true;
 const desktopReportResults = new Map();
+const certificateCatastroData = new Map();
 desktopXmlButton.addEventListener('click', () => collectDesktopXml());
 issueDesktopReportBtn.addEventListener('click', () => collectDesktopXml(true));
 
@@ -914,6 +919,9 @@ function renderDetail() {
       container.appendChild(wrapper);
     });
     sectionFields.appendChild(fieldset);
+    if (sectionItem.id === 'generales' && groupItem.id === 'definicion' && record) {
+      sectionFields.appendChild(renderCertificateCatastroProposal(record));
+    }
     if (isReport) {
       const confirmation = issueWithoutImprovements.parentElement;
       confirmation.hidden = false;
@@ -2397,7 +2405,11 @@ async function loadCatastroForRecord(sourceRecord, options = {}) {
     const rawPatch = await fetchCatastroPatch(reference);
     const catastroPatch = emptyOnlyPatch(record, rawPatch);
     const patch = catastroPatch;
-    if (!Object.keys(patch).length) throw new Error('Catastro no devolvió datos útiles');
+    if (!Object.keys(patch).length) {
+      const panel = sectionFields.querySelector('[data-certificate-catastro]');
+      if (panel && selectedRecord()?.id === record.id) panel.replaceWith(renderCertificateCatastroProposal(record));
+      return record;
+    }
     const completedPatch = catastroAutocompletionPatch(record.data, catastroPatch);
     const data = Object.assign({}, record.data, completedPatch);
     const paths = [...new Set([
@@ -2452,9 +2464,12 @@ async function fetchCatastroPatch(reference) {
     throw new Error(catastroItem.error || 'Catastro no ha devuelto datos del inmueble.');
   }
   let rawPatch = catastroPatchFromData(catastroItem);
-  if (!hasValue(catastroItem.plantas) || !hasValue(catastroItem.superficieVivienda) || !Array.isArray(catastroItem.construcciones)) {
+  let certificateItem = catastroItem;
+  if (!hasValue(catastroItem.plantas) || !hasValue(catastroItem.superficieVivienda) || !catastroItem.construcciones?.length) {
     try {
-      const browserPatch = await browserCatastroPatch(reference);
+      const browserItem = await browserCatastroData(reference);
+      const browserPatch = catastroPatchFromData(browserItem);
+      if (!catastroItem.construcciones?.length && browserItem.construcciones.length) certificateItem = browserItem;
       Object.entries(browserPatch).forEach(([path, value]) => {
         if (hasValue(value)) rawPatch[path] = value;
       });
@@ -2464,6 +2479,7 @@ async function fetchCatastroPatch(reference) {
   }
   await addGeneratedSituationPlan(rawPatch);
   if (!Object.keys(rawPatch).length) throw new Error('Catastro no devolvio datos utiles');
+  certificateCatastroData.set(reference, certificateItem);
   return rawPatch;
 }
 
@@ -2474,14 +2490,14 @@ function hasUsefulCatastroData(item) {
   return Array.isArray(item.construcciones) && item.construcciones.some(row => hasValue(row.destino) || hasValue(row.superficie));
 }
 
-async function browserCatastroPatch(reference) {
+async function browserCatastroData(reference) {
   const url = 'https://ovc.catastro.meh.es/OVCServWeb/OVCSWLocalizacionRC/OVCCallejero.asmx/Consulta_DNPRC?Provincia=&Municipio=&RC=' + encodeURIComponent(reference);
   const response = await fetch(url);
   const xml = await response.text();
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
   const text = tag => doc.querySelector(tag)?.textContent?.trim() || '';
   const coordinates = await browserCatastroCoordinates(reference).catch(() => ({}));
-  return catastroPatchFromData({
+  return {
     referenciaCatastral: reference,
     direccion: text('ldt'),
     localidad: text('nm'),
@@ -2498,7 +2514,7 @@ async function browserCatastroPatch(reference) {
     x: coordinates.x,
     y: coordinates.y,
     srs: coordinates.srs,
-  });
+  };
 }
 
 async function browserCatastroCoordinates(reference) {
@@ -2510,6 +2526,82 @@ async function browserCatastroCoordinates(reference) {
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
   const text = tag => doc.querySelector(tag)?.textContent?.trim() || '';
   return { x: text('xcen'), y: text('ycen'), srs: text('srs') };
+}
+
+function certificateCatastroProposal(item, buildingType) {
+  const rows = Array.isArray(item.construcciones) ? item.construcciones : [];
+  const floors = new Set();
+  let complete = rows.length > 0;
+  for (const row of rows) {
+    const code = String(row.planta ?? '').trim();
+    if (!/^-?\d{1,2}$/.test(code)) {
+      complete = false;
+      continue;
+    }
+    floors.add(Number(code));
+  }
+  const above = [...floors].filter(floor => floor >= 0).sort((a, b) => a - b);
+  const below = [...floors].filter(floor => floor < 0).sort((a, b) => b - a);
+  const proposal = {};
+  if (complete && above.length && above.every((floor, index) => floor === index)) {
+    proposal.plantasSobreRasante = String(above.length);
+  }
+  if (complete && below.length && below.every((floor, index) => floor === -1 - index)) {
+    proposal.plantasBajoRasante = String(below.length);
+  }
+  const scope = normalizeText(buildingType);
+  const residential = rows.some(row => normalizeText(row.destino) === 'vivienda');
+  if (['vivienda individual', 'vivienda unifamiliar', 'unifamiliar'].includes(scope) && residential) {
+    proposal.numeroViviendas = '1';
+  }
+  return proposal;
+}
+
+function renderCertificateCatastroProposal(record) {
+  const panel = document.createElement('div');
+  panel.dataset.certificateCatastro = '';
+  panel.className = 'estimation-tools';
+  const referencePath = 'admin.localizacion.referenciaCatastral';
+  const typePath = 'generales.datos.tipoEdificio';
+  const reference = normalizeReference(valueAt(record, referencePath));
+  const item = certificateCatastroData.get(reference);
+  panel.hidden = !item;
+  if (!item) return panel;
+
+  const message = document.createElement('p');
+  message.setAttribute('role', 'status');
+  panel.append(message);
+  const buildingType = valueAt(record, typePath);
+  const labels = {plantasSobreRasante: 'Plantas sobre rasante', plantasBajoRasante: 'Plantas bajo rasante',
+    numeroViviendas: 'Viviendas o unidades de uso'};
+  const path = key => 'generales.definicion.' + key;
+  const proposal = certificateCatastroProposal(item, buildingType);
+  const pending = Object.entries(proposal).filter(([key]) => !hasValue(valueAt(record, path(key))));
+  message.textContent = pending.length
+    ? 'Propuestas de Catastro para revisar. Introduce la superficie útil manualmente.'
+    : 'Catastro no permite proponer valores nuevos para los campos vacíos.';
+  for (const [key, value] of pending) {
+    const confirm = document.createElement('button');
+    confirm.type = 'button';
+    confirm.className = 'secondary';
+    confirm.textContent = 'Confirmar ' + labels[key] + ' · ' + value;
+    confirm.addEventListener('click', () => {
+      const target = detailForm.elements[path(key)];
+      const active = selectedRecordWithCurrentFormData();
+      if (!target || target.value.trim() || active?.id !== record.id ||
+          normalizeReference(valueAt(active, referencePath)) !== reference ||
+          valueAt(active, typePath) !== buildingType) {
+        message.textContent = 'Los datos del expediente han cambiado. Revisa el campo antes de guardar.';
+        confirm.remove();
+        return;
+      }
+      target.value = value;
+      confirm.remove();
+      message.textContent = 'Propuesta aplicada. Pulsa «Guardar detalle» para guardarla.';
+    });
+    panel.append(confirm, ' ');
+  }
+  return panel;
 }
 
 function catastroPatchFromData(item) {
@@ -3351,6 +3443,18 @@ function criticalCexIssues(record) {
   if (!hasValue(data['generales.definicion.superficieUtilHabitable'])) issues.push('Superficie útil habitable');
   if (!hasValue(data['generales.definicion.alturaLibrePlanta'])) issues.push('Altura libre de planta');
   if (!hasValue(data['generales.definicion.numeroPlantasHabitables'])) issues.push('Número de plantas habitables');
+  const certificateFields = [
+    ['superficieUtilCertificada', 'Superficie útil para el certificado', false, 0],
+    ['numeroViviendas', 'Número de viviendas', true, 1],
+    ['plantasBajoRasante', 'Plantas bajo rasante', true, 0],
+    ['plantasSobreRasante', 'Plantas sobre rasante', true, 1],
+  ];
+  for (const [key, label, integer, minimum] of certificateFields) {
+    const text = String(data['generales.definicion.' + key] ?? '').trim().replace(',', '.');
+    const value = Number(text);
+    if (!text || !Number.isFinite(value) || value < minimum || (key === 'superficieUtilCertificada' && value === 0) ||
+        (integer && !Number.isSafeInteger(value))) issues.push(label);
+  }
   if (!hasValue(data['generales.definicion.masaParticionesInternas'])) issues.push('Masa de las particiones internas');
   if (!tableHasRows(data['envolvente.cerramientos.items'])) issues.push('Envolvente: cerramientos');
   if (!tableHasRows(data['envolvente.huecos.items'])) issues.push('Envolvente: huecos');

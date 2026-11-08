@@ -96,6 +96,7 @@ function cex32Inputs(template, record) {
     4:'generales.datos.zonaClimaticaHE1',5:'generales.datos.zonaClimaticaHE4',6:'generales.definicion.superficieUtilHabitable',7:'generales.definicion.alturaLibrePlanta',
     8:'generales.definicion.numeroPlantasHabitables',9:'generales.definicion.demandaDiariaACS',10:'generales.definicion.masaParticionesInternas',
     16:'generales.definicion.ventilacionInmueble',19:'generales.datos.anioConstruccion'});
+  assign(general, CEX32_CERTIFICATE_FIELDS);
   general[1] = normalizeText(general[1]) === 'vivienda individual' ? 'Vivienda Individual' : cexBuildingType(general[1]);
   if (/^CTE\s*20\d\d$/i.test(general[0])) general[0] = 'C.T.E.';
   const generalLocal = cexCompatibleLocality(general[3], general[2]);
@@ -282,7 +283,16 @@ function cex32HydrateSources(data) {
     return;
   }
   let source;
-  try { source = cex32ImportedTables(JSON.parse(data[CEX32_INPUT_KEY]).inputs); }
+  try {
+    const snapshot = JSON.parse(data[CEX32_INPUT_KEY]);
+    source = cex32ImportedTables(snapshot.inputs);
+    if (snapshot.version === '3.2') {
+      for (const [index, path] of Object.entries(CEX32_CERTIFICATE_FIELDS)) {
+        const value = snapshot.inputs[1]?.[index];
+        if (!Object.hasOwn(data, path) && value != null) data[path] = String(value);
+      }
+    }
+  }
   catch { return; } // Export reports malformed snapshots; loading must retain the record.
   for (const [path, originals] of Object.entries(source)) {
     if(typeof data[path]==='string') {
