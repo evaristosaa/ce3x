@@ -624,6 +624,11 @@ test('copied estimated equipment retains its source climate context and requires
 test('section-specific versions migrate copied 2.3 systems inside a 3.2 target',()=>{
   const h=loadHelpers(),source=h.parseCexRecordData(nativeFixture(h)),target=h.parseCexRecordData(nativeFixture(h));
   const snapshot=JSON.parse(source['cex.nativeInputs']);snapshot.version='2.3';snapshot.inputs[3][3][0].splice(8,1);
+  for (const service of ['calefaccion','refrigeracion']) {
+    for (const row of source['instalaciones.'+service+'.items']) {
+      if(row.__cexSource.startsWith('s:3:'))delete row.potenciaNominal;
+    }
+  }
   source['cex.nativeInputs']=JSON.stringify(snapshot);
   h.copySectionsData({data:source},target,template);
   const copied=JSON.parse(target['cex.nativeInputs']);assert.equal(copied.version,'3.2');assert.equal(copied.sectionVersions.systems,'2.3');
@@ -963,4 +968,30 @@ test('certificate building fields survive Sheets storage and CEX 3.2 import and 
   assert.deepEqual(plain(h.cex32Blocks(cex)[2].value.slice(22,26)),['106','1','0','1']);
   const reimported=h.parseCexRecordData(cex);
   for(const [key,value] of Object.entries(fields))assert.equal(reimported[prefix+key],value);
+});
+
+
+test('nominal power survives Sheets and the native CE3X service vectors', () => {
+  const h=loadHelpers(),{storage}=loadStorageWriteHelpers([]);
+  const services=['acs','calefaccion','refrigeracion'];
+  const powers=['24','8,5','7'];
+  const data=Object.fromEntries(services.map((service,i)=>['instalaciones.'+service+'.items',[
+    {nombre:service,modoDefinicion:'Conocido',tipoGenerador:'Bomba de Calor',rendimientoEstacional:'100',potenciaNominal:powers[i],tipoIntercambioBdC:i===1?'Aire-agua':''}
+  ]]));
+  const restored=storage.rowToRecord_(storage.recordToRow_({id:'power',data}),storage.HEADERS);
+  const cex=h.buildCex32(template,restored), systems=h.cex32Blocks(cex)[4].value;
+  assert.deepEqual(plain(systems[0][0][9]),['24','','']);
+  assert.deepEqual(plain(systems[1][0][8]),['','8.5','']);
+  assert.deepEqual(plain(systems[2][0][8]),['','','7']);
+  const reimported=h.parseCexRecordData(cex);
+  assert.equal(systems[1][0][7][3],1);
+  assert.equal(systems[2][0][7][3],0);
+  assert.equal(reimported['instalaciones.calefaccion.items'][0].tipoIntercambioBdC,'Aire-agua');
+  const acs=reimported['instalaciones.acs.items'][0];
+  assert.equal(acs.zona,'Edificio Objeto');
+  assert.equal(acs.potenciaNominal,'24');
+  acs.potenciaNominal='25';
+  assert.equal(h.cex32Blocks(h.buildCex32(template,{data:reimported}))[4].value[0][0][9][0],'25');
+  delete data['instalaciones.acs.items'][0].potenciaNominal;
+  assert.match(h.sectionCompletion({data},'instalaciones').issue,/falta la potencia nominal/);
 });

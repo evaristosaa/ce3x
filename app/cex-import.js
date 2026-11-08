@@ -338,7 +338,7 @@ function systemAcsRow(item) {
     nombre: cexImportValue(item?.[0]), tipoEquipo: 'ACS', modoDefinicion: cexImportValue(item?.[6]),
     tipoGenerador: cexImportValue(item?.[3]), combustible: cexImportValue(item?.[4]),
     rendimientoEstacional: cexImportValue(item?.[2]?.[0]), m2Cubiertos: cexImportValue(item?.[5]?.[0]?.[0]),
-    demandaCubierta: cexImportValue(item?.[5]?.[0]?.[1]), zona: cexImportValue(item?.[9]),
+    demandaCubierta: cexImportValue(item?.[5]?.[0]?.[1]), zona: cexImportValue(item?.[item.length - 1]),
     ...systemTankFields(item?.[8]),
   };
 }
@@ -362,11 +362,32 @@ function systemContributionRow(item) {
   };
 }
 
+const CEX_HEAT_PUMP_TYPES = ['Aire-aire', 'Aire-agua', 'Otro', 'Agua-agua'];
+
+function cexKnownHeatPump(generator, mode) {
+  return /^bomba de calor$/i.test(String(generator).trim()) && /^conocido/i.test(String(mode));
+}
+
+function cexSystemPowerSlot(group) {
+  return [0,4,5].includes(group) ? 9 : 8;
+}
+
 function systemRows(stream) {
   const result = { acs: [], calefaccion: [], refrigeracion: [], contribuciones: [] };
   if (!Array.isArray(stream)) return result;
-  const push = (key, row, group, index, service) => result[key].push(
-    Object.assign(row, {__cexSource: `s:${group}:${index}:${service}`}));
+  const push = (key, row, group, index, service) => {
+    if (group < 6) {
+      const raw = stream[group][index];
+      if (cexKnownHeatPump(raw[3], raw[6]) && Number.isInteger(raw[7]?.[3])) {
+        row.tipoIntercambioBdC = CEX_HEAT_PUMP_TYPES[raw[7][3]] || '';
+      }
+      const slot = cexSystemPowerSlot(group);
+      if (slot < raw.length - 1 && Array.isArray(raw[slot])) {
+        row.potenciaNominal = cexImportValue(raw[slot][service]);
+      }
+    }
+    result[key].push({...row, __cexSource: `s:${group}:${index}:${service}`});
+  };
   (stream[0] || []).forEach((item,index) => push('acs',systemAcsRow(item),0,index,0));
   const singleClimate = (item, service, label) => {
     const slot = cexImportValue(item?.[2]?.[service]) === '' ? 0 : service;
