@@ -781,3 +781,5 @@ dialog::backdrop {
   .section-fields .report-settings { grid-template-columns: minmax(0, 1fr); }
 }
 .report-no-improvements input { width: auto; }
+
+#operationMessage { white-space: pre-line; }

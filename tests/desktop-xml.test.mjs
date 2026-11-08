@@ -50,7 +50,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
     selectedRecordWithCurrentFormData: () => record,
     renderDetail() {},
     saveLocalWorkspace: next => { saved = next; },
-    criticalCexIssues: () => [], missingSections: () => [], renderRecords() {},
+    criticalCexIssues: () => [], generationBlockers: () => "", renderRecords() {},
     desktopXmlButton: button, issueDesktopReportBtn: {}, issueWithoutImprovements: {},
     showOperation: (title, message, busy = true) => operationMessages.push({title, message, busy}),
     desktopReportResults: results, selectedRecord: () => null,
@@ -134,4 +134,26 @@ test('home state uses the persisted certificate after reload', () => {
   assert.equal(context.displayRecordStatus(JSON.parse(JSON.stringify(persisted))), 'CERTIFICADO_GENERADO');
   assert.equal(context.displayRecordStatus({estado: 'COMPLETA'}), 'COMPLETA');
   assert.equal(context.displayRecordStatus({estado: 'BORRADOR'}), 'PENDIENTE_DATOS');
+});
+
+
+test('generation lists record, report and configuration blockers together', async () => {
+  const source = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
+  const status = {};
+  const messages = [];
+  await vm.runInNewContext(source.slice(source.indexOf('async function desktopReportFolder('),
+    source.indexOf('async function loadCex32Template()')) + '\ncollectDesktopXml(true)', {
+    selectedRecordWithCurrentFormData: () => ({data: {'admin.localizacion.referenciaCatastral': 'INVALIDA'}}),
+    document: {querySelector: () => status},
+    criticalCexIssues: () => ['Superficie'],
+    generationBlockers: () => 'NIF del cliente\nACS estimado',
+    showOperation: (title, message) => messages.push(message),
+    location: {hostname: 'evaristosaa.github.io'}, state: {config: {}},
+    xmlFolderSetting: async () => null,
+  });
+  assert.equal(messages.length, 1);
+  for (const issue of ['NIF del cliente', 'ACS estimado', 'Superficie', 'referencia catastral',
+    'fecha de visita', 'comprobaciones', 'clave de Render', 'carpeta de trabajo']) {
+    assert.ok(messages[0].includes(issue), issue);
+  }
 });
