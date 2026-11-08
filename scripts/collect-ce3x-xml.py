@@ -179,9 +179,10 @@ def accept_missing_improvements(user, callback, process, project):
         result = ctypes.c_size_t()
         user.SendMessageTimeoutW(hwnd, 0x000D, len(text), ctypes.addressof(text), 2, 250,
                                  ctypes.byref(result))
-        if text.value == notice:
+        normalized = " ".join(text.value.split())
+        if normalized == notice:
             matches.append(hwnd)
-        if text.value == "OK":
+        if normalized in ("OK", "Aceptar"):
             buttons.append(hwnd)
         return True
 
@@ -199,10 +200,11 @@ def accept_missing_improvements(user, callback, process, project):
         buttons.clear()
         user.EnumChildWindows(hwnd, inspect_child, 0)
         if len(matches) == 1 and len(buttons) == 1 and user.PostMessageW(buttons[0], 0x00F5, 0, 0):
+            print("Aviso de conjuntos de mejora aceptado según la confirmación de la app.", flush=True)
             return False
         return True
 
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + 120
     while process.poll() is None and time.monotonic() < deadline:
         if project.with_suffix(".xml").exists() or not user.EnumWindows(inspect_window, 0):
             return

@@ -17,6 +17,7 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
   const results = new Map();
   const operationMessages = [];
   let firstRead = true;
+  let elapsed = 0;
   const job = {
     async getFileHandle(name, options) {
       calls.push(name);
@@ -94,13 +95,15 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
       assert.equal(file, name.endsWith('.pdf') ? pdf : xml);
       calls.push('download:' + name);
     },
-    setTimeout: callback => callback()
+    Date: {now: () => elapsed},
+    setTimeout: callback => { elapsed += 7 * 60 * 1000; callback(); }
   });
   assert.deepEqual(calls, ['example.cex', 'cex bytes', 'closed', 'report.json',
     JSON.stringify({issueDate: '', visitDate: '2026-11-05', observations: 'Prueba', recommendations: '', documentation: '', autoSubmit: issue, acceptNoImprovements: false}),
     'closed', 'ready', 'example.xml', 'example.xml',
     ...(issue ? ['example.pdf', pdf, 'closed'] : ['download:example.xml', 'prepare:pdf'])]);
   assert.equal(button.disabled, false);
+  assert.equal(elapsed, 7 * 60 * 1000);
   assert.equal(operationMessages[0].busy, true);
   if (issue) assert.equal(operationMessages.at(-1).busy, false);
   assert.equal(results.get('example').rating[0].value, '58.03');
