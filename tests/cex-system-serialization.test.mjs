@@ -61,6 +61,7 @@ globalThis.__cexHelpers = {
   applyCexEnvelopeStreamReplacement,
   applyCexSystemsStreamReplacement,
   stripCexImprovements,
+  certificateCatastroProposal,
   catastroPatchFromData,
   catastroCartographyUrl,
   catastro3dUrl,
@@ -1038,4 +1039,24 @@ test('rejects Catastro responses without building data', () => {
     referenciaCatastral: '0128501TG4302N0004BU',
     direccion: 'PL SEN-1 ENTRENUCLEOS 40(D)',
   }), true);
+});
+
+
+test('proposes only supported certificate counts from the El Melchor Catastro breakdown', () => {
+  const {certificateCatastroProposal}=loadCexHelpers();
+  const item={construcciones:[
+    {destino:'VIVIENDA',planta:'00',superficie:'106'},
+    {destino:'OTROS USOS',planta:'00',superficie:'3'}
+  ]};
+  const plain = value => JSON.parse(JSON.stringify(value));
+  assert.deepEqual(plain(certificateCatastroProposal(item,'Vivienda individual')),
+    {plantasSobreRasante:'1',numeroViviendas:'1'});
+  assert.deepEqual(plain(certificateCatastroProposal(item,'Bloque de viviendas')),
+    {plantasSobreRasante:'1'});
+  item.construcciones.push({destino:'GARAJE',planta:'-1'});
+  assert.deepEqual(plain(certificateCatastroProposal(item,'Bloque de viviendas')),
+    {plantasSobreRasante:'1',plantasBajoRasante:'1'});
+  item.construcciones.push({destino:'VIVIENDA',planta:'02'});
+  assert.deepEqual(plain(certificateCatastroProposal(item,'Bloque de viviendas')),
+    {plantasBajoRasante:'1'});
 });
