@@ -3155,10 +3155,10 @@ async function collectDesktopXml(issuePdf = false) {
     }
     await job.getFileHandle("ready", { create: true });
     progress('Generando XML y PDF · esperando a CE³X', 'CEX_GENERADO');
-    status.textContent = 'CEX preparado en ' + jobName + '. El asistente abrirá CE³X. Confirma allí las opciones del informe; la app espera hasta cinco minutos.';
+    status.textContent = 'CEX preparado en ' + jobName + '. El asistente abrirá CE³X. Confirma allí las opciones del informe; la app espera hasta veinte minutos.';
 
-    showOperation(operationTitle, 'Esperando el XML de CE³X. Si aparece un aviso en CE³X, revísalo allí.');
-    const deadline = Date.now() + 300000;
+    showOperation(operationTitle, 'Esperando el XML de CE³X (hasta 20 minutos). Si CE³X muestra un aviso que requiere revisión, atiéndelo allí.');
+    const deadline = Date.now() + 20 * 60 * 1000;
     while (Date.now() < deadline) {
       try {
         const handle = await job.getFileHandle(name + '.xml');
