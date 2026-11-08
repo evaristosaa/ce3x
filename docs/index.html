@@ -59,12 +59,9 @@
       <div id="listView" class="list-view">
         <div class="workspace-stats" aria-label="Estado de los expedientes">
           <button type="button" class="stat-card" data-filter="all"><span>Total expedientes</span><strong id="totalCount">0</strong><small>Tu cartera de trabajo <span>↗</span></small></button>
-          <button type="button" class="stat-card" data-filter="BORRADOR"><span>Pendientes</span><strong id="draftCount">0</strong><small><i class="dot amber"></i> Por completar</small></button>
           <button type="button" class="stat-card" data-filter="PENDIENTE_DATOS"><span>En curso</span><strong id="progressCount">0</strong><small><i class="dot blue"></i> Recogida de datos</small></button>
           <button type="button" class="stat-card" data-filter="COMPLETA"><span>Datos completos</span><strong id="completeCount">0</strong><small><i class="dot green"></i> Datos completos</small></button>
-          <button type="button" class="stat-card" data-filter="CEX_GENERADO"><span>CEX preparado</span><strong id="cexCount">0</strong></button>
-          <button type="button" class="stat-card" data-filter="XML_GENERADO"><span>XML disponible</span><strong id="xmlCount">0</strong></button>
-          <button type="button" class="stat-card" data-filter="CERTIFICADO_GENERADO"><span>XML y PDF disponibles</span><strong id="pdfCount">0</strong></button>
+          <button type="button" class="stat-card" data-filter="CERTIFICADO_GENERADO"><span>CEX, XML y PDF disponibles</span><strong id="pdfCount">0</strong></button>
         </div>
         <div class="panel-header">
           <div>
@@ -74,12 +71,9 @@
           <div class="list-filters">
             <select id="statusFilter" aria-label="Filtrar expedientes por estado">
               <option value="all">Todos los estados</option>
-              <option value="BORRADOR">Pendientes</option>
               <option value="PENDIENTE_DATOS">En curso</option>
               <option value="COMPLETA">Datos completos</option>
-              <option value="CEX_GENERADO">CEX preparado</option>
-              <option value="XML_GENERADO">XML disponible</option>
-              <option value="CERTIFICADO_GENERADO">XML y PDF disponibles</option>
+              <option value="CERTIFICADO_GENERADO">CEX, XML y PDF disponibles</option>
             </select>
             <input id="searchInput" type="search" placeholder="Dirección, referencia o cliente…" aria-label="Buscar expedientes">
           </div>
@@ -108,6 +102,7 @@
         </div>
         <p id="detailSaveStatus" class="export-note" role="status"></p>
         <label class="report-no-improvements" hidden><input id="issueWithoutImprovements" type="checkbox"> Confirmo que esta emisión no incluye conjuntos de mejora</label>
+        <button type="button" id="openCertificateFolder" onclick="openCertificateFolder()" hidden>Abrir carpeta del expediente</button>
         <p id="desktopReportFlow" class="export-note" aria-live="polite" hidden></p>
         <p id="desktopXmlStatus" class="export-note" role="status" hidden></p>
 
@@ -128,6 +123,12 @@
     </section>
   </main>
 
+  <dialog id="certificateFolderDialog" aria-labelledby="certificateFolderTitle">
+    <h2 id="certificateFolderTitle">Archivos del expediente</h2>
+    <p id="certificateFolderPath"></p>
+    <p id="certificateFolderFiles"></p>
+    <form method="dialog"><button>Cerrar</button></form>
+  </dialog>
   <dialog id="operationDialog" aria-labelledby="operationTitle" aria-describedby="operationMessage">
     <h2 id="operationTitle"></h2>
     <p id="operationMessage" role="status" aria-live="polite"></p>
@@ -300,8 +301,8 @@
   <script src="cex-32.js?v=20261107-equipment-validation"></script>
   <script src="estimation-model.js?v=20261106-window"></script>
   <script src="review-model.js?v=20261106-window"></script>
-  <script src="workspace.js?v=20261107-issue-status"></script>
-  <script src="app.js?v=20261108-xml-wait"></script>
+  <script src="workspace.js?v=20261108-certificate-versions"></script>
+  <script src="app.js?v=20261108-certificate-versions"></script>
   <script src="estimation-ui.js?v=20261106-window"></script>
   <script src="references-ui.js?v=20261106-window"></script>
   <script src="review-ui.js?v=20261106-window"></script>

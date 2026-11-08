@@ -57,3 +57,5 @@ Las filas de `instalaciones.acs.items`, `instalaciones.calefaccion.items` e `ins
 El tamaño práctico máximo de cada celda JSON sigue siendo 49.000 caracteres; si se supera, el backend rechaza el guardado. No se trunca el contenido.
 
 Al copiar envolvente e instalaciones, `cex.nativeInputs` conserva los bloques administrativos y generales del destino y sustituye los bloques nativos de las secciones copiadas, incluyendo sus sombras. `sectionVersions` identifica el formato de cada sección, `systemContext` conserva el contexto climático de origen de las instalaciones y `copiedSections` registra el expediente de procedencia. La copia guarda también este campo mediante su almacenamiento fragmentado existente.
+
+La columna 110, `informe.ultimaEmision`, guarda la carpeta, el nombre de la versión y la calificación de la última emisión completa. Ejecuta `migrateSchema32()` antes de desplegar el Apps Script actualizado.

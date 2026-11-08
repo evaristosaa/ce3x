@@ -103,6 +103,8 @@ def request_xml_options(process, project):
 
 def fill_report_options(user, callback, process, project):
     sidecar = project.with_name("report.json")
+    if not sidecar.is_file() or FLAT_PROJECT.fullmatch(project.stem):
+        sidecar = project.with_suffix(".report.json")
     if not sidecar.is_file():
         return
     report = json.loads(sidecar.read_text(encoding="utf-8"))
@@ -247,6 +249,9 @@ exit 1
         print("CE³X no confirmó el aviso automáticamente. Revisa su ventana.", flush=True)
 
 
+FLAT_PROJECT = re.compile(r"[A-Za-z0-9_-]{1,80}_\d{4}(?:-\d{2}){5}_" + JOB_DIRECTORY.pattern)
+
+
 def job_directories(folder):
     for entry in folder.iterdir():
         if JOB_DIRECTORY.fullmatch(entry.name):
@@ -258,29 +263,40 @@ def job_directories(folder):
             yield from (job for job in entry.iterdir() if JOB_DIRECTORY.fullmatch(job.name))
 
 
+def flat_projects(folder):
+    for entry in folder.iterdir():
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,80} \[[A-Z0-9]{20}\]", entry.name):
+            continue
+        if not entry.is_dir() or entry.resolve() != entry:
+            continue
+        for marker in entry.glob("*.ready"):
+            if FLAT_PROJECT.fullmatch(marker.stem) and marker.is_file() and marker.resolve() == marker:
+                yield marker.with_suffix(".cex")
+
+
+def legacy_projects(folder):
+    for job in job_directories(folder):
+        if not job.is_dir() or job.resolve() != job or not (job / "ready").is_file():
+            continue
+        projects = list(job.glob("*.cex"))
+        if len(projects) == 1:
+            yield projects[0]
+
+
 def watch_jobs(folder, executable, auto_rate=False):
     """Open new browser jobs in an explicitly selected, private folder."""
     if not folder.is_dir() or not executable.is_file():
         raise ValueError("Selecciona una carpeta de trabajo existente y una instalación de CE³X 3.2.")
     if auto_rate:
         (folder / ".ce3x-xml-bridge").touch()
-    seen = set(job_directories(folder))
+        (folder / ".ce3x-xml-bridge-v2").touch()
+    seen = set(legacy_projects(folder)) | set(flat_projects(folder))
     print("Esperando nuevas exportaciones de la app. Pulsa Ctrl+C para detener.", flush=True)
     while True:
-        for job in sorted(job_directories(folder)):
-            if job in seen or not JOB_DIRECTORY.fullmatch(job.name):
+        for project in sorted(set(legacy_projects(folder)) | set(flat_projects(folder))):
+            if project in seen or not project.is_file() or project.resolve() != project or not project.stat().st_size:
                 continue
-            if not job.is_dir() or job.resolve().parent != job.parent:
-                continue
-            if not (job / "ready").is_file():
-                continue
-            projects = list(job.glob("*.cex"))
-            if len(projects) != 1:
-                continue
-            project = projects[0]
-            if not project.is_file() or project.resolve().parent != job or not project.stat().st_size:
-                continue
-            seen.add(job)
+            seen.add(project)
             process = subprocess.Popen([str(executable), str(project)], cwd=executable.parent)
             if auto_rate and request_xml_options(process, project):
                 print("Opciones XML solicitadas. Revisa la calificación y confirma el informe en CE³X.", flush=True)
