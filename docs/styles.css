@@ -308,6 +308,12 @@ button:disabled {
   color: var(--ok);
 }
 
+.badge.CERTIFICADO_GENERADO {
+  background: #e0f2fe;
+  border: 1px solid #7dd3fc;
+  color: #075985;
+}
+
 .section-pill.partial,
 .badge.PENDIENTE_DATOS {
   background: #fff7e6;
