@@ -1,5 +1,6 @@
 /* CE3X 3.2 input adapter. Parses data only; never executes Python globals. */
 const CEX32_INPUT_KEY = 'cex.nativeInputs';
+const CEX32_PROTECTION_GRADES = ['Ninguna', 'Integral', 'Estructural', 'Ambiental'];
 
 function cex32Blocks(text) {
   const source = String(text).replace(/\r\n/g, '\n');
@@ -91,7 +92,8 @@ function cex32Inputs(template, record) {
   const local = cexCompatibleLocality(admin[2], admin[3]);
   admin[4] = local === 'Otro' ? admin[2] : ''; admin[2] = local;
   if (String(admin[20]).trim() === '.') admin[20] = '';
-  if (!admin[26]) admin[26] = 'Ninguna';
+  const protection = normalizeText(admin[26]).trim().replace(/ o equivalente$/, '');
+  admin[26] = CEX32_PROTECTION_GRADES.find(grade => normalizeText(grade) === protection) || admin[26] || 'Ninguna';
   if (!admin[28] || ['privado', 'residencialprivado', 'residencial privado'].includes(normalizeText(admin[28]))) {
     admin[28] = 'ResidencialPrivado';
   }

@@ -5,6 +5,18 @@ const LOCAL_DATA_KEYS = [LOCAL_KEY, LOCAL_BACKUP_KEY];
 const WRITE_ACTIONS = ['save', 'patch', 'delete', 'markGenerated'];
 const CASA37_REFERENCE = '__sin_expediente_de_ejemplo__';
 const TECHNICIAN_PATH_PREFIX = 'admin.tecnico.';
+const CAMINOS_QUALIFICATION = 'Ingeniería de Caminos, Canales y Puertos';
+const TECHNICIAN_QUALIFICATIONS = [
+  'Arquitectura', 'Arquitectura técnica o aparejadores',
+  'Ingeniería Aeronáutica', 'Ingeniería Agrónoma', CAMINOS_QUALIFICATION,
+  'Ingeniería Industrial', 'Ingeniería de Minas', 'Ingeniería de Montes',
+  'Ingeniería Naval y Oceánica', 'Ingeniería de Telecomunicación',
+  'Ingeniería Técnica Aeronáutica', 'Ingeniería Técnica Agrícola',
+  'Ingeniería Técnica Forestal', 'Ingeniería Técnica Industrial',
+  'Ingeniería Técnica de Minas', 'Ingeniería Técnica Naval',
+  'Ingeniería Técnica de Obras Públicas', 'Ingeniería Técnica Telecomunicación',
+  'Ingeniería Técnica Topografía', 'Ingeniería Química', 'Otra',
+];
 
 // Personal technician details are loaded from private expedientes, never shipped in this bundle.
 const DEFAULT_TECHNICIAN = {};
@@ -71,6 +83,7 @@ const CE3X_LOCATION_CATALOG = Object.keys(window.CE3X_LOCATION_CATALOG || {}).le
 const SELECT_OPTIONS = {
   gradoProteccion: ['Ninguna', 'Integral o equivalente', 'Estructural o equivalente', 'Ambiental o equivalente'],
   usoEdificio: ['Residencial privado'],
+  titulacion: TECHNICIAN_QUALIFICATIONS,
   normativaVigente: ['Anterior', 'NBE-CT-79', 'CTE 2006', 'CTE 2013', 'C.T.E.'],
   tipoEdificio: ['Unifamiliar', 'Bloque de viviendas', 'Vivienda individual', 'Terciario'],
   provincia: Object.keys(CE3X_LOCATION_CATALOG),
@@ -124,7 +137,7 @@ const SECTIONS = [
       field('codigoPostal', 'Código Postal'),
       field('telefono', 'Teléfono'),
       field('email', 'E-mail'),
-      field('titulacion', 'Titulación habilitante según normativa vigente'),
+      field('titulacion', 'Titulación habilitante según normativa vigente', 'select', { optionsKey: 'titulacion' }),
     ]),
     group('informe', 'Datos del informe', [], [
       field('fechaEmision', 'Fecha de emisión', 'date'),
@@ -611,7 +624,7 @@ async function createNewRecord(persist = true, initialData = {}) {
     estado: 'BORRADOR',
     createdAt: now,
     updatedAt: now,
-    data: Object.assign({}, DEFAULT_TECHNICIAN, state.config.technician, initialData),
+    data: Object.assign({}, DEFAULT_TECHNICIAN, technicianProfileWithDefaults(state.config.technician), initialData),
   });
   if (persist) {
     const reviewSources=Object.fromEntries(FLAT_FIELDS.map(item=>[item.path,{source:Object.prototype.hasOwnProperty.call(initialData,item.path)?(initialData['cex.nativeInputs']?'cex':'manual'):'estimate',detail:initialData['cex.nativeInputs']?'CEX '+initialData['cex.sourceVersion']:''}]));
@@ -984,8 +997,12 @@ function inputHtml(item, path, value) {
   if (item.type === 'select') {
     const options = selectOptionsForField(item, path);
     // CE3X's "Otro" conversion belongs to export, not the editable source value.
-    const selected = item.optionsKey === 'usoEdificio' && ['privado', 'residencialprivado', 'residencial privado'].includes(normalizeText(value))
+    let selected = item.optionsKey === 'usoEdificio' && ['privado', 'residencialprivado', 'residencial privado'].includes(normalizeText(value))
       ? 'Residencial privado' : value;
+    if (item.optionsKey === 'gradoProteccion' && /^(integral|estructural|ambiental)$/i.test(String(value).trim())) {
+      selected = options.find(option => normalizeText(option) === normalizeText(value).trim() + ' o equivalente');
+    }
+    if (item.optionsKey === 'titulacion') selected = canonicalTechnicianQualification(value);
     return selectHtml(path, selected, options);
   }
   if (item.type === 'image') return imageInputHtml(path, value);
@@ -3378,9 +3395,9 @@ async function collectDesktopXml(issuePdf = false) {
     }
     await job.getFileHandle(ready, { create: true });
     progress('Generando XML y PDF · esperando a CE³X', 'CEX_GENERADO');
-    status.textContent = 'CEX preparado en ' + (issuePdf ? archiveName : jobName) + '. El asistente abrirá CE³X. Confirma allí las opciones del informe; la app espera hasta veinte minutos.';
+    status.textContent = 'CEX preparado en ' + (issuePdf ? archiveName : jobName) + '. El asistente abrirá CE³X para generar el informe.';
 
-    showOperation(operationTitle, 'Esperando el XML de CE³X (hasta 20 minutos). Si CE³X muestra un aviso que requiere revisión, atiéndelo allí.');
+    showOperation(operationTitle, 'CE³X está preparando el XML. Si aparece un aviso en CE³X, revísalo allí.');
     const deadline = Date.now() + 20 * 60 * 1000;
     while (Date.now() < deadline) {
       try {
@@ -5079,6 +5096,21 @@ async function loadSharedTechnician() {
   if (state.config === config && response.technician) config.technician = response.technician;
 }
 
+function canonicalTechnicianQualification(value) {
+  const text = String(value || '').trim();
+  const key = normalizeText(text);
+  return TECHNICIAN_QUALIFICATIONS.find(option => normalizeText(option) === key) || text;
+}
+
+function technicianProfileWithDefaults(profile) {
+  const name = normalizeText(profile?.['admin.tecnico.nombre']).trim().replace(/\s+/g, ' ');
+  const qualification = profile?.['admin.tecnico.titulacion'];
+  if (name === 'juan jose moreno fresno' && (!qualification || qualification === 'INGENIERO TÉCNICO DE MINAS')) {
+    return { ...profile, 'admin.tecnico.titulacion': CAMINOS_QUALIFICATION };
+  }
+  return profile;
+}
+
 async function openConfig() {
   const sharedStatus = document.querySelector('#sharedConfigStatus');
   sharedStatus.textContent = '';
@@ -5090,12 +5122,19 @@ async function openConfig() {
   await loadLocalTechnicianDefault();
   configForm.elements.pdfKey.value = state.config.pdfKey || '';
   const fields = document.querySelector('#technicianConfigFields');
+  const technician = technicianProfileWithDefaults(state.config.technician);
   fields.replaceChildren();
   for (const [key, caption] of Object.entries(TECHNICIAN_CONFIG_LABELS)) {
     const label = document.createElement('label');
+    const path = TECHNICIAN_PATH_PREFIX + key;
+    if (key === 'titulacion') {
+      label.innerHTML = escapeHtml(caption) + selectHtml(path, canonicalTechnicianQualification(technician?.[path]), TECHNICIAN_QUALIFICATIONS);
+      fields.append(label);
+      continue;
+    }
     const input = document.createElement('input');
-    input.name = TECHNICIAN_PATH_PREFIX + key;
-    input.value = state.config.technician?.[input.name] || '';
+    input.name = path;
+    input.value = technician?.[path] || '';
     label.append(caption, input);
     fields.append(label);
   }
@@ -5289,7 +5328,7 @@ function cexCompatibleLocality(value, province = '') {
   const locality = cexLocality(value);
   const localities = ce3xLocalitiesForProvince(province);
   if (!localities.length) return locality || titleCase(province);
-  return localities.find(option => normalizeText(option) === normalizeText(locality))
+  return localities.find(option => normalizeText(option).trim() === normalizeText(locality).trim())
     || localities.find(option => normalizeText(option) === 'otro')
     || localities[0];
 }

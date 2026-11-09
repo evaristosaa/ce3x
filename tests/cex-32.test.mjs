@@ -669,6 +669,15 @@ test('changing administrative data does not mutate the imported climate configur
   assert.equal(blocks[1].value[1],'Calle Nueva 8');assert.equal(blocks[4].value[3][0][8][1],'3000');
 });
 
+test('protection labels saved by the app export as native CE3X codes',()=>{
+  const h=loadHelpers(), data=h.parseCexRecordData(nativeFixture(h));
+  for (const grade of ['Integral', 'Estructural', 'Ambiental']) {
+    data['admin.localizacion.gradoProteccion'] = grade + ' o equivalente';
+    const blocks=h.cex32Blocks(h.buildCex32(template,{data}));
+    assert.equal(blocks[1].value[26],grade);
+  }
+});
+
 test('client identity survives import, editing and native 3.2 export',()=>{
   const h=loadHelpers(), blocks=h.cex32Blocks(nativeFixture(h));
   blocks[1].value[6]='00000000T';
