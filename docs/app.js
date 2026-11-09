@@ -69,6 +69,8 @@ const CE3X_LOCATION_CATALOG = Object.keys(window.CE3X_LOCATION_CATALOG || {}).le
     };
 
 const SELECT_OPTIONS = {
+  gradoProteccion: ['Ninguna', 'Integral o equivalente', 'Estructural o equivalente', 'Ambiental o equivalente'],
+  usoEdificio: ['Residencial privado'],
   normativaVigente: ['Anterior', 'NBE-CT-79', 'CTE 2006', 'CTE 2013', 'C.T.E.'],
   tipoEdificio: ['Unifamiliar', 'Bloque de viviendas', 'Vivienda individual', 'Terciario'],
   provincia: Object.keys(CE3X_LOCATION_CATALOG),
@@ -93,8 +95,8 @@ const SECTIONS = [
   section('admin', 'Datos administrativos', [
     group('localizacion', 'Localización e identificación del edificio', ['nombreEdificio', 'direccion', 'provincia', 'localidad', 'codigoPostal', 'referenciaCatastral'], [
       field('nombreEdificio', 'Nombre del edificio'),
-      field('gradoProteccion', 'Grado de protección'),
-      field('usoEdificio', 'Uso del edificio (CE3X)', 'text'),
+      field('gradoProteccion', 'Grado de protección', 'select', { optionsKey: 'gradoProteccion' }),
+      field('usoEdificio', 'Uso del edificio', 'select', { optionsKey: 'usoEdificio' }),
       field('direccion', 'Dirección'),
       field('provincia', 'Provincia/Ciudad autónoma', 'select', { optionsKey: 'provincia' }),
       field('localidad', 'Localidad', 'select', { optionsKey: 'localidad' }),
@@ -982,7 +984,9 @@ function inputHtml(item, path, value) {
   if (item.type === 'select') {
     const options = selectOptionsForField(item, path);
     // CE3X's "Otro" conversion belongs to export, not the editable source value.
-    return selectHtml(path, value, options);
+    const selected = item.optionsKey === 'usoEdificio' && ['privado', 'residencialprivado', 'residencial privado'].includes(normalizeText(value))
+      ? 'Residencial privado' : value;
+    return selectHtml(path, selected, options);
   }
   if (item.type === 'image') return imageInputHtml(path, value);
   const type = item.type === 'number' ? 'text' : item.type;

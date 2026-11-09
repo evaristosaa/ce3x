@@ -92,7 +92,9 @@ function cex32Inputs(template, record) {
   admin[4] = local === 'Otro' ? admin[2] : ''; admin[2] = local;
   if (String(admin[20]).trim() === '.') admin[20] = '';
   if (!admin[26]) admin[26] = 'Ninguna';
-  if (!admin[28]) admin[28] = 'ResidencialPrivado';
+  if (!admin[28] || ['privado', 'residencialprivado', 'residencial privado'].includes(normalizeText(admin[28]))) {
+    admin[28] = 'ResidencialPrivado';
+  }
   assign(general, {0:'generales.datos.normativaVigente',1:'generales.datos.tipoEdificio',2:'generales.datos.provincia',3:'generales.datos.localidad',
     4:'generales.datos.zonaClimaticaHE1',5:'generales.datos.zonaClimaticaHE4',6:'generales.definicion.superficieUtilHabitable',7:'generales.definicion.alturaLibrePlanta',
     8:'generales.definicion.numeroPlantasHabitables',9:'generales.definicion.demandaDiariaACS',10:'generales.definicion.masaParticionesInternas',
