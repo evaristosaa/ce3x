@@ -350,6 +350,10 @@ const aliasMap = manualAliases.concat(autoAliases).flatMap(item => item.aliases.
   pattern: aliasToPattern(name),
 })));
 
+const detailEdits = new Map();
+let renderedDetailId = '';
+let renderedDetailValues = {};
+
 const state = {
   records: [],
   selectedId: '',
@@ -845,10 +849,27 @@ function renderTabs() {
   });
 }
 
+function readDetailValues() {
+  const values = Object.fromEntries(Array.from(new FormData(detailForm), ([path, value]) =>
+    [path, String(value || '').trim()]));
+  collectTables(values);
+  return values;
+}
+
+function captureDetailEdits() {
+  if (!renderedDetailId) return;
+  const edits = detailEdits.get(renderedDetailId) || {};
+  for (const [path, value] of Object.entries(readDetailValues())) {
+    if (!sameStoredValue(renderedDetailValues[path], value)) edits[path] = value;
+  }
+  if (Object.keys(edits).length) detailEdits.set(renderedDetailId, edits);
+}
+
 function renderDetail() {
+  captureDetailEdits();
   const record = selectedRecord();
   const chatRecord = activeChatRecord();
-  const data = record ? record.data : {};
+  const data = record ? {...record.data, ...detailEdits.get(record.id)} : {};
   const sectionItem = SECTIONS.find(item => item.id === state.activeSection) || SECTIONS[0];
 
   recordTitle.textContent = record ? recordLabel(record) : 'Detalle del expediente';
@@ -865,6 +886,8 @@ function renderDetail() {
     : 'Falta una referencia catastral válida';
 
   sectionFields.innerHTML = '';
+  renderedDetailId = record?.id || '';
+  renderedDetailValues = {};
   renderDesktopReportFlow(record?.id);
   if (state.activeSection === 'rating') {
     const result = certificateResult(record) || desktopReportResults.get(record?.id);
@@ -960,6 +983,7 @@ function renderDetail() {
       fieldset.appendChild(tools);
     }
   });
+  renderedDetailValues = readDetailValues();
 }
 
 function openCatastroCartography() {
@@ -1019,7 +1043,8 @@ function selectOptionsForField(item, path) {
 function provinceForLocalityPath(path) {
   const provincePath = path.replace(/\.localidad$/, '.provincia');
   const provinceInput = detailForm.elements.namedItem(provincePath);
-  return provinceInput?.value || valueAt(selectedRecord(), provincePath);
+  const record = selectedRecord();
+  return provinceInput?.value ?? detailEdits.get(record?.id)?.[provincePath] ?? valueAt(record, provincePath);
 }
 
 function ce3xCatalogProvince(value) {
@@ -1328,11 +1353,8 @@ function selectedRecordWithCurrentFormData() {
   const record = selectedRecord();
   if (!record) return null;
   if (detailView.hidden) return record;
-  const data = Object.assign({}, record.data);
-  Array.from(new FormData(detailForm).entries()).forEach(([path, value]) => {
-    data[path] = String(value || '').trim();
-  });
-  collectTables(data);
+  captureDetailEdits();
+  const data = {...record.data, ...detailEdits.get(record.id), ...readDetailValues()};
   return Object.assign({}, record, { data });
 }
 
@@ -1360,19 +1382,16 @@ function showOperation(title, message, busy = true) {
 
 async function saveDetail(event) {
   event.preventDefault();
-  const record = selectedRecord();
+  const record = selectedRecordWithCurrentFormData();
   if (!record) return;
 
-  const data = Object.assign({}, record.data);
-  Array.from(new FormData(detailForm).entries()).forEach(([path, value]) => {
-    data[path] = String(value || '').trim();
-  });
-  collectTables(data);
+  const paths = [...new Set([...activeSectionPaths(), ...Object.keys(detailEdits.get(record.id) || {})])];
   const feedback = document.querySelector('#detailSaveStatus');
   feedback.textContent = 'Guardando expediente…';
   showOperation('Guardando expediente…', 'Espera a que termine el guardado.');
   try {
-    const saved = await persistRecordPatch(Object.assign({}, record, { data }), activeSectionPaths());
+    const saved = await persistRecordPatch(record, paths);
+    detailEdits.delete(record.id);
     if (selectedRecord()?.id === record.id) feedback.textContent = 'Expediente guardado.';
     showOperation('Expediente guardado', recordLabel(saved), false);
     addChatMessage('assistant', `Guardado ${recordLabel(saved)}.`);
