@@ -13,7 +13,7 @@ import os
 import sys
 
 
-CE3X_DIR = r"C:\Program Files (x86)\CEXv2.3"
+CE3X_DIR = r"C:\Program Files (x86)\CE3Xv3.2"
 OUTPUT = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "app",
@@ -36,11 +36,14 @@ def main():
             in locations.getLocalidadesDeProvincia(province_value)
         ]
 
-    source = (
-        "// Generated from CE3X 2.3 Calculos/listados.pyd. Do not edit manually.\n"
-        "window.CE3X_LOCATION_CATALOG = %s;\n"
-        % json.dumps(catalog, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
-    )
+    climate = {
+        province: {name.strip(): [he1, he4] for name, he1, _, he4 in rows if name.strip() and he1 and he4}
+        for province, rows in locations.listadoGeneral
+    }
+    source = "// Generated from CE3X 3.2 Calculos/listados.pyd. Do not edit manually.\n"
+    for name, data in (("CE3X_LOCATION_CATALOG", catalog), ("CE3X_CLIMATE_CATALOG", climate)):
+        source += "window.%s = %s;\n" % (
+            name, json.dumps(data, ensure_ascii=True, sort_keys=True, separators=(",", ":")))
     with open(OUTPUT, "wb") as output:
         output.write(source)
 

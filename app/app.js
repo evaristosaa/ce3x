@@ -32,7 +32,6 @@ const DEFAULT_CLIENT = {
 };
 
 const DEFAULT_GENERAL = {
-  'generales.datos.zonaClimaticaHE4': 'V',
   'generales.definicion.alturaLibrePlanta': '2.70',
   'generales.definicion.masaParticionesInternas': 'Ligera',
 };
@@ -88,7 +87,7 @@ const SELECT_OPTIONS = {
   tipoEdificio: ['Unifamiliar', 'Bloque de viviendas', 'Vivienda individual', 'Terciario'],
   provincia: Object.keys(CE3X_LOCATION_CATALOG),
   localidad: CE3X_LOCATION_CATALOG.Sevilla || [],
-  zonaClimaticaHE1: ['B4', 'A3', 'A4', 'B3', 'C3', 'C4', 'D3'],
+  zonaClimaticaHE1: ['alpha3', 'A2', 'A3', 'A4', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'C4', 'D1', 'D2', 'D3', 'E1'],
   zonaClimaticaHE4: ['V', 'I', 'II', 'III', 'IV'],
   masaParticionesInternas: ['Ligera', 'Media', 'Pesada'],
   ensayoEstanqueidad: ['No', 'Sí'],
@@ -946,6 +945,12 @@ function renderDetail() {
     if (groupItem.fields.some(item => item.type === 'table')) fieldset.classList.add('table-fieldset');
     fieldset.innerHTML = `<legend>${escapeHtml(groupItem.label)}</legend>`;
     const isReport = groupItem.id === 'informe';
+    const isBuilding = sectionItem.id === 'generales' && groupItem.id === 'definicion';
+    const buildingImages = isBuilding ? document.createElement('div') : null;
+    if (buildingImages) {
+      fieldset.classList.add('building-definition');
+      buildingImages.className = 'building-images';
+    }
     const reportText = isReport ? document.createElement('div') : null;
     const reportDates = isReport ? document.createElement('div') : null;
     if (isReport) {
@@ -960,9 +965,11 @@ function renderDetail() {
       wrapper.className = item.type === 'table' ? 'table-label' : '';
       const value = data[path];
       wrapper.innerHTML = `<span>${escapeHtml(item.label)}</span>${inputHtml(item, path, value)}`;
-      const container = isReport ? (item.type === 'date' ? reportDates : reportText) : fieldset;
+      const container = isReport ? (item.type === 'date' ? reportDates : reportText)
+        : buildingImages && item.type === 'image' ? buildingImages : fieldset;
       container.appendChild(wrapper);
     });
+    if (buildingImages) fieldset.appendChild(buildingImages);
     sectionFields.appendChild(fieldset);
     if (sectionItem.id === 'generales' && groupItem.id === 'definicion' && record) {
       sectionFields.appendChild(renderCertificateCatastroProposal(record));
@@ -980,6 +987,15 @@ function renderDetail() {
       let count=0;
       try{count=cex32ReferenceList(data).filter(Boolean).length;}catch{}
       tools.innerHTML='<button type="button" class="secondary" data-open-references>Gestionar referencias catastrales</button><p>'+count+' referencia'+(count===1?'':'s')+' en el expediente. La primera es la principal.</p>';
+      if (normalizeText(data['admin.localizacion.provincia']).trim() === 'sevilla' &&
+          normalizeText(data['admin.localizacion.localidad']).trim() === 'sevilla') {
+        const protection = document.createElement('a');
+        protection.href = 'https://sig.urbanismosevilla.org/InicioIDE.aspx';
+        protection.target = '_blank';
+        protection.rel = 'noopener noreferrer';
+        protection.textContent = 'Consultar protección en Urbanismo de Sevilla';
+        tools.append(protection);
+      }
       fieldset.appendChild(tools);
     }
   });
@@ -2470,7 +2486,8 @@ async function loadCatastroForRecord(sourceRecord, options = {}) {
       record,
       data,
       paths,
-      'Catastro consultado, envolvente e instalaciones autocompletadas. Revisar los valores estimados.',
+      'Catastro consultado. Revisa las propuestas de uso, definición del edificio, envolvente e instalaciones.',
+      {reviewSources: catastroReviewSources(paths, catastroPatch)},
     );
     if (!saved && options.throwOnError) throw new Error('Catastro no pudo guardar los datos del expediente.');
     return saved || selectedRecord() || record;
@@ -2484,6 +2501,21 @@ async function loadCatastroForRecord(sourceRecord, options = {}) {
 function catastroAutocompletionPatch(currentData, catastroPatch) {
   const data = Object.assign({}, currentData || {}, catastroPatch || {});
   return Object.assign({}, catastroPatch || {}, estimatedEnvelopePatch(data), estimatedSystemsPatch(data));
+}
+
+function catastroReviewSources(paths, catastroPatch) {
+  const inferred = new Set([
+    'admin.localizacion.usoEdificio', 'generales.datos.normativaVigente', 'generales.datos.tipoEdificio',
+    'generales.definicion.superficieUtilHabitable', 'generales.definicion.numeroPlantasHabitables',
+    'generales.definicion.alturaLibrePlanta', 'generales.definicion.ventilacionInmueble',
+    'generales.definicion.demandaDiariaACS', 'generales.definicion.masaParticionesInternas',
+  ]);
+  return Object.fromEntries(paths.map(path => {
+    if (/^generales\.datos\.zonaClimaticaHE[14]$/.test(path)) {
+      return [path, {source: 'estimate', detail: 'Tabla de localidades de CE³X 3.2'}];
+    }
+    return [path, inferred.has(path) || path.startsWith('admin.cliente.') || !Object.hasOwn(catastroPatch, path) ? 'estimate' : 'catastro'];
+  }));
 }
 
 async function saveCatastroCompletion(record, rawPatch, options = {}) {
@@ -2501,7 +2533,7 @@ async function saveCatastroCompletion(record, rawPatch, options = {}) {
     data,
     paths,
     'Catastro consultado, envolvente e instalaciones autocompletadas. Revisar los valores estimados.',
-    { skipVerification: true,reviewSources:Object.fromEntries(paths.map(path=>[path,Object.prototype.hasOwnProperty.call(catastroPatch,path)?'catastro':'estimate'])) },
+    { skipVerification: true, reviewSources: catastroReviewSources(paths, catastroPatch) },
   );
   if (!saved && options.throwOnError) throw new Error('Catastro no pudo guardar los datos del expediente.');
   return saved || selectedRecord() || record;
@@ -2658,6 +2690,7 @@ function catastroPatchFromData(item) {
   const address = item.direccion || '';
   const provincia = titleCase(item.provincia || '');
   const localidad = cexCompatibleLocality(item.localidad || '', provincia);
+  const [he1, he4] = window.CE3X_CLIMATE_CATALOG?.[ce3xCatalogProvince(provincia)]?.[localidad.trim()] || [];
   const codigoPostal = item.codigoPostal || '';
   const x = String(item.x || '').trim();
   const y = String(item.y || '').trim();
@@ -2675,6 +2708,7 @@ function catastroPatchFromData(item) {
     'admin.localizacion.provincia': provincia,
     'admin.localizacion.localidad': localidad,
     'admin.localizacion.codigoPostal': codigoPostal,
+    'admin.localizacion.usoEdificio': residentialUse ? 'Residencial privado' : '',
     'admin.cliente.direccion': address,
     'admin.cliente.provincia': provincia,
     'admin.cliente.localidad': localidad,
@@ -2684,6 +2718,8 @@ function catastroPatchFromData(item) {
     'generales.datos.tipoEdificio': residentialUse ? 'Vivienda individual' : '',
     'generales.datos.provincia': provincia,
     'generales.datos.localidad': localidad,
+    'generales.datos.zonaClimaticaHE1': he1,
+    'generales.datos.zonaClimaticaHE4': he4,
     'generales.definicion.superficieUtilHabitable': viviendaSurface || builtSurface,
     'generales.definicion.numeroPlantasHabitables': viviendaFloors,
     'generales.definicion.alturaLibrePlanta': residentialUse ? '2.70' : '',

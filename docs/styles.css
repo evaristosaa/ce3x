@@ -779,6 +779,14 @@ dialog::backdrop {
 .energy-metrics dd { margin: 0; }
 
 .section-fields .report-settings { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
+.section-fields .building-definition { align-items: start; }
+.building-images {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  align-items: start;
+  gap: 18px;
+}
 .report-settings-column { display: grid; align-content: start; gap: 1rem; min-width: 0; }
 .report-settings-column label { display: grid; gap: .4rem; }
 .report-settings-column .report-no-improvements { display: flex; align-items: flex-start; gap: .55rem; }

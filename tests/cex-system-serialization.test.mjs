@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
-function loadCexHelpers() {
+function loadCexHelpers({locationCatalog = false} = {}) {
   let source = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
   source = source
     .replace('cleanupLocalDataStorage();', '')
@@ -52,6 +52,9 @@ function loadCexHelpers() {
   };
   context.globalThis = context;
   vm.createContext(context);
+  if (locationCatalog) {
+    vm.runInContext(readFileSync(new URL('../app/ce3x-locations.js', import.meta.url), 'utf8'), context);
+  }
   vm.runInContext(`${source}
 globalThis.__cexHelpers = {
   alignCexEnvelopeReferences,
@@ -1059,4 +1062,18 @@ test('proposes only supported certificate counts from the El Melchor Catastro br
   item.construcciones.push({destino:'VIVIENDA',planta:'02'});
   assert.deepEqual(plain(certificateCatastroProposal(item,'Bloque de viviendas')),
     {plantasBajoRasante:'1'});
+});
+
+test('Catastro infers residential use and resolves climate by municipality, without guessing an unknown locality', () => {
+  const { catastroPatchFromData } = loadCexHelpers({locationCatalog: true});
+  const sevilla = catastroPatchFromData({provincia: 'SEVILLA', localidad: 'SEVILLA', uso: 'Residencial'});
+  assert.equal(sevilla['admin.localizacion.usoEdificio'], 'Residencial privado');
+  assert.equal(sevilla['generales.datos.zonaClimaticaHE1'], 'B4');
+  assert.equal(sevilla['generales.datos.zonaClimaticaHE4'], 'V');
+  const carmona = catastroPatchFromData({provincia: 'SEVILLA', localidad: 'CARMONA', uso: 'Industrial'});
+  assert.equal(carmona['generales.datos.zonaClimaticaHE1'], 'C4');
+  assert.equal(carmona['admin.localizacion.usoEdificio'], undefined);
+  const unknown = catastroPatchFromData({provincia: 'SEVILLA', localidad: 'Municipio sin equivalencia'});
+  assert.equal(unknown['generales.datos.zonaClimaticaHE1'], undefined);
+  assert.equal(unknown['generales.datos.zonaClimaticaHE4'], undefined);
 });
