@@ -603,9 +603,8 @@ function parseCatastroJson_(text) {
     location.dp,
     location.nm,
   ].filter(Boolean).join(' ');
-  // Consulta_DNPRC places lcons inside bico.bi. Keep the root-level fallback
-  // for older responses and test fixtures that exposed it beside bico.
-  const rawConstructions = bi.lcons || result.lcons || [];
+  // The public JSON can place lcons beside bi, inside bico.
+  const rawConstructions = result.bico && result.bico.lcons || bi.lcons || result.lcons || [];
   const constructionItems = Array.isArray(rawConstructions)
     ? rawConstructions
     : (rawConstructions ? [rawConstructions] : []);

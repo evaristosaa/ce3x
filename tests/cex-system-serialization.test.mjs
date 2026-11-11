@@ -1077,3 +1077,20 @@ test('Catastro infers residential use and resolves climate by municipality, with
   assert.equal(unknown['generales.datos.zonaClimaticaHE1'], undefined);
   assert.equal(unknown['generales.datos.zonaClimaticaHE4'], undefined);
 });
+
+test('reads Roque Balduque-style construction rows beside bi in bico', () => {
+  const { parseCatastroJson_ } = loadAppsScriptHelpers();
+  const result = parseCatastroJson_(JSON.stringify({consulta_dnprcResult: {bico: {
+    bi: {debi: {sfc: '152', luso: 'Residencial'}},
+    lcons: [['00', '24'], ['00', '52'], ['01', '76']].map(([pt, stl]) => ({
+      lcd: 'VIVIENDA', dt: {lourb: {loint: {pt}}}, dfcons: {stl},
+    })),
+  }}}));
+  assert.equal(result.plantas, '2');
+  assert.equal(result.construcciones.length, 3);
+  const { certificateCatastroProposal } = loadCexHelpers();
+  const proposal = certificateCatastroProposal(result, 'Vivienda individual');
+  assert.equal(proposal.plantasSobreRasante, '2');
+  assert.equal(proposal.numeroViviendas, '1');
+  assert.equal(proposal.plantasBajoRasante, undefined);
+});
