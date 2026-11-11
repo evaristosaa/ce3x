@@ -156,7 +156,7 @@ const SECTIONS = [
       field('zonaClimaticaHE1', 'Zona climática HE-1', 'select', { optionsKey: 'zonaClimaticaHE1' }),
       field('zonaClimaticaHE4', 'Zona climática HE-4', 'select', { optionsKey: 'zonaClimaticaHE4' }),
     ]),
-    group('definicion', 'Definición edificio', ['superficieUtilHabitable', 'alturaLibrePlanta', 'numeroPlantasHabitables', 'ventilacionInmueble', 'demandaDiariaACS', 'masaParticionesInternas'], [
+    group('definicion', 'Definición edificio', ['superficieUtilHabitable', 'alturaLibrePlanta', 'numeroPlantasHabitables', 'superficieUtilCertificada', 'numeroViviendas', 'plantasBajoRasante', 'plantasSobreRasante', 'ventilacionInmueble', 'demandaDiariaACS', 'masaParticionesInternas', 'ensayoEstanqueidad'], [
       field('superficieUtilHabitable', 'Superficie útil habitable', 'number', { unit: 'm2' }),
       field('alturaLibrePlanta', 'Altura libre de planta', 'number', { unit: 'm' }),
       field('numeroPlantasHabitables', 'Número de plantas habitables', 'number'),
@@ -2661,6 +2661,9 @@ function renderCertificateCatastroProposal(record) {
   message.textContent = pending.length
     ? 'Propuestas de Catastro para revisar. Introduce la superficie útil manualmente.'
     : 'Catastro no permite proponer valores nuevos para los campos vacíos.';
+  const note = document.createElement('p');
+  note.textContent = 'La superficie construida de Catastro no equivale a la útil. Confirma en la visita o en la documentación si hay plantas bajo rasante y si se hizo un ensayo de estanqueidad.';
+  panel.append(note);
   for (const [key, value] of pending) {
     const confirm = document.createElement('button');
     confirm.type = 'button';
@@ -2970,6 +2973,10 @@ function sectionCompletion(record, sectionId) {
   const missing = required.filter(item => !hasValue(record?.data?.[item.path])).map(item => item.label);
   const completed = required.length - missing.length;
   let issue = '';
+  if (sectionId === 'generales' && record) {
+    const invalid = certificateDefinitionIssues(record.data, {onlyFilled: true});
+    if (invalid.length) issue = 'Revisa los valores de: ' + invalid.join(', ') + '.';
+  }
   if (sectionId === 'instalaciones' && record && completed === required.length) {
     try {
       issue = cex32NewEquipmentIssue(record) || cex32MissingPowerIssue(record);
@@ -3559,6 +3566,16 @@ function criticalCexIssues(record) {
   if (!hasValue(data['generales.definicion.superficieUtilHabitable'])) issues.push('Superficie útil habitable');
   if (!hasValue(data['generales.definicion.alturaLibrePlanta'])) issues.push('Altura libre de planta');
   if (!hasValue(data['generales.definicion.numeroPlantasHabitables'])) issues.push('Número de plantas habitables');
+  issues.push(...certificateDefinitionIssues(data));
+  if (!hasValue(data['generales.definicion.masaParticionesInternas'])) issues.push('Masa de las particiones internas');
+  if (!tableHasRows(data['envolvente.cerramientos.items'])) issues.push('Envolvente: cerramientos');
+  if (!tableHasRows(data['envolvente.huecos.items'])) issues.push('Envolvente: huecos');
+  if (!tableHasRows(data['envolvente.puentesTermicos.items'])) issues.push('Envolvente: puentes térmicos');
+  return issues;
+}
+
+function certificateDefinitionIssues(data, {onlyFilled = false} = {}) {
+  const issues = [];
   const certificateFields = [
     ['superficieUtilCertificada', 'Superficie útil para el certificado', false, 0],
     ['numeroViviendas', 'Número de viviendas', true, 1],
@@ -3567,14 +3584,11 @@ function criticalCexIssues(record) {
   ];
   for (const [key, label, integer, minimum] of certificateFields) {
     const text = String(data['generales.definicion.' + key] ?? '').trim().replace(',', '.');
+    if (!text && onlyFilled) continue;
     const value = Number(text);
     if (!text || !Number.isFinite(value) || value < minimum || (key === 'superficieUtilCertificada' && value === 0) ||
         (integer && !Number.isSafeInteger(value))) issues.push(label);
   }
-  if (!hasValue(data['generales.definicion.masaParticionesInternas'])) issues.push('Masa de las particiones internas');
-  if (!tableHasRows(data['envolvente.cerramientos.items'])) issues.push('Envolvente: cerramientos');
-  if (!tableHasRows(data['envolvente.huecos.items'])) issues.push('Envolvente: huecos');
-  if (!tableHasRows(data['envolvente.puentesTermicos.items'])) issues.push('Envolvente: puentes térmicos');
   return issues;
 }
 
