@@ -156,6 +156,14 @@ function cex32Inputs(template, record) {
   solarOverlay(data,inputs[2][1],cex32Table(record,'envolvente.huecos.items'),sourceData['envolvente.huecos.items']);
   windowOverlay(data,inputs[2][1],cex32Table(record,'envolvente.huecos.items'),sourceData['envolvente.huecos.items']);
   const systemPaths = ['instalaciones.acs.items','instalaciones.calefaccion.items','instalaciones.refrigeracion.items','instalaciones.contribuciones.items'];
+  for (const row of cex32Table(record, systemPaths[3])) {
+    const total = Number(cexDecimal(row.produccionFotovoltaicaAnual));
+    const ownUse = Number(cexDecimal(row.autoconsumoFotovoltaicoAnual));
+    if (![total, ownUse].every(value => Number.isFinite(value) && value >= 0) ||
+        (hasValue(row.produccionFotovoltaicaAnual) && ownUse > total)) {
+      throw new Error('Revisa los valores de la fotovoltaica: el autoconsumo debe ser positivo o cero y no superar la producción total indicada.');
+    }
+  }
   const changed = systemPaths.some(path => !native || !cex32SameRows(cex32Table(record,path), sourceData[path]));
   const approvedEstimated = estimationOverlay(data,inputs[3]);
   if (changed && native) {
@@ -390,10 +398,13 @@ function cex32PatchNativeSystems(systems, sourceData, currentTables, approvedEst
       retained.get(entity).add(before.__cexSource);
       if (table===3) {
         for (const [key,slot] of Object.entries({nombre:0,zona:5})) if(changed(row,before,key)) raw[slot]=row[key];
-        const maps={acsRenovable:[2,0],calefaccionRenovable:[2,1],refrigeracionRenovable:[2,2],calorRecuperadoAcs:[3,1],calorRecuperadoCalefaccion:[3,2],frioRecuperado:[3,3],energiaConsumidaGeneracionElectricidad:[3,4],combustible:[3,5]};
+        const maps={acsRenovable:[2,0],calefaccionRenovable:[2,1],refrigeracionRenovable:[2,2],autoconsumoFotovoltaicoAnual:[3,0],calorRecuperadoAcs:[3,1],calorRecuperadoCalefaccion:[3,2],frioRecuperado:[3,3],energiaConsumidaGeneracionElectricidad:[3,4],combustible:[3,5]};
         for (const [key,[slot,part]] of Object.entries(maps)) if(changed(row,before,key)) {
           if (!Array.isArray(raw[slot])) throw new Error('La contribución necesita revisar sus parámetros nativos.');
-          raw[slot][part]=row[key];
+          raw[slot][part]=key==='autoconsumoFotovoltaicoAnual' ? cexDecimal(row[key]) : row[key];
+        }
+        if (changed(row,before,'autoconsumoFotovoltaicoAnual') && Number(cexDecimal(row.autoconsumoFotovoltaicoAnual)) > 0) {
+          raw[4][1] = true;
         }
         continue;
       }
