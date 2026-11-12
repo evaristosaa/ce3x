@@ -1004,3 +1004,28 @@ test('nominal power survives Sheets and the native CE3X service vectors', () => 
   delete data['instalaciones.acs.items'][0].potenciaNominal;
   assert.match(h.sectionCompletion({data},'instalaciones').issue,/falta la potencia nominal/);
 });
+
+test('Sheets and CE3X keep PV autoconsumption separate from total production and generator consumption', () => {
+  const h = loadHelpers();
+  const {storage} = loadStorageWriteHelpers([]);
+  const path = 'instalaciones.contribuciones.items';
+  const pv = {nombre:'Fotovoltaica', zona:'Edificio Objeto', produccionFotovoltaicaAnual:'8021,09',
+    autoconsumoFotovoltaicoAnual:'1200,5'};
+  const record = {id:'pv-test', data:{...h.parseCexRecordData(nativeFixture(h)), [path]:[pv]}};
+  const stored = storage.rowToRecord_(storage.recordToRow_(record), storage.HEADERS);
+  assert.deepEqual(plain(stored.data[path][0]), pv);
+  const output = h.buildCex32(template, stored);
+  const raw = h.cex32Blocks(output)[4].value[6][0];
+  assert.equal(raw[3][0], '1200.5');
+  assert.equal(raw[3][4], '0');
+  assert.deepEqual(plain(raw[4]), [0, 1]);
+  const imported = h.parseCexRecordData(output);
+  assert.equal(imported[path][0].autoconsumoFotovoltaicoAnual, '1200.5');
+  assert.equal(imported[path][0].produccionFotovoltaicaAnual, undefined);
+  imported[path][0].autoconsumoFotovoltaicoAnual = '800,25';
+  const edited = h.cex32Blocks(h.buildCex32(template, {data:imported}))[4].value[6][0];
+  assert.equal(edited[3][0], '800.25');
+  assert.equal(edited[3][4], '0');
+  stored.data[path][0].autoconsumoFotovoltaicoAnual = '9000';
+  assert.throws(() => h.buildCex32(template, stored), /no superar la producción/);
+});

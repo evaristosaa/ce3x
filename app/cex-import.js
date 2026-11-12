@@ -358,6 +358,7 @@ function systemContributionRow(item) {
     calefaccionRenovable: cexImportValue(item?.[2]?.[1]), refrigeracionRenovable: cexImportValue(item?.[2]?.[2]),
     calorRecuperadoAcs: cexImportValue(item?.[3]?.[1]), calorRecuperadoCalefaccion: cexImportValue(item?.[3]?.[2]),
     frioRecuperado: cexImportValue(item?.[3]?.[3]), energiaConsumidaGeneracionElectricidad: cexImportValue(item?.[3]?.[4]),
+    autoconsumoFotovoltaicoAnual: cexImportValue(item?.[3]?.[0]),
     combustible: cexImportValue(item?.[3]?.[5]),
   };
 }

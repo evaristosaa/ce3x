@@ -294,6 +294,8 @@ const SECTIONS = [
           col('frioRecuperado', 'Frío recuperado (kWh/año)'),
           col('energiaConsumidaGeneracionElectricidad', 'Energía consumida en generación de electricidad (kWh/año)'),
           col('combustible', 'Combustible', 'select', 'combustible'),
+          col('produccionFotovoltaicaAnual', 'Producción fotovoltaica total (kWh/año)'),
+          col('autoconsumoFotovoltaicoAnual', 'Autoconsumo fotovoltaico computable en el CEE (kWh/año)'),
         ],
       }),
     ]),
@@ -4727,7 +4729,7 @@ function serializeCexContribucionesInput(rows) {
   return serializeCexList(rows.map(rowItem => {
     const renewable = ['acsRenovable', 'calefaccionRenovable', 'refrigeracionRenovable']
       .some(key => Number(cexDecimal(rowItem[key])) > 0);
-    const cogeneration = ['energiaConsumidaGeneracionElectricidad', 'calorRecuperadoAcs',
+    const cogeneration = ['autoconsumoFotovoltaicoAnual', 'energiaConsumidaGeneracionElectricidad', 'calorRecuperadoAcs',
       'calorRecuperadoCalefaccion', 'frioRecuperado'].some(key => Number(cexDecimal(rowItem[key])) > 0);
     return serializeCexList([
     cexPickleString(rowItem.nombre),
@@ -4739,7 +4741,7 @@ function serializeCexContribucionesInput(rows) {
       cexPickleBool(false),
     ]),
     serializeCexList([
-      cexPickleString(cexDecimal(rowItem.energiaConsumidaGeneracionElectricidad)),
+      cexPickleString(cexDecimal(rowItem.autoconsumoFotovoltaicoAnual)),
       cexPickleString(cexDecimal(rowItem.calorRecuperadoAcs)),
       cexPickleString(cexDecimal(rowItem.calorRecuperadoCalefaccion)),
       cexPickleString(cexDecimal(rowItem.frioRecuperado)),
@@ -4761,6 +4763,7 @@ function isUsefulCexContribution(rowItem) {
     'calorRecuperadoCalefaccion',
     'frioRecuperado',
     'energiaConsumidaGeneracionElectricidad',
+    'autoconsumoFotovoltaicoAnual',
   ].some(key => Number(cexDecimal(rowItem[key])) > 0);
 }
 
