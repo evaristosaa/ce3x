@@ -1,5 +1,29 @@
 /* CE3X 3.2 input adapter. Parses data only; never executes Python globals. */
 const CEX32_INPUT_KEY = 'cex.nativeInputs';
+const CEX32_PV_MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function cex32PhotovoltaicGenerator(row, ownUse) {
+  const monthly = String(row.autoconsumoFotovoltaicoMensual || '').split(';').map(value =>
+    value.trim() ? Number(value.trim().replace(',', '.')) : NaN);
+  const power = Number(cexDecimal(row.potenciaFotovoltaica));
+  if (!Number.isFinite(power) || power <= 0 || monthly.length !== 12 ||
+      monthly.some(value => !Number.isFinite(value) || value < 0) ||
+      Math.abs(monthly.reduce((sum, value) => sum + value, 0) - ownUse) > 0.005) {
+    throw new Error('La fotovoltaica requiere la potencia en kWp y 12 valores mensuales de autoconsumo que sumen el total anual.');
+  }
+  const uuid = window.crypto.randomUUID().replace(/-/g, '');
+  return {
+    __cexClass: 'models.GeneradorElectrico',
+    nombre: row.nombre || 'Fotovoltaica',
+    zona: row.zona || 'Edificio Objeto',
+    potencia: power,
+    tipo: null,
+    consumoMensual: null,
+    id: {__cexClass: 'uuid.UUID', int: {__cexLong: BigInt('0x' + uuid).toString()}},
+    ...Object.fromEntries(CEX32_PV_MONTHS.map((month, index) => [month, monthly[index]])),
+  };
+}
 const CEX32_PROTECTION_GRADES = ['Ninguna', 'Integral', 'Estructural', 'Ambiental'];
 
 function cex32Blocks(text) {
@@ -29,7 +53,14 @@ function cex32Serialize(value) {
     return Number.isInteger(value) ? `I${value}\n` : `F${value}\n`;
   }
   if (Array.isArray(value)) return '(l' + value.map(item => cex32Serialize(item) + 'a').join('');
+  if (/^\d+$/.test(value.__cexLong || '')) return 'L' + value.__cexLong + 'L\n';
   const className = value.__cexClass;
+  if (className === 'uuid.UUID' || className === 'models.GeneradorElectrico') {
+    const [module, name] = className.split('.');
+    const keys = className === 'uuid.UUID' ? ['int'] : ['nombre', 'zona', 'potencia', 'tipo', 'consumoMensual', 'id', ...CEX32_PV_MONTHS];
+    const state = '(d' + keys.map(key => "S'" + key + "'\n" + cex32Serialize(value[key]) + 's').join('');
+    return 'ccopy_reg\n_reconstructor\n(c' + module + '\n' + name + '\nc__builtin__\nobject\nNtR' + state + 'b';
+  }
   if (className && !/^Envolvente\.objetosEnvolvente\.Hueco(?:Estimadas|Conocidas)$/.test(className)) {
     throw new Error(`El objeto ${className} necesita revisión antes de exportar.`);
   }
@@ -156,20 +187,26 @@ function cex32Inputs(template, record) {
   solarOverlay(data,inputs[2][1],cex32Table(record,'envolvente.huecos.items'),sourceData['envolvente.huecos.items']);
   windowOverlay(data,inputs[2][1],cex32Table(record,'envolvente.huecos.items'),sourceData['envolvente.huecos.items']);
   const systemPaths = ['instalaciones.acs.items','instalaciones.calefaccion.items','instalaciones.refrigeracion.items','instalaciones.contribuciones.items'];
-  for (const row of cex32Table(record, systemPaths[3])) {
+  const tables = systemPaths.map(path => cex32Table(record, path));
+  const pvGenerators = [];
+  tables[3] = tables[3].filter(row => {
     const total = Number(cexDecimal(row.produccionFotovoltaicaAnual));
     const ownUse = Number(cexDecimal(row.autoconsumoFotovoltaicoAnual));
     if (![total, ownUse].every(value => Number.isFinite(value) && value >= 0) ||
         (hasValue(row.produccionFotovoltaicaAnual) && ownUse > total)) {
       throw new Error('Revisa los valores de la fotovoltaica: el autoconsumo debe ser positivo o cero y no superar la producción total indicada.');
     }
-  }
-  const changed = systemPaths.some(path => !native || !cex32SameRows(cex32Table(record,path), sourceData[path]));
+    if (!ownUse && !hasValue(row.autoconsumoFotovoltaicoMensual)) return true;
+    pvGenerators.push(cex32PhotovoltaicGenerator(row, ownUse));
+    return false;
+  });
+  sourceData[systemPaths[3]] = (sourceData[systemPaths[3]] || []).filter(row => !row.__cexSource?.startsWith('s:13:'));
+  const changed = systemPaths.some((path, index) => !native || !cex32SameRows(tables[index], sourceData[path]));
   const approvedEstimated = estimationOverlay(data,inputs[3]);
   if (changed && native) {
-    cex32PatchNativeSystems(inputs[3], sourceData, systemPaths.map(path => cex32Table(record,path)),approvedEstimated);
+    cex32PatchNativeSystems(inputs[3], sourceData, tables,approvedEstimated);
   } else if (changed) {
-    const [acs, heat, cool, contributions] = systemPaths.map(path => cex32Table(record,path));
+    const [acs, heat, cool, contributions] = tables;
     // Single-service systems stay independent: do not pair unrelated heating/cooling equipment.
     inputs[3] = Array.from({length:14},()=>[]);
     inputs[3][0] = acs.map(row=>cex32KnownSystem(row,0));
@@ -185,6 +222,7 @@ function cex32Inputs(template, record) {
     }
   }
   while (inputs[3].length < 14) inputs[3].push([]);
+  inputs[3][13] = inputs[3][13].filter(item => item.__cexClass !== 'models.GeneradorElectrico').concat(pvGenerators);
   if ((native?.sectionVersions?.systems || native?.version) === '2.3') {
       for (const index of [1,2,3,4,5]) inputs[3][index].forEach(row=> {
         if (row.length === 9) row.splice(8,0,['','','']);
@@ -398,13 +436,10 @@ function cex32PatchNativeSystems(systems, sourceData, currentTables, approvedEst
       retained.get(entity).add(before.__cexSource);
       if (table===3) {
         for (const [key,slot] of Object.entries({nombre:0,zona:5})) if(changed(row,before,key)) raw[slot]=row[key];
-        const maps={acsRenovable:[2,0],calefaccionRenovable:[2,1],refrigeracionRenovable:[2,2],autoconsumoFotovoltaicoAnual:[3,0],calorRecuperadoAcs:[3,1],calorRecuperadoCalefaccion:[3,2],frioRecuperado:[3,3],energiaConsumidaGeneracionElectricidad:[3,4],combustible:[3,5]};
+        const maps={acsRenovable:[2,0],calefaccionRenovable:[2,1],refrigeracionRenovable:[2,2],calorRecuperadoAcs:[3,1],calorRecuperadoCalefaccion:[3,2],frioRecuperado:[3,3],energiaConsumidaGeneracionElectricidad:[3,4],combustible:[3,5]};
         for (const [key,[slot,part]] of Object.entries(maps)) if(changed(row,before,key)) {
           if (!Array.isArray(raw[slot])) throw new Error('La contribución necesita revisar sus parámetros nativos.');
-          raw[slot][part]=key==='autoconsumoFotovoltaicoAnual' ? cexDecimal(row[key]) : row[key];
-        }
-        if (changed(row,before,'autoconsumoFotovoltaicoAnual') && Number(cexDecimal(row.autoconsumoFotovoltaicoAnual)) > 0) {
-          raw[4][1] = true;
+          raw[slot][part]=row[key];
         }
         continue;
       }
