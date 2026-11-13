@@ -193,7 +193,12 @@ class CexPickleParser {
           break;
         }
         case 'F': this.stack.push(Number(this.readLine())); break;
-        case 'L': this.stack.push(Number(this.readLine().replace(/L$/, ''))); break;
+        case 'L': {
+          const digits = this.readLine().replace(/L$/, '');
+          const value = Number(digits);
+          this.stack.push(Number.isSafeInteger(value) ? value : {__cexLong: digits});
+          break;
+        }
         case 'S': this.stack.push(decodeCexPickleString(this.readLine())); break;
         case 'V': this.stack.push(this.readLine().replace(/\\u([0-9a-fA-F]{4})|\\U([0-9a-fA-F]{8})/g, (_, u, U) => String.fromCodePoint(parseInt(u || U, 16)))); break;
         case 'p': this.memo[this.readLine()] = this.stack[this.stack.length - 1]; break;
@@ -228,7 +233,9 @@ class CexPickleParser {
         case 'R': {
           const args = this.stack.pop();
           const callable = this.stack.pop();
-          this.stack.push({ __cexClass: callable?.__cexClass || '', __args: args });
+          const type = callable?.__cexClass === 'copy_reg._reconstructor'
+            ? args?.[0]?.__cexClass : callable?.__cexClass;
+          this.stack.push({ __cexClass: type || '', __args: args });
           break;
         }
         case 'T': {
@@ -358,7 +365,6 @@ function systemContributionRow(item) {
     calefaccionRenovable: cexImportValue(item?.[2]?.[1]), refrigeracionRenovable: cexImportValue(item?.[2]?.[2]),
     calorRecuperadoAcs: cexImportValue(item?.[3]?.[1]), calorRecuperadoCalefaccion: cexImportValue(item?.[3]?.[2]),
     frioRecuperado: cexImportValue(item?.[3]?.[3]), energiaConsumidaGeneracionElectricidad: cexImportValue(item?.[3]?.[4]),
-    autoconsumoFotovoltaicoAnual: cexImportValue(item?.[3]?.[0]),
     combustible: cexImportValue(item?.[3]?.[5]),
   };
 }
@@ -410,5 +416,14 @@ function systemRows(stream) {
     push('refrigeracion',systemClimateRow(item,2,'Refrigeración'),5,index,2);
   });
   (stream[6] || []).forEach((item,index) => push('contribuciones',systemContributionRow(item),6,index,0));
+  (stream[13] || []).forEach((item, index) => {
+    if (item.__cexClass !== 'models.GeneradorElectrico') return;
+    const monthly = CEX32_PV_MONTHS.map(month => Number(item[month]) || 0);
+    push('contribuciones', {
+      nombre: item.nombre, zona: item.zona, potenciaFotovoltaica: cexImportValue(item.potencia),
+      autoconsumoFotovoltaicoAnual: String(Number(monthly.reduce((sum, value) => sum + value, 0).toFixed(6))),
+      autoconsumoFotovoltaicoMensual: monthly.join(';'),
+    }, 13, index, 0);
+  });
   return result;
 }

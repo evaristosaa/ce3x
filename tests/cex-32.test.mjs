@@ -9,7 +9,7 @@ export function loadHelpers() {
   const context = {structuredClone, Blob, TextDecoder, TextEncoder, URL, URLSearchParams, setTimeout,
     alert(){}, document:{body:noop,createElement(){return noop},querySelector(){return noop}},
     localStorage:{getItem(){return null},setItem(){},removeItem(){}},navigator:{},
-    window:{addEventListener(){},crypto:{randomUUID:()=> 'test-id',subtle:webcrypto.subtle},location:{protocol:'http:',search:''},setTimeout}};
+    window:{addEventListener(){},crypto:{randomUUID:()=> '11111111-2222-4333-8444-555555555555',subtle:webcrypto.subtle},location:{protocol:'http:',search:''},setTimeout}};
   context.globalThis=context; vm.createContext(context);
   let app=readFileSync(new URL('../app/app.js',import.meta.url),'utf8');
   for(const call of ['cleanupLocalDataStorage();','renderTabs();','renderStorageMode();','loadRecords();']) app=app.replace(call,'');
@@ -1005,27 +1005,25 @@ test('nominal power survives Sheets and the native CE3X service vectors', () => 
   assert.match(h.sectionCompletion({data},'instalaciones').issue,/falta la potencia nominal/);
 });
 
-test('Sheets and CE3X keep PV autoconsumption separate from total production and generator consumption', () => {
+test('Sheets and CE3X store PV separately and export it as a native electrical generator', () => {
   const h = loadHelpers();
   const {storage} = loadStorageWriteHelpers([]);
   const path = 'instalaciones.contribuciones.items';
   const pv = {nombre:'Fotovoltaica', zona:'Edificio Objeto', produccionFotovoltaicaAnual:'8021,09',
-    autoconsumoFotovoltaicoAnual:'1200,5'};
+    autoconsumoFotovoltaicoAnual:'3300', potenciaFotovoltaica:'4,8',
+    autoconsumoFotovoltaicoMensual:Array(12).fill('275').join(';')};
   const record = {id:'pv-test', data:{...h.parseCexRecordData(nativeFixture(h)), [path]:[pv]}};
   const stored = storage.rowToRecord_(storage.recordToRow_(record), storage.HEADERS);
   assert.deepEqual(plain(stored.data[path][0]), pv);
   const output = h.buildCex32(template, stored);
-  const raw = h.cex32Blocks(output)[4].value[6][0];
-  assert.equal(raw[3][0], '1200.5');
-  assert.equal(raw[3][4], '0');
-  assert.deepEqual(plain(raw[4]), [0, 1]);
+  const systems = h.cex32Blocks(output)[4].value;
+  assert.equal(systems[6].length, 0);
+  assert.equal(systems[13][0].__cexClass, 'models.GeneradorElectrico');
+  assert.equal(systems[13][0].potencia, 4.8);
+  assert.equal(systems[13][0].enero, 275);
   const imported = h.parseCexRecordData(output);
-  assert.equal(imported[path][0].autoconsumoFotovoltaicoAnual, '1200.5');
-  assert.equal(imported[path][0].produccionFotovoltaicaAnual, undefined);
-  imported[path][0].autoconsumoFotovoltaicoAnual = '800,25';
-  const edited = h.cex32Blocks(h.buildCex32(template, {data:imported}))[4].value[6][0];
-  assert.equal(edited[3][0], '800.25');
-  assert.equal(edited[3][4], '0');
+  assert.equal(imported[path][0].autoconsumoFotovoltaicoAnual, '3300');
+  assert.equal(h.cex32Blocks(h.buildCex32(template, {data:imported}))[4].value[13].length, 1);
   stored.data[path][0].autoconsumoFotovoltaicoAnual = '9000';
-  assert.throws(() => h.buildCex32(template, stored), /no superar la producción/);
+  assert.throws(() => h.buildCex32(template, stored), /no superar la producci.n/);
 });
