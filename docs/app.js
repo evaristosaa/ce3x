@@ -295,7 +295,10 @@ const SECTIONS = [
           col('energiaConsumidaGeneracionElectricidad', 'Energía consumida en generación de electricidad (kWh/año)'),
           col('combustible', 'Combustible', 'select', 'combustible'),
           col('produccionFotovoltaicaAnual', 'Producción fotovoltaica total (kWh/año)'),
+          col('produccionFotovoltaicaMensual', 'Producción de enero a diciembre (kWh/mes, separados por ;)'),
           col('autoconsumoFotovoltaicoAnual', 'Autoconsumo fotovoltaico computable en el CEE (kWh/año)'),
+          col('inclinacionFotovoltaica', 'Inclinación FV (°)'),
+          col('azimutFotovoltaico', 'Azimut FV (°; sur 0, oeste +90, este −90)'),
           col('potenciaFotovoltaica', 'Potencia fotovoltaica (kWp)'),
           col('autoconsumoFotovoltaicoMensual', 'Autoconsumo de enero a diciembre (kWh/mes, separados por ;)'),
         ],
@@ -1138,6 +1141,7 @@ function tableHtml(item, path, value) {
         </tbody>
       </table>
       <div class="table-actions">
+        ${path==='instalaciones.contribuciones.items'?'<label>Estimar autoconsumo de la fila seleccionada desde un XML sin fotovoltaica<input type="file" accept=".xml,text/xml,application/xml" data-pv-base-xml></label><p role="status" data-pv-status></p>':''}
         ${path==='envolvente.huecos.items'?'<button type="button" class="secondary" data-open-window>Propiedades térmicas</button><button type="button" class="secondary" data-open-solar>Protecciones solares</button>':''}
         <button type="button" class="secondary add-row-btn" data-add-row="${escapeHtml(path)}">Añadir fila</button>
         <button type="button" class="danger delete-row-btn" data-delete-rows="${escapeHtml(path)}" disabled>Eliminar fila</button>
@@ -1227,6 +1231,10 @@ sectionFields.addEventListener('click', event => {
 });
 
 sectionFields.addEventListener('change', event => {
+  if (event.target.matches('[data-pv-base-xml]')) {
+    estimatePhotovoltaicFromFile(event.target);
+    return;
+  }
   if (event.target.matches('[data-col="acumulacion"]')) {
     event.target.closest('td').querySelector('[data-acs-tank]').hidden = !acsHasTank(event.target.value);
   }
@@ -1252,6 +1260,81 @@ sectionFields.addEventListener('change', event => {
   const rowSelect = event.target.closest('[data-row-select]');
   if (rowSelect) updateTableSelectionState(rowSelect.closest('[data-table]'));
 });
+
+async function estimatePhotovoltaicFromFile(input) {
+  const table = input.closest('[data-table]');
+  const status = table.querySelector('[data-pv-status]');
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  const selected = [...table.querySelectorAll('tbody tr')].filter(row => row.querySelector('[data-row-select]').checked);
+  if (selected.length !== 1) {
+    status.textContent = 'Selecciona una sola fila fotovoltaica.';
+    return;
+  }
+  const row = selected[0];
+  const field = key => row.querySelector('[data-col="' + key + '"]');
+  const record = selectedRecordWithCurrentFormData();
+  try {
+    const xml = new DOMParser().parseFromString(await file.text(), 'application/xml');
+    if (!row.isConnected || selectedRecord()?.id !== record.id) return;
+    const demand = photovoltaicMonthlyDemand(xml, record.data);
+    const monthlyProduction = field('produccionFotovoltaicaMensual').value;
+    const monthly = photovoltaicMonthlyEstimate(demand, monthlyProduction, field('produccionFotovoltaicaAnual').value);
+    const total = (monthly.reduce((sum, value) => sum + value, 0) / 100).toFixed(2);
+    const formatted = monthly.map(value => (value / 100).toFixed(2)).join(';');
+    if (!window.confirm('Propuesta mensual: ' + formatted + ' kWh. Total: ' + total +
+        ' kWh/año. Es una estimación mensual. Confirma que el XML usa el mismo modelo de edificio e instalaciones.')) return;
+    field('autoconsumoFotovoltaicoMensual').value = formatted;
+    field('autoconsumoFotovoltaicoAnual').value = total;
+    status.textContent = 'Propuesta aplicada a la fila. Pulsa «Guardar detalle» para conservarla.';
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+
+function photovoltaicMonthlyDemand(xml, data) {
+  if (xml.documentElement?.localName !== 'DatosEnergeticosDelEdificio' || xml.querySelector('parsererror')) {
+    throw new Error('Selecciona un XML de resultados válido de CE³X.');
+  }
+  const reference = normalizeReference(data['admin.localizacion.referenciaCatastral']);
+  const refs = [...xml.querySelectorAll('ReferenciasCatastrales Ref')].map(ref =>
+    normalizeReference((ref.querySelector('Parcela')?.textContent || '') + (ref.querySelector('Inmueble')?.textContent || '')));
+  if (!reference || !refs.includes(reference)) throw new Error('La referencia del XML no coincide con la del expediente.');
+  if (xml.querySelector('GeneradorElectrico') || [...xml.querySelectorAll('EnergiaGeneradaAutoconsumida')].some(el => Number(el.textContent) > 0)) {
+    throw new Error('Usa un XML de partida calculado sin generación fotovoltaica.');
+  }
+  const area = Number(xml.querySelector('SuperficieUtil')?.textContent);
+  const recordedArea = Number(cexDecimal(data['generales.definicion.superficieUtilHabitable']));
+  if (!(area > 0) || Math.abs(area - recordedArea) > 0.01) throw new Error('Comprueba que la superficie habitable del XML coincida con la del expediente.');
+  const demand = Array(12).fill(0);
+  const components = [...xml.querySelectorAll('DatosBalance Componentes Datos Dato')];
+  if (!components.length) throw new Error('El XML no incluye los consumos mensuales de CE³X.');
+  for (const component of components) {
+    const value = tag => component.querySelector(tag)?.textContent.trim();
+    if (value('Vector') !== 'ELECTRICIDAD' || value('Tipo') !== 'CONSUMO' || value('Subtipo') !== 'EPB') continue;
+    const values = (value('Valores') || '').split(/\s+/).map(Number);
+    if (values.length !== 12 || values.some(n => !Number.isFinite(n) || n < 0)) {
+      throw new Error('El XML contiene una serie mensual de consumo incompleta.');
+    }
+    // CE³X reports each component to two decimals. Use the lower edge of
+    // that rounding interval to avoid exceeding its unrounded consumption.
+    values.forEach((n, index) => { demand[index] += Math.max(0, n - 0.005) * area; });
+  }
+  return demand;
+}
+
+function photovoltaicMonthlyEstimate(demand, monthlyProduction, annualProduction) {
+  const production = monthlyProduction.split(';').map(value => value.trim() ? Number(cexDecimal(value)) : NaN);
+  if (production.length !== 12 || production.some(n => !Number.isFinite(n) || n < 0)) {
+    throw new Error('Introduce doce valores mensuales de producción válidos, de enero a diciembre.');
+  }
+  const annual = Number(cexDecimal(annualProduction));
+  if (!(annual > 0) || Math.abs(production.reduce((sum, n) => sum + n, 0) - annual) > 0.12) {
+    throw new Error('La suma de la producción mensual debe coincidir con la producción anual indicada.');
+  }
+  return production.map((n, index) => Math.floor(Math.min(n, demand[index]) * 100 + 1e-8));
+}
 
 sectionFields.addEventListener('input', event => {
   const bridgeInput=event.target.closest('[data-col="fi"], [data-col="longitud"]');
@@ -3312,8 +3395,9 @@ async function openCertificateFolder() {
   }
 }
 
-async function saveCertificateResult(record, result) {
+async function saveCertificateResult(record, result, photovoltaicRows) {
   const dataPatch = {'informe.ultimaEmision': result};
+  if (photovoltaicRows) dataPatch['instalaciones.contribuciones.items'] = photovoltaicRows;
   if (!state.config.apiUrl) {
     const current = state.records.find(item => item.id === record.id) || record;
     saveLocalWorkspace({...current, estado: 'CERTIFICADO_GENERADO', data: {...current.data, ...dataPatch}});
@@ -3420,7 +3504,6 @@ async function collectDesktopXml(issuePdf = false) {
   showOperation(operationTitle, 'Preparando el CEX del expediente.');
   try {
     folder ||= await desktopReportFolder(false);
-    const text = normalizeCexLineEndings(await buildCex32ForExport(record));
     const jobName = 'CE3X-' + crypto.randomUUID();
     const label = fileSafe(recordLabel(record)).slice(0, 80);
     const archiveName = certificateResult(record)?.folder || label + ' [' + reference + ']';
@@ -3430,6 +3513,126 @@ async function collectDesktopXml(issuePdf = false) {
     const job = archive || await folder.getDirectoryHandle(jobName, { create: true });
     const sidecar = issuePdf ? name + '.report.json' : 'report.json';
     const ready = issuePdf ? name + '.ready' : 'ready';
+    const acceptNoImprovements = issuePdf && Boolean(issueWithoutImprovements?.checked);
+    if (issuePdf && issueWithoutImprovements) issueWithoutImprovements.checked = false;
+    const pass = {job, name, sidecar, ready, issuePdf, archive, saveImages: true, acceptNoImprovements,
+      progress, status, operationTitle, locationLabel: archive ? archiveName : jobName};
+    const finalRecord = issuePdf ? await prepareAutomaticPhotovoltaic(record, pass, version) : record;
+    const {file, documentXml} = await runDesktopXmlPass({...pass, record: finalRecord});
+    if (!issuePdf) downloadBlob(file, name + '.xml');
+    status.textContent = 'XML recogido de CE³X. También está disponible junto al CEX.';
+    result.rating = readDesktopRating(documentXml);
+    const child = (parent, name) => Array.from(parent?.children || []).find(node => node.localName === name);
+    const scale = child(child(child(documentXml.documentElement, 'Escalas'), 'Emisiones'), 'Tot');
+    result.scale = Array.from('ABCDEF', grade => child(scale, grade)?.textContent.trim()).filter(Boolean);
+    if (selectedRecord()?.id === record.id && state.activeSection === 'rating') renderDetail();
+    progress('XML recibido', 'XML_GENERADO');
+    if (issuePdf) {
+      progress('XML recibido · generando PDF');
+      showOperation(operationTitle, 'XML recibido. Generando y guardando el PDF.');
+      const pdf = await generateCertificatePdf(file);
+      const handle = await job.getFileHandle(name + '.pdf', {create: true});
+      const stream = await handle.createWritable();
+      await stream.write(pdf);
+      await stream.close();
+      status.textContent = 'CEX, XML y PDF guardados en ' + archiveName + '.';
+      try {
+        await saveCertificateResult(record, {
+          folder: archiveName, name, rating: result.rating, scale: result.scale
+        }, finalRecord !== record ? finalRecord.data['instalaciones.contribuciones.items'] : undefined);
+      } catch (error) {
+        progress('Archivos guardados; resultado sin confirmar');
+        showOperation('Archivos guardados', status.textContent + ' No se pudo confirmar el resultado en el expediente. ' + error.message, false);
+        return;
+      }
+      progress('CEX, XML y PDF disponibles', 'CERTIFICADO_GENERADO');
+      if (state.activeSection === 'rating') renderDetail();
+      showOperation('CEX, XML y PDF guardados', status.textContent, false);
+    } else {
+      document.querySelector('#operationDialog').close();
+      document.dispatchEvent(new CustomEvent('ce3x:xml-collected', {detail: file}));
+    }
+    return;
+  } catch (error) {
+    progress(result.rating ? 'XML recibido · PDF pendiente' : 'Trabajo pendiente');
+    status.textContent = error.name === 'AbortError' ? 'Selección de carpeta cancelada.' : error.message;
+    showOperation('Generación interrumpida', status.textContent, false);
+  } finally {
+    desktopXmlButton.disabled = false;
+    issueDesktopReportBtn.disabled = false;
+  }
+}
+
+async function prepareAutomaticPhotovoltaic(record, pass, version) {
+  const path = 'instalaciones.contribuciones.items';
+  if (!record.data[path]) return record;
+  const rows = cex32Table(record, path);
+  const pending = rows.filter(row => Number(cexDecimal(row.produccionFotovoltaicaAnual)) > 0 &&
+    !hasValue(row.autoconsumoFotovoltaicoAnual) && !hasValue(row.autoconsumoFotovoltaicoMensual));
+  if (!pending.length) return record;
+  if (pending.length !== 1 || rows.some(row => hasValue(row.autoconsumoFotovoltaicoMensual))) {
+    throw new Error('Para el cálculo automático, deja una sola instalación fotovoltaica pendiente de calcular.');
+  }
+  const row = pending[0];
+  const power = Number(cexDecimal(row.potenciaFotovoltaica));
+  if (!(power > 0) || !Number.isFinite(power)) throw new Error('Indica la potencia fotovoltaica en kWp.');
+  const annual = Number(cexDecimal(row.produccionFotovoltaicaAnual));
+  if (!Number.isFinite(annual)) throw new Error('Revisa la producción anual fotovoltaica.');
+  const angle = hasValue(row.inclinacionFotovoltaica) ? Number(cexDecimal(row.inclinacionFotovoltaica)) : 30;
+  const aspect = hasValue(row.azimutFotovoltaico) ? Number(cexDecimal(row.azimutFotovoltaico)) : 0;
+  let production = row.produccionFotovoltaicaMensual;
+  if (!hasValue(production)) {
+    if (!state.config.apiUrl) throw new Error('Configura Apps Script para consultar PVGIS o introduce la producción mensual.');
+    const data = record.data;
+    let coords = {x: data['catastro.x'], y: data['catastro.y'], srs: data['catastro.srs']};
+    if (!hasValue(coords.x) || !hasValue(coords.y) || coords.srs !== 'EPSG:4326') {
+      coords = await browserCatastroCoordinates(normalizeReference(data['admin.localizacion.referenciaCatastral']));
+    }
+    if (coords.srs !== 'EPSG:4326' || !hasValue(coords.x) || !hasValue(coords.y)) throw new Error('No se pudo obtener la ubicación para PVGIS.');
+    if (!window.confirm('Estimar el perfil solar con PVGIS. Inclinación: ' + angle + '°, azimut: ' + aspect +
+      '° (sur = 0°). Se ajustará a ' + annual + ' kWh/año.')) throw new DOMException('Cálculo fotovoltaico cancelado.', 'AbortError');
+    showOperation(pass.operationTitle, 'Consultando el perfil mensual de producción en PVGIS.');
+    const response = await api({action: 'pvgisMonthly', lat: coords.y, lon: coords.x, angle, aspect});
+    production = scalePhotovoltaicProfile(response.monthly, annual);
+  }
+  const baseName = fileSafe(recordLabel(record)).slice(0, 27) + '_BASE_' + version + '_CE3X-' + crypto.randomUUID();
+  const baseRecord = {...record, data: {...record.data, [path]: rows.filter(item => item !== row)}};
+  const {documentXml} = await runDesktopXmlPass({...pass, record: baseRecord, name: baseName,
+    sidecar: baseName + '.report.json', ready: baseName + '.ready', saveImages: false});
+  const monthly = photovoltaicMonthlyEstimate(photovoltaicMonthlyDemand(documentXml, record.data), production, annual);
+  const total = (monthly.reduce((sum, value) => sum + value, 0) / 100).toFixed(2);
+  const formatted = monthly.map(value => (value / 100).toFixed(2)).join(';');
+  if (!window.confirm('Autoconsumo estimado de enero a diciembre (kWh): ' + formatted +
+    '. Total anual: ' + total + ' kWh. Revisa la propuesta mensual antes de generar el XML final y el PDF.')) {
+    throw new DOMException('Cálculo fotovoltaico cancelado.', 'AbortError');
+  }
+  const updated = {...row, produccionFotovoltaicaMensual: production,
+    ...(hasValue(row.produccionFotovoltaicaMensual) ? {} : {inclinacionFotovoltaica: String(angle), azimutFotovoltaico: String(aspect)}),
+    autoconsumoFotovoltaicoAnual: total, autoconsumoFotovoltaicoMensual: formatted};
+  return {...record, data: {...record.data, [path]: rows.map(item => item === row ? updated : item)}};
+}
+
+function scalePhotovoltaicProfile(profile, annual) {
+  if (!Array.isArray(profile) || profile.length !== 12 || profile.some(value => !Number.isFinite(value) || value < 0)) {
+    throw new Error('PVGIS no devolvió doce valores mensuales válidos.');
+  }
+  const sum = profile.reduce((total, value) => total + value, 0);
+  if (!(sum > 0)) throw new Error('El perfil de PVGIS está vacío.');
+  const cents = Math.round(annual * 100);
+  let weight = 0;
+  let allocated = 0;
+  return profile.map(value => {
+    weight += value;
+    const next = Math.round(cents * weight / sum);
+    const month = next - allocated;
+    allocated = next;
+    return (month / 100).toFixed(2);
+  }).join(';');
+}
+
+async function runDesktopXmlPass({record, job, name, sidecar, ready, issuePdf, archive, saveImages,
+  acceptNoImprovements, progress, status, operationTitle, locationLabel}) {
+    const text = normalizeCexLineEndings(await buildCex32ForExport(record));
     progress('Preparando CEX');
     const cex = await job.getFileHandle(name + '.cex', { create: true });
     const writer = await cex.createWritable();
@@ -3444,11 +3647,10 @@ async function collectDesktopXml(issuePdf = false) {
       recommendations: record.data?.['admin.informe.recomendacionesUso'] || '',
       documentation: record.data?.['admin.informe.documentacion'] || '',
       autoSubmit: issuePdf,
-      acceptNoImprovements: issuePdf && Boolean(issueWithoutImprovements?.checked)
+      acceptNoImprovements: issuePdf && acceptNoImprovements
     }));
     await reportWriter.close();
-    if (issuePdf && issueWithoutImprovements) issueWithoutImprovements.checked = false;
-    if (issuePdf) {
+    if (archive && saveImages) {
       for (const [key, imageLabel] of [['imagenEdificio', 'fachada'], ['planoSituacion', 'plano']]) {
         const image = record.data?.['generales.definicion.' + key];
         if (typeof image !== 'string' || !/^data:image\/(png|jpeg);base64,/i.test(image)) continue;
@@ -3461,7 +3663,7 @@ async function collectDesktopXml(issuePdf = false) {
     }
     await job.getFileHandle(ready, { create: true });
     progress('Generando XML y PDF · esperando a CE³X', 'CEX_GENERADO');
-    status.textContent = 'CEX preparado en ' + (issuePdf ? archiveName : jobName) + '. El asistente abrirá CE³X para generar el informe.';
+    status.textContent = 'CEX preparado en ' + locationLabel + '. El asistente abrirá CE³X para generar el informe.';
 
     showOperation(operationTitle, 'CE³X está preparando el XML. Si aparece un aviso en CE³X, revísalo allí.');
     const deadline = Date.now() + 20 * 60 * 1000;
@@ -3473,57 +3675,14 @@ async function collectDesktopXml(issuePdf = false) {
         const documentXml = new DOMParser().parseFromString(await file.text(), 'application/xml');
         if (documentXml.documentElement.localName === 'DatosEnergeticosDelEdificio' &&
             !documentXml.doctype && !documentXml.getElementsByTagName('parsererror').length) {
-          if (!issuePdf) downloadBlob(file, name + '.xml');
-          status.textContent = 'XML recogido de CE³X. También está disponible junto al CEX.';
-          result.rating = readDesktopRating(documentXml);
-          const child = (parent, name) => Array.from(parent?.children || []).find(node => node.localName === name);
-          const scale = child(child(child(documentXml.documentElement, 'Escalas'), 'Emisiones'), 'Tot');
-          result.scale = Array.from('ABCDEF', grade => child(scale, grade)?.textContent.trim()).filter(Boolean);
-          if (selectedRecord()?.id === record.id && state.activeSection === 'rating') renderDetail();
-          progress('XML recibido', 'XML_GENERADO');
-          if (issuePdf) {
-            progress('XML recibido · generando PDF');
-            showOperation(operationTitle, 'XML recibido. Generando y guardando el PDF.');
-            const pdf = await generateCertificatePdf(file);
-            const handle = await job.getFileHandle(name + '.pdf', {create: true});
-            const stream = await handle.createWritable();
-            await stream.write(pdf);
-            await stream.close();
-            status.textContent = 'CEX, XML y PDF guardados en ' + archiveName + '.';
-            try {
-              await saveCertificateResult(record, {
-                folder: archiveName, name, rating: result.rating, scale: result.scale
-              });
-            } catch (error) {
-              progress('Archivos guardados; resultado sin confirmar');
-              showOperation('Archivos guardados', status.textContent + ' No se pudo confirmar el resultado en el expediente. ' + error.message, false);
-              return;
-            }
-            progress('CEX, XML y PDF disponibles', 'CERTIFICADO_GENERADO');
-            if (state.activeSection === 'rating') renderDetail();
-            showOperation('CEX, XML y PDF guardados', status.textContent, false);
-          } else {
-            document.querySelector('#operationDialog').close();
-            document.dispatchEvent(new CustomEvent('ce3x:xml-collected', {detail: file}));
-          }
-          return;
+          return {file, documentXml};
         }
       } catch (error) {
         if (!['NotFoundError', 'NotReadableError'].includes(error.name)) throw error;
       }
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    progress('Tiempo de espera agotado');
-    status.textContent = 'Terminó la espera. Si exportas el XML después, estará junto al CEX en ' + (issuePdf ? archiveName : jobName) + '.';
-    showOperation('CE³X no ha devuelto el XML a tiempo', status.textContent, false);
-  } catch (error) {
-    progress(result.rating ? 'XML recibido · PDF pendiente' : 'Trabajo pendiente');
-    status.textContent = error.name === 'AbortError' ? 'Selección de carpeta cancelada.' : error.message;
-    showOperation('Generación interrumpida', status.textContent, false);
-  } finally {
-    desktopXmlButton.disabled = false;
-    issueDesktopReportBtn.disabled = false;
-  }
+    throw new Error('CE³X no devolvió el XML a tiempo. Revisa el expediente en ' + locationLabel + '.');
 }
 
 async function buildCex32ForExport(record) {

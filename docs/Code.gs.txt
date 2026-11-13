@@ -233,6 +233,7 @@ function handle_(e) {
     if (action === 'compactSchema') return response_(request, { ok: true, result: compactSchema() });
     if (action === 'schemaStatus') return response_(request, { ok: true, result: schemaStatus_() });
     if (action === 'catastro') return response_(request, { ok: true, item: getCatastro_(request.reference || request.referenciaCatastral || '') });
+    if (action === 'pvgisMonthly') return response_(request, {ok: true, monthly: pvgisMonthly_(request)});
     if (action === 'markGenerated') {
       return response_(request, { ok: true, item: markGenerated_(request.id, request.filename) });
     }
@@ -242,6 +243,26 @@ function handle_(e) {
     request = request && Object.keys(request).length ? request : parseRequestQuiet_(e);
     return response_(request, { ok: false, error: String(error && error.message ? error.message : error) });
   }
+}
+
+function pvgisMonthly_(request) {
+  const fields = {lat: [27, 44], lon: [-19, 5], angle: [0, 90], aspect: [-180, 180]};
+  const parameters = Object.keys(fields).map(function(key) {
+    const value = Number(request[key]);
+    const bounds = fields[key];
+    if (request[key] == null || String(request[key]).trim() === '' || !Number.isFinite(value) || value < bounds[0] || value > bounds[1]) {
+      throw new Error('Revisa la ubicación y la orientación de los paneles.');
+    }
+    return key + '=' + value;
+  });
+  const url = 'https://re.jrc.ec.europa.eu/api/v5_3/PVcalc?outputformat=json&peakpower=1&loss=14&' + parameters.join('&');
+  const result = JSON.parse(UrlFetchApp.fetch(url).getContentText());
+  const months = result.outputs && result.outputs.monthly && result.outputs.monthly.fixed;
+  if (!Array.isArray(months) || months.length !== 12 ||
+      months.some(function(item, index) { return item.month !== index + 1 || !Number.isFinite(item.E_m) || item.E_m < 0; })) {
+    throw new Error('PVGIS no devolvió un perfil mensual válido.');
+  }
+  return months.map(function(item) { return item.E_m; });
 }
 
 function parseRequest_(e) {
