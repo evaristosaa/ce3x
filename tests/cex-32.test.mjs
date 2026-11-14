@@ -260,7 +260,7 @@ test('review metadata survives Sheets JSON serialization and cannot certify a ch
   const h=loadHelpers(),path='generales.definicion.superficieUtilHabitable',data={[path]:'100'};
   const checked=await h.reviewCheck(data,path,'Revisor','Plano');
   const {storage}=loadStorageWriteHelpers([]),restored=storage.rowToRecord_(storage.recordToRow_({id:'review',data:checked}),storage.HEADERS);
-  assert.equal(storage.HEADERS.length,114);assert.equal(storage.HEADERS[103],'revision.campos');assert.equal(storage.HEADERS.slice(0,103).includes('revision.campos'),false);
+  assert.equal(storage.HEADERS.length,120);assert.equal(storage.HEADERS[103],'revision.campos');assert.equal(storage.HEADERS.slice(0,103).includes('revision.campos'),false);
   assert.equal((await h.reviewStatus(restored.data,path)).checked,true);
   restored.data[path]='200';assert.equal((await h.reviewStatus(restored.data,path)).checked,false);
   const corrupted=structuredClone(data);corrupted['revision.campos']='invalid';
@@ -313,7 +313,7 @@ test('latest complete certificate survives a Sheets row round trip', () => {
   assert.deepEqual(plain(storage.rowToRecord_(row, storage.HEADERS).data[key]), latest);
 });
 
-test('review schema migration backs up first, appends columns 104 through 114 and leaves historical columns untouched',()=>{
+test('review schema migration backs up first, appends columns 104 through 120 and leaves historical columns untouched',()=>{
   const old=JSON.parse(readFileSync(new URL('fixtures/sheet-headers-103.json',import.meta.url),'utf8'));
   const context={};vm.createContext(context);
   vm.runInContext(readFileSync(new URL('../google-apps-script/Code.gs',import.meta.url),'utf8')+'\nglobalThis.expected=HEADERS;globalThis.migrate=migrateSchema32;',context);
@@ -323,7 +323,7 @@ test('review schema migration backs up first, appends columns 104 through 114 an
   context.LockService={getScriptLock:()=>({waitLock(){},releaseLock(){}})};context.sheet=sheet;context.headers=()=>headers;context.backup=()=>{log.push({backup:true});return 'backup-review';};
   vm.runInContext('getSheet_=()=>sheet;getHeaderRow_=()=>headers();backupSheet_=()=>backup();schemaStatus_=()=>({clean:isCleanSchema_(headers())});',context);
   const result=context.migrate();assert.equal(result.clean,true);assert.equal(result.backupSheet,'backup-review');assert.equal(log[0].backup,true);
-  const writes=log.filter(item=>item.write);assert.equal(writes.length,1);assert.deepEqual(writes[0].write,[1,104,1,11]);assert.deepEqual(plain(writes[0].values),[['revision.campos','admin.informe.fechaVisita','admin.informe.observaciones','admin.informe.fechaEmision','admin.informe.recomendacionesUso','admin.informe.documentacion','informe.ultimaEmision','generales.definicion.superficieUtilCertificada','generales.definicion.numeroViviendas','generales.definicion.plantasBajoRasante','generales.definicion.plantasSobreRasante']]);
+  const writes=log.filter(item=>item.write);assert.equal(writes.length,1);assert.deepEqual(writes[0].write,[1,104,1,17]);assert.deepEqual(plain(writes[0].values),[['revision.campos','admin.informe.fechaVisita','admin.informe.observaciones','admin.informe.fechaEmision','admin.informe.recomendacionesUso','admin.informe.documentacion','informe.ultimaEmision','generales.definicion.superficieUtilCertificada','generales.definicion.numeroViviendas','generales.definicion.plantasBajoRasante','generales.definicion.plantasSobreRasante','admin.informe.compararFotovoltaica','admin.informe.anteriorFechaEmision','admin.informe.anteriorFechaVisita','admin.informe.anteriorObservaciones','admin.informe.anteriorRecomendacionesUso','admin.informe.anteriorDocumentacion']]);
   assert.deepEqual(headers.slice(0,103),old);const count=log.length;context.migrate();assert.equal(log.length,count);
 });
 

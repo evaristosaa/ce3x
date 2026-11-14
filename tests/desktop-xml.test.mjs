@@ -123,6 +123,61 @@ for (const issue of [false, true]) test(issue ? 'issue files are archived under 
 });
 
 
+test('paired photovoltaic reports calculate the baseline with earlier report data', async () => {
+  const source = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
+  const start = source.indexOf('function photovoltaicComparisonIssues(');
+  const end = source.indexOf('async function runDesktopXmlPass(', start);
+  const path = 'instalaciones.contribuciones.items';
+  const prefix = 'admin.informe.';
+  const row = {potenciaFotovoltaica: '4,8', produccionFotovoltaicaAnual: '8021,29',
+    produccionFotovoltaicaMensual: 'old', autoconsumoFotovoltaicoAnual: '3300'};
+  const data = {[path]: [row], 'catastro.x': '-6.06', 'catastro.y': '37.34', 'catastro.srs': 'EPSG:4326',
+    [prefix + 'compararFotovoltaica']: 'Sí', [prefix + 'fechaEmision']: '2026-11-13',
+    [prefix + 'fechaVisita']: '2026-11-12', [prefix + 'observaciones']: 'Posterior',
+    [prefix + 'anteriorFechaEmision']: '2026-04-29', [prefix + 'anteriorFechaVisita']: '2026-04-28',
+    [prefix + 'anteriorObservaciones']: 'Anterior'};
+  const baseXml = {};
+  const previous = {};
+  let pvgisCalls = 0;
+  const context = vm.createContext({
+    cex32Table: (record, key) => record.data[key], cexDecimal: value => String(value ?? '').replace(',', '.'),
+    hasValue: value => Boolean(value), window: {confirm: () => true}, showOperation() {},
+    state: {config: {apiUrl: 'test'}}, fileSafe: value => value, recordLabel: () => 'Calipso',
+    crypto: {randomUUID: () => 'test'},
+    api: async request => {
+      assert.equal(request.action, 'pvgisMonthly');
+      assert.equal(request.lat, '37.34');
+      pvgisCalls++;
+      return {monthly: Array(12).fill(1)};
+    },
+    runDesktopXmlPass: async ({record, name}) => {
+      assert.match(name, /_ANTERIOR_/);
+      assert.equal(record.data[path].length, 0);
+      assert.equal(record.data[prefix + 'fechaEmision'], '2026-04-29');
+      assert.equal(record.data[prefix + 'fechaVisita'], '2026-04-28');
+      assert.equal(record.data[prefix + 'observaciones'], 'Anterior');
+      return {file: baseXml, documentXml: baseXml};
+    },
+    photovoltaicMonthlyDemand: xml => {
+      assert.equal(xml, baseXml);
+      return Array(12).fill(250);
+    },
+    record: {data}, previous
+  });
+  const estimate = source.slice(source.indexOf('function photovoltaicMonthlyEstimate('),
+    source.indexOf("sectionFields.addEventListener('input', event =>", source.indexOf('function photovoltaicMonthlyEstimate(')));
+  const final = await vm.runInContext(source.slice(start, end) + estimate +
+    '\nif (photovoltaicComparisonIssues(record.data).length) throw new Error("Invalid dates");' +
+    '\nprepareAutomaticPhotovoltaic(record, {}, "version", previous)', context);
+  assert.equal(pvgisCalls, 1);
+  assert.equal(previous.file, baseXml);
+  assert.equal(final.data[prefix + 'fechaEmision'], '2026-11-13');
+  assert.equal(final.data[prefix + 'observaciones'], 'Posterior');
+  assert.equal(final.data[path][0].autoconsumoFotovoltaicoAnual, '3000.00');
+  assert.equal(Math.round(final.data[path][0].produccionFotovoltaicaMensual.split(';').map(Number).reduce((sum, value) => sum + value) * 100), 802129);
+  assert.equal(row.autoconsumoFotovoltaicoAnual, '3300');
+});
+
 test('home state uses the persisted certificate after reload', () => {
   const source = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
   const getFunction = (name, next) => source.slice(source.indexOf('function ' + name + '('), source.indexOf(next));

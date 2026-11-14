@@ -788,6 +788,8 @@ dialog::backdrop {
   gap: 18px;
 }
 .report-settings-column { display: grid; align-content: start; gap: 1rem; min-width: 0; }
+.report-settings-heading { grid-column: 1 / -1; margin: 0; }
+.report-settings [hidden] { display: none; }
 .report-settings-column label { display: grid; gap: .4rem; }
 .report-settings-column .report-no-improvements { display: flex; align-items: flex-start; gap: .55rem; }
 .report-no-improvements[hidden] { display: none; }
