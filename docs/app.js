@@ -139,11 +139,17 @@ const SECTIONS = [
       field('titulacion', 'Titulación habilitante según normativa vigente', 'select', { optionsKey: 'titulacion' }),
     ]),
     group('informe', 'Datos del informe', [], [
+      field('compararFotovoltaica', 'Generar informe anterior y posterior a la contribución energética', 'select', {optionsKey: 'ensayoEstanqueidad'}),
       field('fechaEmision', 'Fecha de emisión', 'date'),
       field('fechaVisita', 'Fecha de visita', 'date'),
       field('observaciones', 'Pruebas, comprobaciones e inspecciones', 'textarea'),
       field('recomendacionesUso', 'Recomendaciones para un uso eficiente', 'textarea'),
       field('documentacion', 'Documentación', 'textarea'),
+      field('anteriorFechaEmision', 'Fecha de emisión', 'date'),
+      field('anteriorFechaVisita', 'Fecha de visita', 'date'),
+      field('anteriorObservaciones', 'Pruebas, comprobaciones e inspecciones', 'textarea'),
+      field('anteriorRecomendacionesUso', 'Recomendaciones para un uso eficiente', 'textarea'),
+      field('anteriorDocumentacion', 'Documentación', 'textarea'),
     ]),
   ]),
   section('generales', 'Datos generales', [
@@ -960,11 +966,22 @@ function renderDetail() {
     }
     const reportText = isReport ? document.createElement('div') : null;
     const reportDates = isReport ? document.createElement('div') : null;
+    const previousText = isReport ? document.createElement('div') : null;
+    const previousDates = isReport ? document.createElement('div') : null;
     if (isReport) {
       fieldset.classList.add('report-settings');
-      reportText.className = 'report-settings-column';
-      reportDates.className = 'report-settings-column';
-      fieldset.append(reportText, reportDates);
+      for (const column of [reportText, reportDates, previousText, previousDates]) column.className = 'report-settings-column';
+      const previousTitle = document.createElement('h3');
+      previousTitle.textContent = 'Datos del informe anterior';
+      previousTitle.className = 'report-settings-heading';
+      const currentTitle = document.createElement('h3');
+      currentTitle.textContent = 'Datos del informe posterior';
+      currentTitle.className = 'report-settings-heading';
+      for (const node of [previousTitle, previousText, previousDates, currentTitle]) {
+        node.dataset.previousReport = '';
+        node.hidden = data['admin.informe.compararFotovoltaica'] !== 'Sí';
+      }
+      fieldset.append(previousTitle, previousText, previousDates, currentTitle, reportText, reportDates);
     }
     groupItem.fields.forEach(item => {
       const path = `${sectionItem.id}.${groupItem.id}.${item.id}`;
@@ -972,7 +989,13 @@ function renderDetail() {
       wrapper.className = item.type === 'table' ? 'table-label' : '';
       const value = data[path];
       wrapper.innerHTML = `<span>${escapeHtml(item.label)}</span>${inputHtml(item, path, value)}`;
-      const container = isReport ? (item.type === 'date' ? reportDates : reportText)
+      if (isReport && item.id === 'compararFotovoltaica') {
+        wrapper.classList.add('report-settings-heading');
+        fieldset.insertBefore(wrapper, fieldset.children[1]);
+        return;
+      }
+      const earlier = item.id.startsWith('anterior');
+      const container = isReport ? (item.type === 'date' ? (earlier ? previousDates : reportDates) : (earlier ? previousText : reportText))
         : buildingImages && item.type === 'image' ? buildingImages : fieldset;
       container.appendChild(wrapper);
     });
@@ -1231,6 +1254,11 @@ sectionFields.addEventListener('click', event => {
 });
 
 sectionFields.addEventListener('change', event => {
+  if (event.target.name === 'admin.informe.compararFotovoltaica') {
+    for (const field of sectionFields.querySelectorAll('[data-previous-report]')) {
+      field.hidden = event.target.value !== 'Sí';
+    }
+  }
   if (event.target.matches('[data-pv-base-xml]')) {
     estimatePhotovoltaicFromFile(event.target);
     return;
@@ -3373,11 +3401,14 @@ async function openCertificateFolder() {
       throw new Error('Autoriza la carpeta de trabajo en Configuración.');
     }
     const folder = await root.getDirectoryHandle(result.folder);
-    for (const extension of ['cex', 'xml', 'pdf']) {
-      const name = result.name + '.' + extension;
+    const editions = result.previous?.name
+      ? [[result.previous.name, ' anterior'], [result.name, ' posterior']]
+      : [[result.name, '']];
+    for (const [stem, suffix] of editions) for (const extension of ['cex', 'xml', 'pdf']) {
+      const name = stem + '.' + extension;
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = 'Descargar ' + extension.toUpperCase();
+      button.textContent = 'Descargar ' + extension.toUpperCase() + suffix;
       button.onclick = async () => {
         try {
           const file = await (await folder.getFileHandle(name)).getFile();
@@ -3470,6 +3501,9 @@ async function collectDesktopXml(issuePdf = false) {
     if (reference && !/^[A-Z0-9]{20}$/.test(reference)) blockers.push('Indica una referencia catastral válida de 20 caracteres.');
     if (!data['admin.informe.fechaVisita']) blockers.push('Configuración del informe: indica la fecha de visita.');
     if (!String(data['admin.informe.observaciones'] || '').trim()) blockers.push('Configuración del informe: indica las pruebas, comprobaciones e inspecciones.');
+    if (data['admin.informe.compararFotovoltaica'] === 'Sí') {
+      blockers.push(...photovoltaicComparisonIssues(data));
+    }
     if (location.hostname === 'evaristosaa.github.io' && !state.config.pdfKey) blockers.push('Guarda la clave de Render en Configuración.');
     try {
       folder = await desktopReportFolder(true);
@@ -3508,7 +3542,8 @@ async function collectDesktopXml(issuePdf = false) {
     const label = fileSafe(recordLabel(record)).slice(0, 80);
     const archiveName = certificateResult(record)?.folder || label + ' [' + reference + ']';
     const version = issuePdf ? new Date(Date.now()).toISOString().slice(0, 19).replace(/[:T]/g, '-') : '';
-    const name = issuePdf ? label.slice(0, 32) + '_' + version + '_' + jobName : label;
+    const compare = issuePdf && record.data['admin.informe.compararFotovoltaica'] === 'Sí';
+    const name = issuePdf ? label.slice(0, 32) + (compare ? '_POSTERIOR_' : '_') + version + '_' + jobName : label;
     const archive = issuePdf ? await folder.getDirectoryHandle(archiveName, {create: true}) : null;
     const job = archive || await folder.getDirectoryHandle(jobName, { create: true });
     const sidecar = issuePdf ? name + '.report.json' : 'report.json';
@@ -3517,7 +3552,8 @@ async function collectDesktopXml(issuePdf = false) {
     if (issuePdf && issueWithoutImprovements) issueWithoutImprovements.checked = false;
     const pass = {job, name, sidecar, ready, issuePdf, archive, saveImages: true, acceptNoImprovements,
       progress, status, operationTitle, locationLabel: archive ? archiveName : jobName};
-    const finalRecord = issuePdf ? await prepareAutomaticPhotovoltaic(record, pass, version) : record;
+    const previous = {};
+    const finalRecord = issuePdf ? await prepareAutomaticPhotovoltaic(record, pass, version, previous) : record;
     const {file, documentXml} = await runDesktopXmlPass({...pass, record: finalRecord});
     if (!issuePdf) downloadBlob(file, name + '.xml');
     status.textContent = 'XML recogido de CE³X. También está disponible junto al CEX.';
@@ -3529,16 +3565,24 @@ async function collectDesktopXml(issuePdf = false) {
     progress('XML recibido', 'XML_GENERADO');
     if (issuePdf) {
       progress('XML recibido · generando PDF');
-      showOperation(operationTitle, 'XML recibido. Generando y guardando el PDF.');
+      showOperation(operationTitle, previous.file ? 'Generando y guardando los PDF anterior y posterior.' : 'XML recibido. Generando y guardando el PDF.');
       const pdf = await generateCertificatePdf(file);
       const handle = await job.getFileHandle(name + '.pdf', {create: true});
       const stream = await handle.createWritable();
       await stream.write(pdf);
       await stream.close();
-      status.textContent = 'CEX, XML y PDF guardados en ' + archiveName + '.';
+      if (previous.file) {
+        const earlierPdf = await generateCertificatePdf(previous.file);
+        const earlierHandle = await job.getFileHandle(previous.name + '.pdf', {create: true});
+        const earlierStream = await earlierHandle.createWritable();
+        await earlierStream.write(earlierPdf);
+        await earlierStream.close();
+      }
+      status.textContent = 'CEX, XML y PDF ' + (previous.file ? 'anterior y posterior guardados en ' : 'guardados en ') + archiveName + '.';
       try {
         await saveCertificateResult(record, {
-          folder: archiveName, name, rating: result.rating, scale: result.scale
+          folder: archiveName, name, rating: result.rating, scale: result.scale,
+          ...(previous.name ? {previous: {name: previous.name}} : {})
         }, finalRecord !== record ? finalRecord.data['instalaciones.contribuciones.items'] : undefined);
       } catch (error) {
         progress('Archivos guardados; resultado sin confirmar');
@@ -3555,7 +3599,7 @@ async function collectDesktopXml(issuePdf = false) {
     return;
   } catch (error) {
     progress(result.rating ? 'XML recibido · PDF pendiente' : 'Trabajo pendiente');
-    status.textContent = error.name === 'AbortError' ? 'Selección de carpeta cancelada.' : error.message;
+    status.textContent = error.message || 'Generación cancelada.';
     showOperation('Generación interrumpida', status.textContent, false);
   } finally {
     desktopXmlButton.disabled = false;
@@ -3563,14 +3607,32 @@ async function collectDesktopXml(issuePdf = false) {
   }
 }
 
-async function prepareAutomaticPhotovoltaic(record, pass, version) {
+function photovoltaicComparisonIssues(data) {
+  const issues = [];
+  const prefix = 'admin.informe.';
+  const anterior = data[prefix + 'anteriorFechaEmision'];
+  const posterior = data[prefix + 'fechaEmision'];
+  if (!anterior || !posterior || anterior >= posterior) issues.push('Indica dos fechas reales de emisión y comprueba que la anterior preceda a la posterior.');
+  if (!data[prefix + 'anteriorFechaVisita'] || !String(data[prefix + 'anteriorObservaciones'] || '').trim()) {
+    issues.push('Completa la fecha de visita y las comprobaciones del informe anterior.');
+  }
+  for (const [visit, issue] of [[data[prefix + 'anteriorFechaVisita'], anterior], [data[prefix + 'fechaVisita'], posterior]]) {
+    if (visit && issue && visit > issue) issues.push('La visita debe ser anterior o del mismo día que la emisión correspondiente.');
+  }
+  return issues;
+}
+
+async function prepareAutomaticPhotovoltaic(record, pass, version, previous = {}) {
   const path = 'instalaciones.contribuciones.items';
-  if (!record.data[path]) return record;
+  const compare = record.data['admin.informe.compararFotovoltaica'] === 'Sí';
+  if (!record.data[path] && !compare) return record;
   const rows = cex32Table(record, path);
   const pending = rows.filter(row => Number(cexDecimal(row.produccionFotovoltaicaAnual)) > 0 &&
-    !hasValue(row.autoconsumoFotovoltaicoAnual) && !hasValue(row.autoconsumoFotovoltaicoMensual));
+    (compare || Number(cexDecimal(row.potenciaFotovoltaica)) > 0 ||
+      (!hasValue(row.autoconsumoFotovoltaicoAnual) && !hasValue(row.autoconsumoFotovoltaicoMensual))));
+  if (compare && !pending.length) throw new Error('Indica la potencia y producción anual de la fotovoltaica en Instalaciones.');
   if (!pending.length) return record;
-  if (pending.length !== 1 || rows.some(row => hasValue(row.autoconsumoFotovoltaicoMensual))) {
+  if (pending.length !== 1 || rows.some(row => row !== pending[0] && hasValue(row.autoconsumoFotovoltaicoMensual))) {
     throw new Error('Para el cálculo automático, deja una sola instalación fotovoltaica pendiente de calcular.');
   }
   const row = pending[0];
@@ -3580,7 +3642,7 @@ async function prepareAutomaticPhotovoltaic(record, pass, version) {
   if (!Number.isFinite(annual)) throw new Error('Revisa la producción anual fotovoltaica.');
   const angle = hasValue(row.inclinacionFotovoltaica) ? Number(cexDecimal(row.inclinacionFotovoltaica)) : 30;
   const aspect = hasValue(row.azimutFotovoltaico) ? Number(cexDecimal(row.azimutFotovoltaico)) : 0;
-  let production = row.produccionFotovoltaicaMensual;
+  let production = state.config.apiUrl ? '' : row.produccionFotovoltaicaMensual;
   if (!hasValue(production)) {
     if (!state.config.apiUrl) throw new Error('Configura Apps Script para consultar PVGIS o introduce la producción mensual.');
     const data = record.data;
@@ -3589,25 +3651,32 @@ async function prepareAutomaticPhotovoltaic(record, pass, version) {
       coords = await browserCatastroCoordinates(normalizeReference(data['admin.localizacion.referenciaCatastral']));
     }
     if (coords.srs !== 'EPSG:4326' || !hasValue(coords.x) || !hasValue(coords.y)) throw new Error('No se pudo obtener la ubicación para PVGIS.');
-    if (!window.confirm('Estimar el perfil solar con PVGIS. Inclinación: ' + angle + '°, azimut: ' + aspect +
+    if (!compare && !window.confirm('Estimar el perfil solar con PVGIS. Inclinación: ' + angle + '°, azimut: ' + aspect +
       '° (sur = 0°). Se ajustará a ' + annual + ' kWh/año.')) throw new DOMException('Cálculo fotovoltaico cancelado.', 'AbortError');
     showOperation(pass.operationTitle, 'Consultando el perfil mensual de producción en PVGIS.');
     const response = await api({action: 'pvgisMonthly', lat: coords.y, lon: coords.x, angle, aspect});
     production = scalePhotovoltaicProfile(response.monthly, annual);
   }
-  const baseName = fileSafe(recordLabel(record)).slice(0, 27) + '_BASE_' + version + '_CE3X-' + crypto.randomUUID();
-  const baseRecord = {...record, data: {...record.data, [path]: rows.filter(item => item !== row)}};
-  const {documentXml} = await runDesktopXmlPass({...pass, record: baseRecord, name: baseName,
+  const baseName = fileSafe(recordLabel(record)).slice(0, 27) + (compare ? '_ANTERIOR_' : '_BASE_') + version + '_CE3X-' + crypto.randomUUID();
+  const baseData = {...record.data, [path]: rows.filter(item => item !== row)};
+  if (compare) {
+    for (const field of ['FechaEmision', 'FechaVisita', 'Observaciones', 'RecomendacionesUso', 'Documentacion']) {
+      baseData['admin.informe.' + field[0].toLowerCase() + field.slice(1)] = record.data['admin.informe.anterior' + field] || '';
+    }
+  }
+  const baseRecord = {...record, data: baseData};
+  const {file, documentXml} = await runDesktopXmlPass({...pass, record: baseRecord, name: baseName,
     sidecar: baseName + '.report.json', ready: baseName + '.ready', saveImages: false});
+  if (compare) Object.assign(previous, {name: baseName, file});
   const monthly = photovoltaicMonthlyEstimate(photovoltaicMonthlyDemand(documentXml, record.data), production, annual);
   const total = (monthly.reduce((sum, value) => sum + value, 0) / 100).toFixed(2);
   const formatted = monthly.map(value => (value / 100).toFixed(2)).join(';');
-  if (!window.confirm('Autoconsumo estimado de enero a diciembre (kWh): ' + formatted +
+  if (!compare && !window.confirm('Autoconsumo estimado de enero a diciembre (kWh): ' + formatted +
     '. Total anual: ' + total + ' kWh. Revisa la propuesta mensual antes de generar el XML final y el PDF.')) {
     throw new DOMException('Cálculo fotovoltaico cancelado.', 'AbortError');
   }
   const updated = {...row, produccionFotovoltaicaMensual: production,
-    ...(hasValue(row.produccionFotovoltaicaMensual) ? {} : {inclinacionFotovoltaica: String(angle), azimutFotovoltaico: String(aspect)}),
+    ...(state.config.apiUrl ? {inclinacionFotovoltaica: String(angle), azimutFotovoltaico: String(aspect)} : {}),
     autoconsumoFotovoltaicoAnual: total, autoconsumoFotovoltaicoMensual: formatted};
   return {...record, data: {...record.data, [path]: rows.map(item => item === row ? updated : item)}};
 }

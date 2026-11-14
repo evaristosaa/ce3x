@@ -27,6 +27,11 @@ const LEGACY_RAW_JSON_HEADERS = [
 const REPORT_DATA_PATHS = ['admin.informe.fechaVisita', 'admin.informe.observaciones',
   'admin.informe.fechaEmision', 'admin.informe.recomendacionesUso', 'admin.informe.documentacion'];
 const CERTIFICATE_DATA_PATHS = ['generales.definicion.superficieUtilCertificada', 'generales.definicion.numeroViviendas', 'generales.definicion.plantasBajoRasante', 'generales.definicion.plantasSobreRasante'];
+const COMPARISON_REPORT_PATHS = [
+  'admin.informe.compararFotovoltaica', 'admin.informe.anteriorFechaEmision',
+  'admin.informe.anteriorFechaVisita', 'admin.informe.anteriorObservaciones',
+  'admin.informe.anteriorRecomendacionesUso', 'admin.informe.anteriorDocumentacion',
+];
 const SCALAR_DATA_PATHS = [
   'cex.sourceVersion',
   'cex.nativeInputs',
@@ -81,7 +86,7 @@ const SCALAR_DATA_PATHS = [
   'catastro.superficiePlantaMayor',
   'catastro.parcelasColindantes',
   'catastro.fachadasExpuestas',
-].concat(REPORT_DATA_PATHS, CERTIFICATE_DATA_PATHS);
+].concat(REPORT_DATA_PATHS, CERTIFICATE_DATA_PATHS, COMPARISON_REPORT_PATHS);
 const JSON_DATA_PATHS = [
   'informe.ultimaEmision',
   'revision.campos',
@@ -136,7 +141,7 @@ const BASE_HEADERS = [
 const CEX32_DATA_PATHS = ['cex.sourceVersion', 'cex.nativeInputs',
   'admin.localizacion.gradoProteccion', 'admin.localizacion.usoEdificio', 'admin.cliente.nif'];
 const HEADERS = BASE_HEADERS.concat(
-  SCALAR_DATA_PATHS.filter(path => !CEX32_DATA_PATHS.includes(path) && !REPORT_DATA_PATHS.includes(path) && !CERTIFICATE_DATA_PATHS.includes(path)),
+  SCALAR_DATA_PATHS.filter(path => !CEX32_DATA_PATHS.includes(path) && !REPORT_DATA_PATHS.includes(path) && !CERTIFICATE_DATA_PATHS.includes(path) && !COMPARISON_REPORT_PATHS.includes(path)),
   JSON_DATA_PATHS.filter(path=>!['revision.campos','informe.ultimaEmision'].includes(path)),
   LONG_TEXT_CHUNK_HEADERS.filter(path => path.indexOf('cex.nativeInputs#') !== 0),
   CEX32_DATA_PATHS,
@@ -144,7 +149,8 @@ const HEADERS = BASE_HEADERS.concat(
   ['revision.campos'],
   REPORT_DATA_PATHS,
   ['informe.ultimaEmision'],
-  CERTIFICATE_DATA_PATHS
+  CERTIFICATE_DATA_PATHS,
+  COMPARISON_REPORT_PATHS
 );
 
 function setup() {
